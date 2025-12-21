@@ -75,7 +75,7 @@ npm run lint && npm test
 git commit -m "Add your-module"
 ```
 
-CI will automatically run lint, typecheck, and tests on your PR.
+CI will automatically run lint, type-check, and tests on your PR.
 
 ## Requirements
 
