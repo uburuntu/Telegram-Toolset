@@ -525,22 +525,9 @@ class ResendService {
   }
 
   /**
-   * Format date with timezone
-   * Supports both IANA timezone names (preferred) and legacy numeric offsets
+   * Format date with IANA timezone
    */
-  private formatDate(date: Date, timezone?: string | number): string {
-    // Handle legacy numeric offset (hours from UTC)
-    if (typeof timezone === 'number') {
-      const adjustedDate = new Date(date.getTime() + timezone * 60 * 60 * 1000)
-      const year = adjustedDate.getUTCFullYear()
-      const month = adjustedDate.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
-      const day = adjustedDate.getUTCDate().toString().padStart(2, '0')
-      const hours = adjustedDate.getUTCHours().toString().padStart(2, '0')
-      const minutes = adjustedDate.getUTCMinutes().toString().padStart(2, '0')
-      return `${year} ${month} ${day}, ${hours}:${minutes}`
-    }
-
-    // Use IANA timezone name (or browser default)
+  private formatDate(date: Date, timezone?: string): string {
     const tz = timezone || getBrowserTimezone()
     try {
       return new Intl.DateTimeFormat('en-US', {
