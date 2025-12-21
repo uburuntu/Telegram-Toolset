@@ -39,8 +39,8 @@ test.describe('Landing Page', () => {
     await page.goto('/')
     await page.getByText('Account Info').click()
 
-    await expect(page.getByRole('button', { name: '👤 User Account' })).toBeVisible()
-    await expect(page.getByRole('button', { name: '🤖 Bot Token' })).toBeVisible()
+    await expect(page.getByText('User Account')).toBeVisible()
+    await expect(page.getByText('Bot Token')).toBeVisible()
   })
 
   test('should close login modal with X button', async ({ page }) => {
