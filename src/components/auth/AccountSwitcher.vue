@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAccountsStore, useUiStore } from '@/stores'
 
+const { t } = useI18n()
 const accountsStore = useAccountsStore()
 const uiStore = useUiStore()
 
@@ -34,14 +36,14 @@ function addBotAccount(): void {
 
 function removeAccount(id: string, event: Event): void {
   event.stopPropagation()
-  if (confirm('Remove this account?')) {
+  if (confirm(t('accounts.removeAccount') + '?')) {
     accountsStore.removeAccount(id)
   }
 }
 
 const displayName = computed(() => {
   if (!accountsStore.activeAccount) {
-    return 'Not logged in'
+    return t('accounts.notLoggedIn')
   }
   // Use firstName if available (from Telegram API), otherwise fall back to label
   return accountsStore.activeAccount.firstName || accountsStore.activeAccount.label
@@ -94,7 +96,7 @@ const displayIcon = computed(() => {
         <!-- Account List -->
         <div v-if="accountsStore.accounts.length > 0" class="p-1.5">
           <p class="px-2.5 py-1 text-xs font-medium text-gray-400 uppercase tracking-wide">
-            Accounts
+            {{ t('common.accounts') }}
           </p>
 
           <button
@@ -118,7 +120,11 @@ const displayIcon = computed(() => {
               <div class="text-xs text-gray-500 truncate">
                 <span v-if="account.username">@{{ account.username }}</span>
                 <span v-else-if="account.phone">{{ account.phone }}</span>
-                <span v-else>{{ account.type === 'bot' ? 'Bot' : 'User' }}</span>
+                <span v-else>{{
+                  account.type === 'bot'
+                    ? t('accountInfo.botAccount')
+                    : t('accountInfo.userAccount')
+                }}</span>
               </div>
             </div>
             <div class="flex items-center gap-1">
@@ -126,12 +132,12 @@ const displayIcon = computed(() => {
                 v-if="account.id === accountsStore.activeAccountId"
                 class="text-xs text-blue-600 dark:text-blue-400"
               >
-                Active
+                {{ t('accounts.active') }}
               </span>
               <button
                 @click="removeAccount(account.id, $event)"
                 class="p-1 text-gray-400 hover:text-red-500 transition-colors duration-100"
-                title="Remove account"
+                :title="t('accounts.removeAccount')"
               >
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -159,14 +165,18 @@ const displayIcon = computed(() => {
             class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-100"
           >
             <span class="text-base">➕</span>
-            <span class="text-sm text-gray-700 dark:text-gray-300">Add User Account</span>
+            <span class="text-sm text-gray-700 dark:text-gray-300">{{
+              t('accounts.addUserAccount')
+            }}</span>
           </button>
           <button
             @click="addBotAccount"
             class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-100"
           >
             <span class="text-base">🤖</span>
-            <span class="text-sm text-gray-700 dark:text-gray-300">Add Bot Token</span>
+            <span class="text-sm text-gray-700 dark:text-gray-300">{{
+              t('accounts.addBotToken')
+            }}</span>
           </button>
         </div>
       </div>

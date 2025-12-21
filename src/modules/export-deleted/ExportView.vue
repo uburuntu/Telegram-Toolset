@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useBackupsStore, useUiStore } from '@/stores'
 import { telegramService } from '@/services/telegram/client'
 import { backupManager } from '@/services/storage/backup-manager'
@@ -11,6 +12,7 @@ import { formatDuration } from '@/services/telegram/rate-limiter'
 import { toUserFriendlyError } from '@/utils/error-messages'
 import type { ChatInfo, ExportConfig, ExportProgress, BackupWithMessages } from '@/types'
 
+const { t } = useI18n()
 const router = useRouter()
 const backupsStore = useBackupsStore()
 const uiStore = useUiStore()
@@ -26,26 +28,18 @@ const isLoading = ref(false)
 const error = ref('')
 const isDownloadingZip = ref(false)
 
+// Date preset options (values only, labels come from i18n)
+const datePresets = ['custom', '7days', '30days', '90days', 'thisMonth', 'lastMonth'] as const
+type DatePreset = (typeof datePresets)[number]
+
 // Date range filtering
 const useDateFilter = ref(false)
-const datePreset = ref<'custom' | '7days' | '30days' | '90days' | 'thisMonth' | 'lastMonth'>(
-  'custom'
-)
+const datePreset = ref<DatePreset>('custom')
 const minDate = ref('')
 const maxDate = ref('')
 
-// Date preset options
-const datePresets = [
-  { value: 'custom', label: 'Custom range' },
-  { value: '7days', label: 'Last 7 days' },
-  { value: '30days', label: 'Last 30 days' },
-  { value: '90days', label: 'Last 90 days' },
-  { value: 'thisMonth', label: 'This month' },
-  { value: 'lastMonth', label: 'Last month' },
-] as const
-
 // Apply date preset
-function applyDatePreset(preset: typeof datePreset.value) {
+function applyDatePreset(preset: (typeof datePresets)[number]) {
   datePreset.value = preset
   const now = new Date()
 
@@ -132,19 +126,19 @@ const estimatedTimeRemaining = computed(() => {
 const phaseLabel = computed(() => {
   switch (currentProgress.value?.phase) {
     case 'fetching_metadata':
-      return 'Fetching deleted messages...'
+      return t('export.fetchingMessages')
     case 'downloading_media':
-      return 'Downloading media files...'
+      return t('export.downloadingMedia')
     case 'saving':
-      return 'Saving to storage...'
+      return t('export.savingStorage')
     case 'complete':
-      return 'Complete!'
+      return t('export.complete')
     case 'error':
-      return 'Error occurred'
+      return t('export.errorOccurred')
     case 'cancelled':
-      return 'Cancelled'
+      return t('export.cancelled')
     default:
-      return 'Initializing...'
+      return t('export.processing')
   }
 })
 
@@ -349,10 +343,10 @@ function formatDate(date?: Date): string {
     <template v-if="step === 'select-chat'">
       <header class="mb-6">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Export Deleted Messages
+          {{ t('export.title') }}
         </h1>
         <p class="text-gray-600 dark:text-gray-400">
-          Select a channel or group where you have admin access
+          {{ t('export.selectChat') }}
         </p>
       </header>
 
@@ -360,7 +354,7 @@ function formatDate(date?: Date): string {
         <input
           v-model="searchQuery"
           type="search"
-          placeholder="Search chats..."
+          :placeholder="t('export.searchChats')"
           class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
         />
       </div>
@@ -369,7 +363,7 @@ function formatDate(date?: Date): string {
         <div
           class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"
         ></div>
-        <p class="text-gray-600 dark:text-gray-400">Loading chats...</p>
+        <p class="text-gray-600 dark:text-gray-400">{{ t('export.loadingChats') }}</p>
       </div>
 
       <div v-else-if="error" class="text-center py-12 text-red-600">
@@ -379,10 +373,10 @@ function formatDate(date?: Date): string {
       <div v-else-if="exportableChatsCount === 0" class="text-center py-12">
         <div class="text-3xl mb-3">🔒</div>
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          No exportable chats found
+          {{ t('export.noExportableChats') }}
         </h2>
         <p class="text-sm text-gray-600 dark:text-gray-400">
-          You need admin access to groups or channels to export deleted messages
+          {{ t('export.needAdmin') }}
         </p>
       </div>
 
@@ -408,7 +402,7 @@ function formatDate(date?: Date): string {
           </div>
           <span
             class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-            >Admin</span
+            >{{ t('common.admin') }}</span
           >
         </button>
       </div>
@@ -421,18 +415,20 @@ function formatDate(date?: Date): string {
           @click="goBack"
           class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-3 transition-colors duration-100"
         >
-          ← Back
+          ← {{ t('common.back') }}
         </button>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Configure Export</h1>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          {{ t('export.configure') }}
+        </h1>
         <p class="text-gray-600 dark:text-gray-400">
-          Exporting from: <strong>{{ selectedChat?.title }}</strong>
+          {{ t('export.exportingFrom') }} <strong>{{ selectedChat?.title }}</strong>
         </p>
       </header>
 
       <div class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Export Mode
+            {{ t('export.exportMode') }}
           </label>
           <div class="space-y-2">
             <label
@@ -440,8 +436,10 @@ function formatDate(date?: Date): string {
             >
               <input v-model="exportMode" type="radio" value="all" class="text-blue-600" />
               <div>
-                <div class="font-medium text-sm text-gray-900 dark:text-white">All content</div>
-                <div class="text-xs text-gray-500">Export text and media files</div>
+                <div class="font-medium text-sm text-gray-900 dark:text-white">
+                  {{ t('export.allContent') }}
+                </div>
+                <div class="text-xs text-gray-500">{{ t('export.allContentDesc') }}</div>
               </div>
             </label>
             <label
@@ -449,8 +447,10 @@ function formatDate(date?: Date): string {
             >
               <input v-model="exportMode" type="radio" value="text_only" class="text-blue-600" />
               <div>
-                <div class="font-medium text-sm text-gray-900 dark:text-white">Text only</div>
-                <div class="text-xs text-gray-500">Skip media files, faster export</div>
+                <div class="font-medium text-sm text-gray-900 dark:text-white">
+                  {{ t('export.textOnly') }}
+                </div>
+                <div class="text-xs text-gray-500">{{ t('export.textOnlyDesc') }}</div>
               </div>
             </label>
             <label
@@ -458,8 +458,10 @@ function formatDate(date?: Date): string {
             >
               <input v-model="exportMode" type="radio" value="media_only" class="text-blue-600" />
               <div>
-                <div class="font-medium text-sm text-gray-900 dark:text-white">Media only</div>
-                <div class="text-xs text-gray-500">Only messages with media</div>
+                <div class="font-medium text-sm text-gray-900 dark:text-white">
+                  {{ t('export.mediaOnly') }}
+                </div>
+                <div class="text-xs text-gray-500">{{ t('export.mediaOnlyDesc') }}</div>
               </div>
             </label>
           </div>
@@ -473,10 +475,10 @@ function formatDate(date?: Date): string {
             <input v-model="useDateFilter" type="checkbox" class="text-blue-600 rounded" />
             <div>
               <div class="font-medium text-sm text-gray-900 dark:text-white">
-                Filter by date range
+                {{ t('export.dateFilter') }}
               </div>
               <div class="text-xs text-gray-500">
-                Only export messages within a specific time period
+                {{ t('export.dateFilterDesc') }}
               </div>
             </div>
           </label>
@@ -486,16 +488,16 @@ function formatDate(date?: Date): string {
             <div class="flex flex-wrap gap-2">
               <button
                 v-for="preset in datePresets"
-                :key="preset.value"
-                @click="applyDatePreset(preset.value)"
+                :key="preset"
+                @click="applyDatePreset(preset)"
                 :class="[
                   'px-3 py-1.5 text-xs font-medium rounded-md transition-colors duration-100',
-                  datePreset === preset.value
+                  datePreset === preset
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
                 ]"
               >
-                {{ preset.label }}
+                {{ t(`export.datePresets.${preset}`) }}
               </button>
             </div>
 
@@ -503,7 +505,7 @@ function formatDate(date?: Date): string {
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  From date
+                  {{ t('export.fromDate') }}
                 </label>
                 <input
                   v-model="minDate"
@@ -514,7 +516,7 @@ function formatDate(date?: Date): string {
               </div>
               <div>
                 <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  To date
+                  {{ t('export.toDate') }}
                 </label>
                 <input
                   v-model="maxDate"
@@ -525,7 +527,7 @@ function formatDate(date?: Date): string {
               </div>
             </div>
             <p class="text-xs text-gray-500 dark:text-gray-400">
-              Leave empty to export all messages without date restriction.
+              {{ t('export.dateHint') }}
             </p>
           </div>
         </div>
@@ -538,10 +540,10 @@ function formatDate(date?: Date): string {
             <input v-model="downloadZipAfter" type="checkbox" class="text-blue-600 rounded" />
             <div>
               <div class="font-medium text-sm text-gray-900 dark:text-white">
-                Download as ZIP after export
+                {{ t('export.downloadZip') }}
               </div>
               <div class="text-xs text-gray-500">
-                Automatically download a ZIP file when export completes
+                {{ t('export.downloadZipDesc') }}
               </div>
             </div>
           </label>
@@ -554,10 +556,11 @@ function formatDate(date?: Date): string {
           <div class="flex gap-3">
             <span class="text-blue-600">ℹ️</span>
             <div class="text-sm text-blue-800 dark:text-blue-300">
-              <p class="mb-1"><strong>Parallel downloads enabled</strong></p>
+              <p class="mb-1">
+                <strong>{{ t('export.parallelInfo') }}</strong>
+              </p>
               <p class="text-xs text-blue-700 dark:text-blue-400">
-                Media files will be downloaded in parallel (up to 4 at once) for faster exports.
-                Rate limits are automatically handled.
+                {{ t('export.parallelInfoDesc') }}
               </p>
             </div>
           </div>
@@ -571,7 +574,7 @@ function formatDate(date?: Date): string {
           @click="showConfirmation"
           class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
         >
-          Continue
+          {{ t('common.continue') }}
         </button>
       </div>
     </template>
@@ -583,10 +586,12 @@ function formatDate(date?: Date): string {
           @click="goBack"
           class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-3 transition-colors duration-100"
         >
-          ← Back
+          ← {{ t('common.back') }}
         </button>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Confirm Export</h1>
-        <p class="text-gray-600 dark:text-gray-400">Review your selection before starting</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          {{ t('export.confirmTitle') }}
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">{{ t('export.confirmSubtitle') }}</p>
       </header>
 
       <div class="space-y-4">
@@ -596,20 +601,22 @@ function formatDate(date?: Date): string {
         >
           <div class="space-y-3">
             <div class="flex justify-between items-center">
-              <span class="text-sm text-gray-600 dark:text-gray-400">Chat:</span>
+              <span class="text-sm text-gray-600 dark:text-gray-400">{{ t('export.chat') }}:</span>
               <span class="font-medium text-gray-900 dark:text-white">
                 {{ selectedChat?.title }}
               </span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-gray-600 dark:text-gray-400">Export mode:</span>
+              <span class="text-sm text-gray-600 dark:text-gray-400"
+                >{{ t('export.exportMode') }}:</span
+              >
               <span class="font-medium text-gray-900 dark:text-white">
                 {{
                   exportMode === 'all'
-                    ? 'All content'
+                    ? t('export.allContent')
                     : exportMode === 'text_only'
-                      ? 'Text only'
-                      : 'Media only'
+                      ? t('export.textOnly')
+                      : t('export.mediaOnly')
                 }}
               </span>
             </div>
@@ -617,9 +624,11 @@ function formatDate(date?: Date): string {
               v-if="useDateFilter && (minDate || maxDate)"
               class="flex justify-between items-center"
             >
-              <span class="text-sm text-gray-600 dark:text-gray-400">Date range:</span>
+              <span class="text-sm text-gray-600 dark:text-gray-400"
+                >{{ t('export.dateRange') }}:</span
+              >
               <span class="font-medium text-gray-900 dark:text-white">
-                {{ minDate || 'Any' }} → {{ maxDate || 'Any' }}
+                {{ minDate || t('export.any') }} → {{ maxDate || t('export.any') }}
               </span>
             </div>
           </div>
@@ -630,13 +639,13 @@ function formatDate(date?: Date): string {
           class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
         >
           <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            What to expect
+            {{ t('export.whatToExpect') }}
           </h3>
           <ul class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-            <li>• Deleted messages will be fetched from the admin log</li>
-            <li v-if="exportMode !== 'text_only'">• Media files will be downloaded in parallel</li>
-            <li>• Data will be saved to your browser's storage</li>
-            <li v-if="downloadZipAfter">• A ZIP file will be downloaded after export</li>
+            <li>• {{ t('export.expectFetch') }}</li>
+            <li v-if="exportMode !== 'text_only'">• {{ t('export.expectMedia') }}</li>
+            <li>• {{ t('export.expectSave') }}</li>
+            <li v-if="downloadZipAfter">• {{ t('export.expectZip') }}</li>
           </ul>
         </div>
 
@@ -647,10 +656,7 @@ function formatDate(date?: Date): string {
           <div class="flex gap-3">
             <span class="text-blue-600">ℹ️</span>
             <div class="text-sm text-blue-800 dark:text-blue-300">
-              <p>
-                The export may take a while depending on the number of messages. You can cancel at
-                any time.
-              </p>
+              <p>{{ t('export.exportWarning') }}</p>
             </div>
           </div>
         </div>
@@ -664,13 +670,13 @@ function formatDate(date?: Date): string {
             @click="goBack"
             class="flex-1 px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100"
           >
-            Back
+            {{ t('common.back') }}
           </button>
           <button
             @click="confirmAndStart"
             class="flex-1 px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
           >
-            Start Export
+            {{ t('common.startExport') }}
           </button>
         </div>
       </div>
@@ -687,7 +693,7 @@ function formatDate(date?: Date): string {
         <div v-if="floodWaitSeconds > 0" class="text-amber-600 mb-3">
           <div class="flex items-center justify-center gap-2">
             <span class="animate-pulse">⏳</span>
-            <span>Rate limited. Resuming in {{ floodWaitRemaining }}s...</span>
+            <span>{{ t('export.rateLimited', { seconds: floodWaitRemaining }) }}</span>
           </div>
           <!-- Countdown progress bar -->
           <div
@@ -707,7 +713,9 @@ function formatDate(date?: Date): string {
           <span v-if="currentProgress?.totalMessages" class="text-gray-400">
             / {{ currentProgress.totalMessages }}
           </span>
-          <span class="text-base font-normal text-gray-500"> messages</span>
+          <span class="text-base font-normal text-gray-500">
+            {{ ' ' + t('export.messages', { count: currentProgress?.totalMessages || 0 }) }}
+          </span>
         </div>
 
         <!-- Progress bar -->
@@ -724,16 +732,16 @@ function formatDate(date?: Date): string {
         <!-- Stats -->
         <div class="text-xs text-gray-500 space-y-1">
           <div v-if="currentProgress?.exportedTextMessages">
-            📝 {{ currentProgress.exportedTextMessages }} text messages
+            📝 {{ t('export.textMessages', { count: currentProgress.exportedTextMessages }) }}
           </div>
           <div v-if="currentProgress?.exportedMediaMessages">
-            📎 {{ currentProgress.exportedMediaMessages }} media files downloaded
+            📎 {{ t('export.mediaDownloaded', { count: currentProgress.exportedMediaMessages }) }}
           </div>
           <div v-if="currentProgress?.failedMessages" class="text-red-500">
-            ❌ {{ currentProgress.failedMessages }} failed
+            ❌ {{ t('export.failed', { count: currentProgress.failedMessages }) }}
           </div>
           <div v-if="estimatedTimeRemaining" class="text-blue-600 mt-2">
-            ⏱️ ~{{ estimatedTimeRemaining }} remaining
+            ⏱️ {{ t('export.remaining', { time: estimatedTimeRemaining }) }}
           </div>
         </div>
 
@@ -743,7 +751,7 @@ function formatDate(date?: Date): string {
           class="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"
         >
           <p class="text-sm text-red-700 dark:text-red-300 mb-3">
-            {{ currentProgress.errorMessage || 'Export failed' }}
+            {{ currentProgress.errorMessage || t('export.errorOccurred') }}
           </p>
           <div class="flex justify-center gap-3">
             <button
@@ -752,14 +760,14 @@ function formatDate(date?: Date): string {
               :disabled="isReconnecting"
               class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-100"
             >
-              <span v-if="isReconnecting">Reconnecting...</span>
-              <span v-else>🔄 Reconnect</span>
+              <span v-if="isReconnecting">{{ t('export.reconnecting') }}</span>
+              <span v-else>🔄 {{ t('export.reconnect') }}</span>
             </button>
             <button
               @click="goBack"
               class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100"
             >
-              Back
+              {{ t('common.back') }}
             </button>
           </div>
         </div>
@@ -769,7 +777,7 @@ function formatDate(date?: Date): string {
           @click="cancelExport"
           class="mt-6 px-4 py-2 rounded-md font-medium text-sm bg-red-600 text-white hover:bg-red-700 transition-colors duration-100"
         >
-          Cancel Export
+          {{ t('export.cancelExport') }}
         </button>
       </div>
     </template>
@@ -778,21 +786,27 @@ function formatDate(date?: Date): string {
     <template v-else-if="step === 'complete'">
       <div class="text-center py-12">
         <div class="text-4xl mb-4">✅</div>
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Export Complete!</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          {{ t('export.exportComplete') }}
+        </h2>
         <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-          Successfully exported {{ currentProgress?.processedMessages ?? 0 }} messages from
-          {{ selectedChat?.title }}
+          {{
+            t('export.successMessage', {
+              count: currentProgress?.processedMessages ?? 0,
+              chat: selectedChat?.title,
+            })
+          }}
         </p>
 
         <div class="text-xs text-gray-500 mb-6 space-y-1">
           <div v-if="currentProgress?.exportedTextMessages">
-            📝 {{ currentProgress.exportedTextMessages }} text messages
+            📝 {{ t('export.textMessages', { count: currentProgress.exportedTextMessages }) }}
           </div>
           <div v-if="currentProgress?.exportedMediaMessages">
-            📎 {{ currentProgress.exportedMediaMessages }} media files
+            📎 {{ t('export.mediaFiles', { count: currentProgress.exportedMediaMessages }) }}
           </div>
           <div v-if="currentProgress?.failedMessages" class="text-amber-600">
-            ⚠️ {{ currentProgress.failedMessages }} failed (will be skipped)
+            ⚠️ {{ t('export.failedSkip', { count: currentProgress.failedMessages }) }}
           </div>
         </div>
 
@@ -804,19 +818,21 @@ function formatDate(date?: Date): string {
             class="px-4 py-2 rounded-md font-medium text-sm bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-100 flex items-center gap-2"
           >
             <span v-if="isDownloadingZip" class="animate-spin">⏳</span>
-            <span>{{ isDownloadingZip ? 'Generating...' : '📥 Download ZIP' }}</span>
+            <span>{{
+              isDownloadingZip ? t('export.generating') : '📥 ' + t('export.downloadZipBtn')
+            }}</span>
           </button>
           <router-link
             to="/backups"
             class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
           >
-            View Backups
+            {{ t('export.viewBackups') }}
           </router-link>
           <button
             @click="resetExport"
             class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100"
           >
-            Export Another
+            {{ t('export.exportAnother') }}
           </button>
         </div>
       </div>
