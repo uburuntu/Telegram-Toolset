@@ -142,7 +142,7 @@ class TelegramService {
   }
 
   /**
-   * Attempt to reconnect after connection loss
+   * Attempt to reconnect after connection loss (auto-reconnect with backoff)
    */
   async reconnect(): Promise<boolean> {
     if (!this.apiId || !this.apiHash) {
@@ -172,6 +172,53 @@ class TelegramService {
       }
       throw error
     }
+  }
+
+  /**
+   * Manual reconnect - use when user explicitly wants to reconnect
+   * (e.g., after regaining network on a train)
+   * Resets retry counter and attempts immediate reconnection
+   */
+  async manualReconnect(): Promise<boolean> {
+    if (!this.apiId || !this.apiHash) {
+      throw new Error('Cannot reconnect: API credentials not available. Please log in again.')
+    }
+
+    // Reset retry counter for manual reconnect
+    this.reconnectAttempts = 0
+    this.setConnectionState('reconnecting')
+
+    try {
+      // Disconnect existing client if any
+      if (this.client) {
+        try {
+          await this.client.disconnect()
+        } catch {
+          // Ignore disconnect errors
+        }
+        this.client = null
+      }
+
+      // Reinitialize and connect
+      await this.initClient(this.apiId, this.apiHash)
+      const result = await this.connect()
+
+      if (result) {
+        this.setConnectionState('connected')
+      }
+
+      return result
+    } catch (error) {
+      this.setConnectionState('error')
+      throw error
+    }
+  }
+
+  /**
+   * Check if manual reconnect is available
+   */
+  canManualReconnect(): boolean {
+    return this.apiId !== null && this.apiHash !== null && this._connectionState !== 'connecting'
   }
 
   /**
@@ -489,7 +536,7 @@ class TelegramService {
    * Supports filtering by message ID range and limits
    *
    * @param chatId - Chat ID to fetch deleted messages from
-   * @param options - Filtering options (minId, maxId, limit)
+   * @param options - Filtering options (minId, maxId, limit, minDate, maxDate)
    */
   async *iterDeletedMessages(
     chatId: bigint,
@@ -523,6 +570,10 @@ class TelegramService {
       adminLogOptions.limit = options.limit
     }
 
+    // Prepare date filters (convert to timestamps for comparison)
+    const minTimestamp = options.minDate ? options.minDate.getTime() : null
+    const maxTimestamp = options.maxDate ? options.maxDate.getTime() : null
+
     // @ts-expect-error - iterAdminLog exists but isn't in type definitions
     const adminLog = this.client.iterAdminLog(entity, adminLogOptions)
 
@@ -530,6 +581,20 @@ class TelegramService {
       if (!event.deletedMessage || !event.old) continue
 
       const msg = event.old
+
+      // Apply date filtering
+      const msgTimestamp = msg.date * 1000 // Convert to milliseconds
+
+      // Skip messages before minDate
+      if (minTimestamp !== null && msgTimestamp < minTimestamp) {
+        continue
+      }
+
+      // Skip messages after maxDate
+      if (maxTimestamp !== null && msgTimestamp > maxTimestamp) {
+        continue
+      }
+
       const mediaType = this.getMediaType(msg)
 
       // Extract media filename from document attributes if available

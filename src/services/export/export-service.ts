@@ -34,6 +34,10 @@ export interface ExportResult {
 export interface ExportOptions extends AdminLogIterOptions {
   /** Validate chat before export (default: true) */
   validateFirst?: boolean
+  /** Minimum date (export messages on or after this date) */
+  minDate?: Date
+  /** Maximum date (export messages on or before this date) */
+  maxDate?: Date
 }
 
 class ExportService {
@@ -103,11 +107,18 @@ class ExportService {
       progress.phase = 'fetching_metadata'
       callbacks.onProgress?.(progress)
 
-      // Build iteration options
+      // Build iteration options from both ExportOptions and ExportConfig
       const iterOptions: AdminLogIterOptions = {}
       if (options.minId !== undefined) iterOptions.minId = options.minId
       if (options.maxId !== undefined) iterOptions.maxId = options.maxId
       if (options.limit !== undefined) iterOptions.limit = options.limit
+
+      // Date filters from config
+      if (config.minDate !== undefined) iterOptions.minDate = config.minDate
+      if (config.maxDate !== undefined) iterOptions.maxDate = config.maxDate
+      // Also allow overriding from options
+      if (options.minDate !== undefined) iterOptions.minDate = options.minDate
+      if (options.maxDate !== undefined) iterOptions.maxDate = options.maxDate
 
       for await (const msg of telegramService.iterDeletedMessages(config.chatId, iterOptions)) {
         // Check for cancellation

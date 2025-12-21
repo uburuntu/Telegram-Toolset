@@ -74,6 +74,10 @@ export interface AdminLogIterOptions {
   maxId?: number
   /** Maximum number of events to fetch */
   limit?: number
+  /** Minimum date (inclusive) - only messages on or after this date */
+  minDate?: Date
+  /** Maximum date (inclusive) - only messages on or before this date */
+  maxDate?: Date
 }
 
 /**

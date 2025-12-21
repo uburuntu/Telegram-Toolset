@@ -60,6 +60,14 @@ export interface ExportConfig {
   chatTitle: string
   exportMode: 'all' | 'media_only' | 'text_only'
   storageStrategy: 'indexeddb' | 'stream_download' | 'metadata_only'
+  /** Filter: minimum message ID (export messages after this ID) */
+  minId?: number
+  /** Filter: maximum message ID (export messages before this ID) */
+  maxId?: number
+  /** Filter: start date (export messages on or after this date) */
+  minDate?: Date
+  /** Filter: end date (export messages on or before this date) */
+  maxDate?: Date
 }
 
 export interface ResendConfig {
