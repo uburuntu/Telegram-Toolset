@@ -3,18 +3,24 @@
  *
  * GramJS uses Node's crypto for randomBytes, createHash, etc.
  * We provide browser-compatible implementations using Web Crypto API.
+ *
+ * IMPORTANT: GramJS expects Buffer objects (not Uint8Array) for compatibility
+ * with Buffer.concat() and other Buffer methods.
  */
+
+import { Buffer } from 'buffer'
 
 // Use globalThis.crypto for Web Crypto API
 const webCrypto = globalThis.crypto
 
 /**
  * Generate random bytes using Web Crypto API
+ * Returns Buffer for GramJS compatibility
  */
-export function randomBytes(count: number): Uint8Array {
+export function randomBytes(count: number): Buffer {
   const bytes = new Uint8Array(count)
   webCrypto.getRandomValues(bytes)
-  return bytes
+  return Buffer.from(bytes)
 }
 
 /**
@@ -28,19 +34,19 @@ export class Hash {
     this.algorithm = algorithm
   }
 
-  update(data: Uint8Array | ArrayBuffer): this {
+  update(data: Uint8Array | ArrayBuffer | Buffer): this {
     if (data instanceof ArrayBuffer) {
       this.data = new Uint8Array(data)
     } else {
-      // Create a copy to avoid SharedArrayBuffer issues
+      // Create a copy
       this.data = new Uint8Array(data)
     }
     return this
   }
 
-  async digest(): Promise<ArrayBuffer> {
+  async digest(): Promise<Buffer> {
     if (!this.data) {
-      return new ArrayBuffer(0)
+      return Buffer.alloc(0)
     }
 
     let algo: string
@@ -57,7 +63,8 @@ export class Hash {
     // Create a regular ArrayBuffer copy to satisfy Web Crypto API types
     const buffer = new ArrayBuffer(this.data.byteLength)
     new Uint8Array(buffer).set(this.data)
-    return await webCrypto.subtle.digest(algo, buffer)
+    const result = await webCrypto.subtle.digest(algo, buffer)
+    return Buffer.from(result)
   }
 }
 
@@ -72,12 +79,12 @@ export function createHash(algorithm: string): Hash {
  * PBKDF2 key derivation using Web Crypto API
  */
 export async function pbkdf2Sync(
-  password: Uint8Array | ArrayBuffer,
-  salt: Uint8Array | ArrayBuffer,
+  password: Uint8Array | ArrayBuffer | Buffer,
+  salt: Uint8Array | ArrayBuffer | Buffer,
   iterations: number,
   _keylen?: number,
   _digest?: string
-): Promise<ArrayBuffer> {
+): Promise<Buffer> {
   // Create regular ArrayBuffer copies to satisfy Web Crypto API types
   let passwordBuffer: ArrayBuffer
   if (password instanceof ArrayBuffer) {
@@ -103,7 +110,7 @@ export async function pbkdf2Sync(
     ['deriveBits']
   )
 
-  return await webCrypto.subtle.deriveBits(
+  const result = await webCrypto.subtle.deriveBits(
     {
       name: 'PBKDF2',
       hash: 'SHA-512',
@@ -113,20 +120,22 @@ export async function pbkdf2Sync(
     passwordKey,
     512
   )
+
+  return Buffer.from(result)
 }
 
 /**
  * Counter for CTR mode encryption
  */
 export class Counter {
-  _counter: Uint8Array
+  _counter: Buffer
 
-  constructor(initialValue: Uint8Array | ArrayBuffer) {
+  constructor(initialValue: Uint8Array | ArrayBuffer | Buffer) {
     if (initialValue instanceof ArrayBuffer) {
-      this._counter = new Uint8Array(initialValue)
+      this._counter = Buffer.from(initialValue)
     } else {
       // Create a copy
-      this._counter = new Uint8Array(initialValue)
+      this._counter = Buffer.from(initialValue)
     }
   }
 
@@ -147,32 +156,35 @@ export class Counter {
  * CTR mode cipher (stub - uses GramJS's own implementation when available)
  */
 export class CTR {
-  constructor(_key: Uint8Array | ArrayBuffer, _counter: Counter | Uint8Array | ArrayBuffer) {
+  constructor(
+    _key: Uint8Array | ArrayBuffer | Buffer,
+    _counter: Counter | Uint8Array | ArrayBuffer | Buffer
+  ) {
     // This is a stub - GramJS uses its own CTR implementation
     throw new Error('CTR encryption should use telegram/crypto/crypto implementation')
   }
 
-  update(_plainText: Uint8Array | ArrayBuffer): Uint8Array {
+  update(_plainText: Uint8Array | ArrayBuffer | Buffer): Buffer {
     throw new Error('CTR encryption should use telegram/crypto/crypto implementation')
   }
 
-  encrypt(_plainText: Uint8Array | ArrayBuffer): Uint8Array {
+  encrypt(_plainText: Uint8Array | ArrayBuffer | Buffer): Buffer {
     throw new Error('CTR encryption should use telegram/crypto/crypto implementation')
   }
 }
 
 export function createCipheriv(
   _algorithm: string,
-  _key: Uint8Array | ArrayBuffer,
-  _iv: Uint8Array | ArrayBuffer
+  _key: Uint8Array | ArrayBuffer | Buffer,
+  _iv: Uint8Array | ArrayBuffer | Buffer
 ): CTR {
   throw new Error('createCipheriv should use telegram/crypto/crypto implementation')
 }
 
 export function createDecipheriv(
   _algorithm: string,
-  _key: Uint8Array | ArrayBuffer,
-  _iv: Uint8Array | ArrayBuffer
+  _key: Uint8Array | ArrayBuffer | Buffer,
+  _iv: Uint8Array | ArrayBuffer | Buffer
 ): CTR {
   throw new Error('createDecipheriv should use telegram/crypto/crypto implementation')
 }
