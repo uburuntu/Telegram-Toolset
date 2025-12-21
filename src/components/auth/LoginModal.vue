@@ -23,6 +23,9 @@ const router = useRouter()
 const accountsStore = useAccountsStore()
 const uiStore = useUiStore()
 
+// Track what was active before opening the modal so we can restore the session if user cancels.
+const previousActiveAccountId = accountsStore.activeAccountId
+
 // State - initialize step based on required type and existing credentials
 const activeTab = ref<AccountType>(props.requiredType === 'bot' ? 'bot' : 'user')
 const getInitialStep = ():
@@ -189,33 +192,24 @@ async function handlePhoneSubmit(): Promise<void> {
 
   isLoading.value = true
   try {
+    // IMPORTANT: Always start a *fresh* session for a new phone login.
+    // Otherwise we can accidentally reuse another account's existing session and appear "already logged in".
+    if (typeof (telegramService as any).resetForNewUserLogin === 'function') {
+      await (telegramService as any).resetForNewUserLogin()
+    } else {
+      // Fallback for mocks/older builds
+      try {
+        await telegramService.disconnect()
+      } catch {
+        // ignore
+      }
+      telegramService.restoreSession('')
+    }
+
     // Initialize and connect the Telegram client
     const id = parseInt(apiId.value, 10)
     await telegramService.initClient(id, apiHash.value)
-    const alreadyAuthed = await telegramService.connect()
-
-    if (alreadyAuthed) {
-      // Already authorized, just add the account
-      const user = telegramService.user
-      const newAccount = accountsStore.addAccount({
-        type: 'user',
-        label: user?.firstName || 'User ' + phone.value.slice(-4),
-        phone: phone.value,
-        apiId: id,
-        apiHash: apiHash.value,
-        sessionString: telegramService.getSessionString(),
-      })
-      accountsStore.setActiveAccount(newAccount.id)
-      step.value = 'success'
-      uiStore.showToast('success', 'Account added successfully!')
-      setTimeout(() => {
-        handleClose()
-        if (props.targetRoute) {
-          router.push(props.targetRoute)
-        }
-      }, 1000)
-      return
-    }
+    await telegramService.connect()
 
     // Start auth flow - this will send the code and wait for it
     // We run this in the background and move to code step
@@ -371,6 +365,24 @@ function handleClose(): void {
   accountsStore.resetAuthFlow()
   emit('close')
   uiStore.closeModal()
+
+  // If user cancels mid-flow, restore previous active user session (best-effort).
+  // This prevents leaving the app in a "disconnected" state after attempting to add another account.
+  const prev = accountsStore.accounts.find((a) => a.id === previousActiveAccountId)
+  if (prev?.type === 'user' && prev.apiId && prev.apiHash) {
+    const svc: any = telegramService as any
+    if (typeof svc.useUserAccountSession === 'function') {
+      svc
+        .useUserAccountSession({
+          sessionString: prev.sessionString,
+          apiId: prev.apiId,
+          apiHash: prev.apiHash,
+        })
+        .catch(() => {
+          // ignore
+        })
+    }
+  }
 }
 
 function goBack(): void {

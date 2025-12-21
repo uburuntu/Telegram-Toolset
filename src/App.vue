@@ -2,6 +2,7 @@
 import { onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAccountsStore, useUiStore } from '@/stores'
+import { telegramService } from '@/services/telegram/client'
 import AccountSwitcher from '@/components/auth/AccountSwitcher.vue'
 import LoginModal from '@/components/auth/LoginModal.vue'
 import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
@@ -56,6 +57,29 @@ watch(
       })
     }
   }
+)
+
+// Keep Telegram client session in sync with the active user account (multi-account support).
+watch(
+  () => accountsStore.activeAccount,
+  async (account) => {
+    if (!account || account.type !== 'user') return
+    if (!account.apiId || !account.apiHash) return
+
+    const svc: any = telegramService as any
+    if (typeof svc.useUserAccountSession !== 'function') return // E2E mocks
+
+    try {
+      await svc.useUserAccountSession({
+        sessionString: account.sessionString,
+        apiId: account.apiId,
+        apiHash: account.apiHash,
+      })
+    } catch {
+      // Don't spam on startup; module UIs will show their own errors/reconnect UI if needed.
+    }
+  },
+  { immediate: true }
 )
 </script>
 
