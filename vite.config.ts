@@ -55,6 +55,9 @@ export default defineConfig(() => {
         // to prevent "superclass is not a constructor" errors when 'events' is externalized.
         { find: /^events$/, replacement: resolve(__dirname, 'src/shims/events.ts') },
         { find: /^node:events$/, replacement: resolve(__dirname, 'src/shims/events.ts') },
+        // GramJS uses Node's crypto module. Redirect to GramJS's browser-compatible crypto.
+        { find: /^crypto$/, replacement: resolve(__dirname, 'src/shims/telegram/CryptoFile.ts') },
+        { find: /^node:crypto$/, replacement: resolve(__dirname, 'src/shims/telegram/CryptoFile.ts') },
       ],
     },
     define: {

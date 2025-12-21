@@ -9,9 +9,23 @@
  * - createHash('sha1'|'sha256') with async digest()
  * - pbkdf2Sync(...) returning Promise<Buffer>
  * keep working in the browser.
+ *
+ * We also export as default to support `import crypto from 'crypto'` usage.
  */
 
 import * as browserCrypto from 'telegram/crypto/crypto'
 
+// Named exports
+export const {
+  randomBytes,
+  createHash,
+  pbkdf2Sync,
+  createCipheriv,
+  createDecipheriv,
+  Counter,
+  CTR,
+  Hash,
+} = browserCrypto
+
+// Default export for `import crypto from 'crypto'` usage
 export default browserCrypto
-export * from 'telegram/crypto/crypto'
