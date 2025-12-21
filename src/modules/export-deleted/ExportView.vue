@@ -168,9 +168,10 @@ async function startExport() {
     storageStrategy: 'indexeddb',
     // Date filters
     minDate: useDateFilter.value && minDate.value ? new Date(minDate.value) : undefined,
-    maxDate: useDateFilter.value && maxDate.value
-      ? new Date(maxDate.value + 'T23:59:59') // Include the entire day
-      : undefined,
+    maxDate:
+      useDateFilter.value && maxDate.value
+        ? new Date(maxDate.value + 'T23:59:59') // Include the entire day
+        : undefined,
   }
 
   // Check storage
@@ -399,7 +400,9 @@ function formatDate(date?: Date): string {
               <div class="font-medium text-sm text-gray-900 dark:text-white">
                 Filter by date range
               </div>
-              <div class="text-xs text-gray-500">Only export messages within a specific time period</div>
+              <div class="text-xs text-gray-500">
+                Only export messages within a specific time period
+              </div>
             </div>
           </label>
 
@@ -492,10 +495,14 @@ function formatDate(date?: Date): string {
             <span>Rate limited. Resuming in {{ floodWaitRemaining }}s...</span>
           </div>
           <!-- Countdown progress bar -->
-          <div class="w-full max-w-xs mx-auto h-1.5 bg-amber-200 dark:bg-amber-900 rounded-full overflow-hidden mt-2">
+          <div
+            class="w-full max-w-xs mx-auto h-1.5 bg-amber-200 dark:bg-amber-900 rounded-full overflow-hidden mt-2"
+          >
             <div
               class="h-full bg-amber-500 transition-all duration-1000 ease-linear"
-              :style="{ width: `${((floodWaitSeconds - floodWaitRemaining) / floodWaitSeconds) * 100}%` }"
+              :style="{
+                width: `${((floodWaitSeconds - floodWaitRemaining) / floodWaitSeconds) * 100}%`,
+              }"
             ></div>
           </div>
         </div>
