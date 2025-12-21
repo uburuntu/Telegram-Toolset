@@ -38,6 +38,9 @@ class TelegramService {
   private passwordDeferred: DeferredPromise<string> | null = null
   private currentUser: UserInfo | null = null
 
+  // Entity cache for sender resolution (like Python's _entity_cache)
+  private entityCache: Map<string, unknown> = new Map()
+
   constructor() {
     const savedSession = localStorage.getItem(SESSION_KEY) || ''
     this.session = new StringSession(savedSession)
@@ -397,6 +400,166 @@ class TelegramService {
    */
   getClient(): TelegramClient | null {
     return this.client
+  }
+
+  /**
+   * Get entity with caching to avoid redundant API calls
+   * Matches Python's get_entity_cached pattern
+   */
+  async getEntityCached(entityId: bigint): Promise<unknown> {
+    const cacheKey = entityId.toString()
+
+    if (!this.entityCache.has(cacheKey)) {
+      if (!this.client) {
+        throw new Error('Client not connected')
+      }
+      // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+      const entity = await this.client.getEntity(entityId)
+      this.entityCache.set(cacheKey, entity)
+    }
+
+    return this.entityCache.get(cacheKey)
+  }
+
+  /**
+   * Clear the entity cache
+   */
+  clearEntityCache(): void {
+    this.entityCache.clear()
+  }
+
+  /**
+   * Resolve sender info from entity
+   */
+  async resolveSenderInfo(senderId: bigint): Promise<{ name?: string; username?: string }> {
+    try {
+      const entity = await this.getEntityCached(senderId)
+      if (!entity) return {}
+
+      // Handle User entities
+      if (entity && typeof entity === 'object' && 'firstName' in entity) {
+        const user = entity as { firstName?: string; lastName?: string; username?: string }
+        const name = [user.firstName, user.lastName].filter(Boolean).join(' ') || undefined
+        return { name, username: user.username }
+      }
+
+      // Handle Channel entities
+      if (entity && typeof entity === 'object' && 'title' in entity) {
+        const channel = entity as { title?: string; username?: string }
+        return { name: channel.title, username: channel.username }
+      }
+
+      return {}
+    } catch {
+      return {}
+    }
+  }
+
+  /**
+   * Check if user can send messages to a chat
+   * Matches Python's can_send_to_chat pattern
+   */
+  async canSendToChat(chatId: bigint): Promise<boolean> {
+    if (!this.client) return false
+
+    try {
+      // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+      const entity = await this.client.getEntity(chatId)
+      if (!entity) return false
+
+      // User chats - can always send
+      if ('firstName' in entity) {
+        return true
+      }
+
+      // For channels/groups, check permissions
+      if ('broadcast' in entity && entity.broadcast) {
+        // Broadcast channel - need post_messages right
+        // @ts-expect-error - adminRights may exist
+        return !!entity.adminRights?.postMessages
+      }
+
+      // For groups/supergroups, check if we can send
+      // @ts-expect-error - defaultBannedRights may exist
+      const banned = entity.defaultBannedRights
+      if (banned && banned.sendMessages) {
+        return false
+      }
+
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Send a message to a chat
+   */
+  async sendMessage(chatId: bigint, text: string, parseMode?: 'html' | 'md'): Promise<void> {
+    if (!this.client) {
+      throw new Error('Client not connected')
+    }
+
+    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+    await this.client.sendMessage(chatId, {
+      message: text,
+      parseMode: parseMode,
+      silent: true,
+    })
+  }
+
+  /**
+   * Send a file/media to a chat
+   * Matches Python's client.send_file pattern
+   */
+  async sendFile(
+    chatId: bigint,
+    file: Blob | File,
+    options: {
+      caption?: string
+      parseMode?: 'html' | 'md'
+      forceDocument?: boolean
+      filename?: string
+    } = {}
+  ): Promise<void> {
+    if (!this.client) {
+      throw new Error('Client not connected')
+    }
+
+    // Convert Blob to Buffer for GramJS
+    const buffer = Buffer.from(await file.arrayBuffer())
+
+    // Determine filename
+    const filename = options.filename || (file instanceof File ? file.name : `file_${Date.now()}`)
+
+    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+    await this.client.sendFile(chatId, {
+      file: buffer,
+      caption: options.caption,
+      parseMode: options.parseMode,
+      forceDocument: options.forceDocument ?? false,
+      silent: true,
+      attributes: [
+        new (await import('telegram/tl')).Api.DocumentAttributeFilename({
+          fileName: filename,
+        }),
+      ],
+    })
+  }
+
+  /**
+   * Forward a message to a chat
+   */
+  async forwardMessage(fromChatId: bigint, toChatId: bigint, messageId: number): Promise<void> {
+    if (!this.client) {
+      throw new Error('Client not connected')
+    }
+
+    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+    await this.client.forwardMessages(toChatId, {
+      fromPeer: fromChatId,
+      messages: [messageId],
+    })
   }
 }
 

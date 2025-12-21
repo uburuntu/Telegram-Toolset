@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBackupsStore, useUiStore } from '@/stores'
 import { telegramService } from '@/services/telegram/client'
 import { backupManager } from '@/services/storage/backup-manager'
 import { quotaManager } from '@/services/storage/quota'
-import type { ChatInfo, DeletedMessage, ExportConfig } from '@/types'
+import { exportService } from '@/services/export/export-service'
+import { zipGenerator } from '@/services/export/zip-generator'
+import { formatDuration } from '@/services/telegram/rate-limiter'
+import { toUserFriendlyError } from '@/utils/error-messages'
+import type { ChatInfo, ExportConfig, ExportProgress, BackupWithMessages } from '@/types'
 
 const router = useRouter()
 const backupsStore = useBackupsStore()
@@ -17,8 +21,17 @@ const chats = ref<ChatInfo[]>([])
 const searchQuery = ref('')
 const selectedChat = ref<ChatInfo | null>(null)
 const exportMode = ref<'all' | 'media_only' | 'text_only'>('all')
+const downloadZipAfter = ref(false)
 const isLoading = ref(false)
 const error = ref('')
+const isDownloadingZip = ref(false)
+
+// Progress tracking
+const currentProgress = ref<ExportProgress | null>(null)
+const floodWaitSeconds = ref(0)
+
+// Store last export result for ZIP download
+const lastExportResult = ref<BackupWithMessages | null>(null)
 
 // Computed
 const filteredChats = computed(() => {
@@ -30,6 +43,42 @@ const filteredChats = computed(() => {
 
 const exportableChatsCount = computed(() => chats.value.filter((c) => c.canExport).length)
 
+const progressPercentage = computed(() => {
+  if (!currentProgress.value || currentProgress.value.totalMessages === 0) return 0
+  return Math.round(
+    (currentProgress.value.processedMessages / currentProgress.value.totalMessages) * 100
+  )
+})
+
+const estimatedTimeRemaining = computed(() => {
+  if (!currentProgress.value || currentProgress.value.processedMessages === 0) return null
+
+  const elapsed = Date.now() - currentProgress.value.startTime.getTime()
+  const avgTimePerItem = elapsed / currentProgress.value.processedMessages
+  const remaining = currentProgress.value.totalMessages - currentProgress.value.processedMessages
+
+  return formatDuration(remaining * avgTimePerItem)
+})
+
+const phaseLabel = computed(() => {
+  switch (currentProgress.value?.phase) {
+    case 'fetching_metadata':
+      return 'Fetching deleted messages...'
+    case 'downloading_media':
+      return 'Downloading media files...'
+    case 'saving':
+      return 'Saving to storage...'
+    case 'complete':
+      return 'Complete!'
+    case 'error':
+      return 'Error occurred'
+    case 'cancelled':
+      return 'Cancelled'
+    default:
+      return 'Initializing...'
+  }
+})
+
 // Lifecycle
 onMounted(async () => {
   isLoading.value = true
@@ -39,6 +88,13 @@ onMounted(async () => {
     error.value = e instanceof Error ? e.message : 'Failed to load chats'
   } finally {
     isLoading.value = false
+  }
+})
+
+onUnmounted(() => {
+  // Cancel any in-progress export on unmount
+  if (exportService.isExporting) {
+    exportService.cancel()
   }
 })
 
@@ -60,6 +116,13 @@ function goBack() {
 function resetExport() {
   step.value = 'select-chat'
   selectedChat.value = null
+  currentProgress.value = null
+  floodWaitSeconds.value = 0
+  error.value = ''
+}
+
+function cancelExport() {
+  exportService.cancel()
 }
 
 async function startExport() {
@@ -67,6 +130,8 @@ async function startExport() {
 
   step.value = 'exporting'
   error.value = ''
+  currentProgress.value = null
+  floodWaitSeconds.value = 0
 
   const config: ExportConfig = {
     chatId: selectedChat.value.id,
@@ -81,50 +146,75 @@ async function startExport() {
     uiStore.showToast('warning', 'Large export detected. Consider downloading as ZIP.')
   }
 
-  const messages: DeletedMessage[] = []
-  const mediaBlobs = new Map<number, Blob>()
-
-  backupsStore.startExport(0)
-  backupsStore.updateExportProgress({ phase: 'fetching_metadata' })
-
   try {
-    // Collect messages
-    for await (const msg of telegramService.iterDeletedMessages(config.chatId)) {
-      messages.push(msg)
-
-      backupsStore.updateExportProgress({
-        processedMessages: messages.length,
-        currentMessageId: msg.id,
-      })
-
-      // Download media if needed
-      if (msg.hasMedia && config.exportMode !== 'text_only') {
-        backupsStore.updateExportProgress({ phase: 'downloading_media' })
-        const blob = await telegramService.downloadMedia(msg)
-        if (blob) {
-          mediaBlobs.set(msg.id, blob)
-          backupsStore.updateExportProgress({
-            exportedMediaMessages: mediaBlobs.size,
-          })
-        }
-      }
-    }
-
-    backupsStore.updateExportProgress({
-      phase: 'saving',
-      totalMessages: messages.length,
+    // Use the new ExportService with callbacks
+    const result = await exportService.exportDeletedMessages(config, {
+      onProgress: (progress) => {
+        currentProgress.value = { ...progress }
+        backupsStore.updateExportProgress({
+          phase: progress.phase,
+          processedMessages: progress.processedMessages,
+          totalMessages: progress.totalMessages,
+          exportedTextMessages: progress.exportedTextMessages,
+          exportedMediaMessages: progress.exportedMediaMessages,
+          failedMessages: progress.failedMessages,
+          currentMessageId: progress.currentMessageId,
+        })
+      },
+      onFloodWait: (seconds) => {
+        floodWaitSeconds.value = seconds
+        uiStore.showToast('warning', `Rate limited. Waiting ${seconds} seconds...`)
+      },
+      onError: (err, messageId) => {
+        console.error(`Failed to process message ${messageId}:`, err)
+      },
     })
 
-    // Create backup
-    const backup = await backupManager.createBackup(config, messages, mediaBlobs)
+    // Create backup from results
+    backupsStore.updateExportProgress({ phase: 'saving' })
+
+    const backup = await backupManager.createBackup(config, result.messages, result.mediaBlobs)
     backupsStore.addBackup(backup)
+
+    // Store for potential ZIP download
+    lastExportResult.value = {
+      ...backup,
+      messages: result.messages,
+      mediaBlobs: result.mediaBlobs,
+    }
 
     backupsStore.completeExport()
     step.value = 'complete'
+
+    // Auto-download ZIP if option was selected
+    if (downloadZipAfter.value) {
+      await downloadAsZip()
+    }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Export failed'
-    backupsStore.setExportError(error.value)
-    step.value = 'configure'
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      uiStore.showToast('info', 'Export cancelled')
+      step.value = 'configure'
+    } else {
+      const friendlyError = toUserFriendlyError(e)
+      error.value = friendlyError.message
+      backupsStore.setExportError(friendlyError.originalError)
+      step.value = 'configure'
+    }
+  }
+}
+
+async function downloadAsZip() {
+  if (!lastExportResult.value) return
+
+  isDownloadingZip.value = true
+  try {
+    await zipGenerator.generateAndDownload(lastExportResult.value)
+    uiStore.showToast('success', 'ZIP downloaded successfully!')
+  } catch (e) {
+    const friendlyError = toUserFriendlyError(e)
+    uiStore.showToast('error', friendlyError.message)
+  } finally {
+    isDownloadingZip.value = false
   }
 }
 
@@ -259,7 +349,40 @@ function formatDate(date?: Date): string {
           </div>
         </div>
 
-        <div v-if="error" class="text-red-600 text-sm">
+        <!-- Download as ZIP option -->
+        <div>
+          <label
+            class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+          >
+            <input v-model="downloadZipAfter" type="checkbox" class="text-blue-600 rounded" />
+            <div>
+              <div class="font-medium text-sm text-gray-900 dark:text-white">
+                Download as ZIP after export
+              </div>
+              <div class="text-xs text-gray-500">
+                Automatically download a ZIP file when export completes
+              </div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Info box -->
+        <div
+          class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+        >
+          <div class="flex gap-3">
+            <span class="text-blue-600">ℹ️</span>
+            <div class="text-sm text-blue-800 dark:text-blue-300">
+              <p class="mb-1"><strong>Parallel downloads enabled</strong></p>
+              <p class="text-xs text-blue-700 dark:text-blue-400">
+                Media files will be downloaded in parallel (up to 4 at once) for faster exports.
+                Rate limits are automatically handled.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="error" class="text-red-600 text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
           {{ error }}
         </div>
 
@@ -278,27 +401,53 @@ function formatDate(date?: Date): string {
         <div
           class="animate-spin w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-5"
         ></div>
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Exporting...</h2>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          {{
-            backupsStore.currentExport?.phase === 'fetching_metadata'
-              ? 'Fetching deleted messages...'
-              : backupsStore.currentExport?.phase === 'downloading_media'
-                ? 'Downloading media...'
-                : backupsStore.currentExport?.phase === 'saving'
-                  ? 'Saving to storage...'
-                  : 'Processing...'
-          }}
-        </p>
-        <div class="text-2xl font-bold text-blue-600">
-          {{ backupsStore.currentExport?.processedMessages ?? 0 }} messages
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">{{ phaseLabel }}</h2>
+
+        <div v-if="floodWaitSeconds > 0" class="text-amber-600 mb-3">
+          ⏳ Rate limited. Waiting {{ floodWaitSeconds }}s...
         </div>
+
+        <div class="text-2xl font-bold text-blue-600 mb-3">
+          {{ currentProgress?.processedMessages ?? 0 }}
+          <span v-if="currentProgress?.totalMessages" class="text-gray-400">
+            / {{ currentProgress.totalMessages }}
+          </span>
+          <span class="text-base font-normal text-gray-500"> messages</span>
+        </div>
+
+        <!-- Progress bar -->
         <div
-          v-if="backupsStore.currentExport?.exportedMediaMessages"
-          class="text-xs text-gray-500 mt-1"
+          v-if="currentProgress?.phase === 'downloading_media'"
+          class="w-full max-w-xs mx-auto h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-4"
         >
-          {{ backupsStore.currentExport.exportedMediaMessages }} media files downloaded
+          <div
+            class="h-full bg-blue-600 transition-all duration-150"
+            :style="{ width: `${progressPercentage}%` }"
+          ></div>
         </div>
+
+        <!-- Stats -->
+        <div class="text-xs text-gray-500 space-y-1">
+          <div v-if="currentProgress?.exportedTextMessages">
+            📝 {{ currentProgress.exportedTextMessages }} text messages
+          </div>
+          <div v-if="currentProgress?.exportedMediaMessages">
+            📎 {{ currentProgress.exportedMediaMessages }} media files downloaded
+          </div>
+          <div v-if="currentProgress?.failedMessages" class="text-red-500">
+            ❌ {{ currentProgress.failedMessages }} failed
+          </div>
+          <div v-if="estimatedTimeRemaining" class="text-blue-600 mt-2">
+            ⏱️ ~{{ estimatedTimeRemaining }} remaining
+          </div>
+        </div>
+
+        <button
+          @click="cancelExport"
+          class="mt-6 px-4 py-2 rounded-md font-medium text-sm bg-red-600 text-white hover:bg-red-700 transition-colors duration-150"
+        >
+          Cancel Export
+        </button>
       </div>
     </template>
 
@@ -307,11 +456,33 @@ function formatDate(date?: Date): string {
       <div class="text-center py-12">
         <div class="text-4xl mb-4">✅</div>
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Export Complete!</h2>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
-          Successfully exported {{ backupsStore.currentExport?.processedMessages ?? 0 }} messages
-          from {{ selectedChat?.title }}
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+          Successfully exported {{ currentProgress?.processedMessages ?? 0 }} messages from
+          {{ selectedChat?.title }}
         </p>
-        <div class="flex gap-3 justify-center">
+
+        <div class="text-xs text-gray-500 mb-6 space-y-1">
+          <div v-if="currentProgress?.exportedTextMessages">
+            📝 {{ currentProgress.exportedTextMessages }} text messages
+          </div>
+          <div v-if="currentProgress?.exportedMediaMessages">
+            📎 {{ currentProgress.exportedMediaMessages }} media files
+          </div>
+          <div v-if="currentProgress?.failedMessages" class="text-amber-600">
+            ⚠️ {{ currentProgress.failedMessages }} failed (will be skipped)
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-3 justify-center">
+          <button
+            v-if="lastExportResult"
+            @click="downloadAsZip"
+            :disabled="isDownloadingZip"
+            class="px-4 py-2 rounded-md font-medium text-sm bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150 flex items-center gap-2"
+          >
+            <span v-if="isDownloadingZip" class="animate-spin">⏳</span>
+            <span>{{ isDownloadingZip ? 'Generating...' : '📥 Download ZIP' }}</span>
+          </button>
           <router-link
             to="/backups"
             class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-150"
