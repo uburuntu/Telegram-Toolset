@@ -448,9 +448,10 @@ class ResendService {
       textParts.push(`<pre>❝ ${escapedQuote} ❞</pre>`)
     }
 
-    // Message text (don't escape - preserve user's formatting)
+    // Message text: escape HTML to prevent injection while keeping parseMode 'html'.
+    // Our app-generated tags (<a>, <pre>) are added above and are safe.
     if (message.text) {
-      textParts.push(message.text)
+      textParts.push(escapeHtml(message.text))
     }
 
     // Fallback
@@ -509,8 +510,12 @@ class ResendService {
       textParts.push(headerParts.join(' - '))
     }
 
-    // Combine all message texts with \n\n separator
-    const messageTexts = batch.map((msg) => msg.text).filter((t): t is string => !!t)
+    // Combine all message texts with \n\n separator.
+    // Escape each text to prevent HTML injection while keeping parseMode 'html'.
+    const messageTexts = batch
+      .map((msg) => msg.text)
+      .filter((t): t is string => !!t)
+      .map(escapeHtml)
     const combinedText = messageTexts.join('\n\n')
 
     if (combinedText) {

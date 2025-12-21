@@ -4,6 +4,7 @@
 
 import JSZip from 'jszip'
 import type { BackupWithMessages } from '@/types'
+import { stripRawMessage } from '@/utils/message-serialization'
 
 class ZipGenerator {
   async generateAndDownload(backup: BackupWithMessages): Promise<void> {
@@ -22,13 +23,16 @@ class ZipGenerator {
 
     zip.file('metadata.json', JSON.stringify(metadata, null, 2))
 
-    // Create messages JSON (with BigInt serialization)
-    const messagesData = backup.messages.map((msg) => ({
-      ...msg,
-      chatId: msg.chatId.toString(),
-      senderId: msg.senderId?.toString(),
-      date: msg.date.toISOString(),
-    }))
+    // Create messages JSON (with BigInt serialization and _rawMessage stripped)
+    const messagesData = backup.messages.map((msg) => {
+      const clean = stripRawMessage(msg)
+      return {
+        ...clean,
+        chatId: msg.chatId.toString(),
+        senderId: msg.senderId?.toString(),
+        date: msg.date.toISOString(),
+      }
+    })
 
     zip.file('messages.json', JSON.stringify(messagesData, null, 2))
 
@@ -76,12 +80,15 @@ class ZipGenerator {
 
     zip.file('metadata.json', JSON.stringify(metadata, null, 2))
 
-    const messagesData = backup.messages.map((msg) => ({
-      ...msg,
-      chatId: msg.chatId.toString(),
-      senderId: msg.senderId?.toString(),
-      date: msg.date.toISOString(),
-    }))
+    const messagesData = backup.messages.map((msg) => {
+      const clean = stripRawMessage(msg)
+      return {
+        ...clean,
+        chatId: msg.chatId.toString(),
+        senderId: msg.senderId?.toString(),
+        date: msg.date.toISOString(),
+      }
+    })
 
     zip.file('messages.json', JSON.stringify(messagesData, null, 2))
 

@@ -4,6 +4,7 @@
 
 import { openDB, type IDBPDatabase } from 'idb'
 import type { Backup, DeletedMessage, MediaTypeStats } from '@/types'
+import { stripRawMessage, safeJsonStringify } from '@/utils/message-serialization'
 
 interface TelegramToolsetDB {
   backups: {
@@ -114,7 +115,9 @@ export async function deleteBackup(id: string): Promise<void> {
 // Message operations
 export async function saveMessage(backupId: string, message: DeletedMessage): Promise<void> {
   const db = await getDB()
-  await db.put('messages', { ...message, backupId })
+  // Strip runtime-only `_rawMessage` before persisting (non-serializable GramJS object).
+  const sanitized = stripRawMessage(message)
+  await db.put('messages', { ...sanitized, backupId })
 }
 
 export async function saveMessages(backupId: string, messages: DeletedMessage[]): Promise<void> {
@@ -123,7 +126,9 @@ export async function saveMessages(backupId: string, messages: DeletedMessage[])
   const store = tx.objectStore('messages')
 
   for (const message of messages) {
-    await store.put({ ...message, backupId })
+    // Strip runtime-only `_rawMessage` before persisting.
+    const sanitized = stripRawMessage(message)
+    await store.put({ ...sanitized, backupId })
   }
 
   await tx.done
@@ -174,9 +179,10 @@ export async function calculateBackupSize(backupId: string): Promise<number> {
     totalSize += item.blob.size
   }
 
-  // Rough estimate for messages (JSON size)
+  // Rough estimate for messages (JSON size). Use BigInt-safe stringify
+  // because messages may contain bigint chatId/senderId fields.
   const messages = await db.getAllFromIndex('messages', 'by-backup', backupId)
-  totalSize += JSON.stringify(messages).length
+  totalSize += safeJsonStringify(messages).length
 
   return totalSize
 }
