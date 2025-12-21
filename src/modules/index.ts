@@ -53,6 +53,18 @@ export const modules: ToolModule[] = [
 ]
 
 /**
+ * Placeholder for the "contribute" card shown on the landing page.
+ * This is not a real module - it links to the GitHub repo.
+ */
+export const contributeCard = {
+  id: 'contribute',
+  name: 'Add Your Tool',
+  description: 'Have an idea? Contribute a new module to this project',
+  icon: 'plus',
+  url: 'https://github.com/uburuntu/Telegram-Toolset#adding-a-new-module',
+}
+
+/**
  * Get module by ID
  */
 export function getModule(id: string): ToolModule | undefined {
