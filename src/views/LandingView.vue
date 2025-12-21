@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAccountsStore, useUiStore } from '@/stores'
 import { modules, contributeCard } from '@/modules'
 import type { ToolModule } from '@/types'
 
+const { t } = useI18n()
 const router = useRouter()
 const accountsStore = useAccountsStore()
 const uiStore = useUiStore()
@@ -12,11 +14,11 @@ const uiStore = useUiStore()
 function getAccountTypeLabel(type: 'user' | 'bot' | 'any'): string {
   switch (type) {
     case 'user':
-      return 'User Account'
+      return t('accounts.userAccount')
     case 'bot':
-      return 'Bot Token'
+      return t('accounts.botToken')
     case 'any':
-      return 'Any Account'
+      return t('accounts.anyAccount')
   }
 }
 
@@ -70,10 +72,9 @@ const sortedModules = computed(() => {
   <div class="max-w-5xl mx-auto py-10 px-4">
     <!-- Hero Section -->
     <header class="text-center mb-10">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-3">Telegram Power Toolset</h1>
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-3">{{ t('landing.title') }}</h1>
       <p class="text-base text-gray-600 dark:text-gray-400 max-w-xl mx-auto">
-        Advanced features for Telegram that aren't available in official apps. 100% on-device, open
-        source, and privacy-focused.
+        {{ t('landing.subtitle') }}
       </p>
     </header>
 
@@ -85,10 +86,9 @@ const sortedModules = computed(() => {
       <div class="flex items-center gap-3">
         <span class="text-xl">👋</span>
         <div class="flex-1">
-          <p class="font-medium text-sm text-gray-900 dark:text-white">Welcome!</p>
+          <p class="font-medium text-sm text-gray-900 dark:text-white">{{ t('landing.welcome') }}</p>
           <p class="text-sm text-gray-600 dark:text-gray-400">
-            Click on any tool below to get started. You'll be prompted to connect your Telegram
-            account.
+            {{ t('landing.welcomeText') }}
           </p>
         </div>
       </div>
@@ -120,7 +120,7 @@ const sortedModules = computed(() => {
             </span>
           </p>
           <p class="text-xs text-gray-600 dark:text-gray-400">
-            {{ accountsStore.activeAccount.type === 'bot' ? 'Bot' : 'User Account' }}
+            {{ accountsStore.activeAccount.type === 'bot' ? t('accounts.botToken') : t('accounts.userAccount') }}
           </p>
         </div>
         <span class="text-xs text-gray-500">
@@ -222,23 +222,23 @@ const sortedModules = computed(() => {
     <div class="mt-12 grid gap-6 md:grid-cols-3">
       <div class="text-center">
         <div class="text-3xl mb-2">🔒</div>
-        <h3 class="font-medium text-gray-900 dark:text-white mb-1">100% Private</h3>
+        <h3 class="font-medium text-gray-900 dark:text-white mb-1">{{ t('landing.features.private.title') }}</h3>
         <p class="text-sm text-gray-600 dark:text-gray-400">
-          Everything runs in your browser. No servers, no tracking.
+          {{ t('landing.features.private.text') }}
         </p>
       </div>
       <div class="text-center">
         <div class="text-3xl mb-2">💾</div>
-        <h3 class="font-medium text-gray-900 dark:text-white mb-1">Local Storage</h3>
+        <h3 class="font-medium text-gray-900 dark:text-white mb-1">{{ t('landing.features.localStorage.title') }}</h3>
         <p class="text-sm text-gray-600 dark:text-gray-400">
-          Your data stays on your device. Export as ZIP anytime.
+          {{ t('landing.features.localStorage.text') }}
         </p>
       </div>
       <div class="text-center">
         <div class="text-3xl mb-2">📖</div>
-        <h3 class="font-medium text-gray-900 dark:text-white mb-1">Open Source</h3>
+        <h3 class="font-medium text-gray-900 dark:text-white mb-1">{{ t('landing.features.openSource.title') }}</h3>
         <p class="text-sm text-gray-600 dark:text-gray-400">
-          Fully transparent. Review or contribute to the code.
+          {{ t('landing.features.openSource.text') }}
         </p>
       </div>
     </div>

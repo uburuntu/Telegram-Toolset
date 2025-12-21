@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAccountsStore, useUiStore } from '@/stores'
 import { telegramService } from '@/services/telegram/client'
 import AccountSwitcher from '@/components/auth/AccountSwitcher.vue'
 import LoginModal from '@/components/auth/LoginModal.vue'
 import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
 import PrivacyFooter from '@/components/layout/PrivacyFooter.vue'
+
+const { t } = useI18n()
 
 const route = useRoute()
 const accountsStore = useAccountsStore()
@@ -158,31 +161,30 @@ watch(
     >
       <div class="bg-white dark:bg-gray-900 rounded-xl shadow-lg max-w-md w-full p-6">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          🔒 Your Privacy Matters
+          🔒 {{ t('privacy.modalTitle') }}
         </h2>
         <div class="space-y-3 text-gray-600 dark:text-gray-400 text-sm mb-5">
-          <p>This tool runs entirely in your browser:</p>
+          <p>{{ t('privacy.modalText') }}</p>
           <ul class="space-y-2">
             <li class="flex items-start gap-2">
               <span class="text-green-500">✓</span>
-              <span>No server - connects directly to Telegram</span>
+              <span>{{ t('privacy.noServer') }}</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="text-green-500">✓</span>
-              <span>No tracking - we don't collect any data</span>
+              <span>{{ t('privacy.noTracking') }}</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="text-green-500">✓</span>
-              <span>No cookies - except your Telegram session</span>
+              <span>{{ t('privacy.noCookies') }}</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="text-green-500">✓</span>
-              <span>Open source - verify the code yourself</span>
+              <span>{{ t('privacy.openSourceNote') }}</span>
             </li>
           </ul>
           <p class="text-xs">
-            Your Telegram session is stored in your browser's local storage and never transmitted
-            anywhere.
+            {{ t('privacy.sessionNote') }}
           </p>
         </div>
         <div class="flex gap-3">
@@ -192,13 +194,13 @@ watch(
             rel="noopener noreferrer"
             class="flex-1 px-4 py-2 rounded-md font-medium text-sm text-center transition-colors duration-100 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
           >
-            View on GitHub
+            {{ t('privacy.viewOnGitHub') }}
           </a>
           <button
             @click="uiStore.acknowledgePrivacyNotice()"
             class="flex-1 px-4 py-2 rounded-md font-medium text-sm transition-colors duration-100 bg-blue-600 text-white hover:bg-blue-700"
           >
-            I Understand
+            {{ t('privacy.understand') }}
           </button>
         </div>
       </div>
