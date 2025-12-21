@@ -1,0 +1,200 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "search": "Search...",
+    "noResults": "No results found"
+  },
+  "landing": {
+    "title": "Telegram Power Toolset",
+    "subtitle": "Advanced features for Telegram that aren't available in official apps. 100% on-device, open source, and privacy-focused.",
+    "welcome": "Welcome!",
+    "welcomeText": "Click on any tool below to get started. You'll be prompted to connect your Telegram account.",
+    "accountsConnected": "{count} account | {count} accounts connected",
+    "features": {
+      "private": {
+        "title": "100% Private",
+        "text": "Everything runs in your browser. No servers, no tracking, no data collection."
+      },
+      "localStorage": {
+        "title": "Local Storage",
+        "text": "Your data is stored in your browser. Export anytime as ZIP files."
+      },
+      "openSource": {
+        "title": "Open Source",
+        "text": "Fully transparent. Review, audit, or contribute to the code."
+      }
+    }
+  },
+  "accounts": {
+    "notLoggedIn": "Not logged in",
+    "userAccount": "User Account",
+    "botToken": "Bot Token",
+    "anyAccount": "Any Account",
+    "addUserAccount": "Add User Account",
+    "addBotToken": "Add Bot Token",
+    "switchAccount": "Switch account to use",
+    "addAccount": "Add a {type} to use",
+    "active": "Active",
+    "removeAccount": "Remove account"
+  },
+  "auth": {
+    "addAccount": "Add Account",
+    "apiCredentials": {
+      "title": "API Credentials",
+      "description": "Get your credentials from",
+      "apiId": "API ID",
+      "apiHash": "API Hash",
+      "found": "API credentials found",
+      "foundDescription": "You have API credentials saved from a previous login. The same credentials can be used for multiple Telegram accounts.",
+      "useSaved": "Use saved credentials",
+      "enterNew": "Enter different credentials",
+      "enterNewDescription": "Use a different API ID & Hash"
+    },
+    "phone": {
+      "title": "Phone Number",
+      "description": "Enter your phone number to receive a verification code",
+      "placeholder": "+1234567890",
+      "sendCode": "Send Code",
+      "sending": "Sending..."
+    },
+    "code": {
+      "title": "Verification Code",
+      "description": "Enter the code sent to {phone}",
+      "placeholder": "12345",
+      "verify": "Verify",
+      "verifying": "Verifying..."
+    },
+    "password": {
+      "title": "Two-Factor Authentication",
+      "description": "Enter your cloud password",
+      "placeholder": "Password",
+      "signIn": "Sign In",
+      "signingIn": "Signing in..."
+    },
+    "bot": {
+      "title": "Bot Token",
+      "description": "Get your bot token from",
+      "placeholder": "123456789:ABCdefGHIjklMNOpqrSTUvwxYZ",
+      "addBot": "Add Bot",
+      "validating": "Validating...",
+      "alreadyAdded": "This bot is already added. Proceeding will update the existing token.",
+      "updating": "Updating...",
+      "update": "Update"
+    },
+    "success": "Account Added!",
+    "redirecting": "Redirecting...",
+    "privacyNote": "Your credentials are stored locally in your browser and never sent to any server."
+  },
+  "modules": {
+    "accountInfo": {
+      "name": "Account Info",
+      "description": "View your account profile, settings, and capabilities"
+    },
+    "exportDeleted": {
+      "name": "Export Deleted Messages",
+      "description": "Save deleted messages from channels/groups you admin"
+    },
+    "resend": {
+      "name": "Resend Messages",
+      "description": "Re-send previously exported messages to any chat"
+    }
+  },
+  "accountInfo": {
+    "title": "Account Info",
+    "subtitle": "View your account profile and settings",
+    "loading": "Loading account info...",
+    "noAccountSelected": "No account selected",
+    "accountId": "Account ID",
+    "username": "Username",
+    "phone": "Phone",
+    "accountType": "Account Type",
+    "userAccount": "User Account",
+    "botAccount": "Bot",
+    "capabilities": "Bot Capabilities",
+    "canJoinGroups": "Can join groups",
+    "canReadAllMessages": "Can read all group messages",
+    "privacyMode": "Privacy mode",
+    "supportsInline": "Inline queries",
+    "hasWebApp": "Web App",
+    "yes": "Yes",
+    "no": "No",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "quickLinks": "Quick Links",
+    "openInTelegram": "Open in Telegram",
+    "editWithBotFather": "Edit with BotFather",
+    "accountManagement": "Account Management",
+    "added": "Added",
+    "lastUsed": "Last used"
+  },
+  "export": {
+    "title": "Export Deleted Messages",
+    "selectChat": "Select a channel or group where you have admin access",
+    "searchChats": "Search chats...",
+    "loadingChats": "Loading chats...",
+    "noExportableChats": "No exportable chats found",
+    "needAdmin": "You need admin access to channels or supergroups to export deleted messages",
+    "configure": "Configure Export",
+    "exportingFrom": "Exporting from:",
+    "exportMode": "Export Mode",
+    "allContent": "All content",
+    "allContentDesc": "Export text and media files",
+    "textOnly": "Text only",
+    "textOnlyDesc": "Skip media files, faster export",
+    "mediaOnly": "Media only",
+    "mediaOnlyDesc": "Only messages with media",
+    "startExport": "Start Export",
+    "exporting": "Exporting...",
+    "fetchingMessages": "Fetching deleted messages...",
+    "downloadingMedia": "Downloading media...",
+    "savingStorage": "Saving to storage...",
+    "processing": "Processing...",
+    "messages": "{count} message | {count} messages",
+    "mediaDownloaded": "{count} media files downloaded",
+    "complete": "Export Complete!",
+    "successMessage": "Successfully exported {count} messages from {chat}",
+    "viewBackups": "View Backups",
+    "exportAnother": "Export Another"
+  },
+  "backups": {
+    "title": "Your Backups",
+    "count": "{count} backup | {count} backups",
+    "newExport": "+ New Export",
+    "storageUsed": "Storage used",
+    "loading": "Loading backups...",
+    "empty": "No backups yet",
+    "emptyText": "Export deleted messages from your channels to get started",
+    "createFirst": "Create First Backup",
+    "downloadZip": "Download ZIP",
+    "messages": "{count} messages"
+  },
+  "privacy": {
+    "footer": "100% on-device. No data leaves your browser.",
+    "viewSource": "View Source",
+    "modalTitle": "Your Privacy Matters",
+    "modalText": "This tool runs entirely in your browser:",
+    "noServer": "No server - connects directly to Telegram",
+    "noTracking": "No tracking - we don't collect any data",
+    "noCookies": "No cookies - except your Telegram session",
+    "openSourceNote": "Open source - verify the code yourself",
+    "sessionNote": "Your Telegram session is stored in your browser's local storage and never transmitted anywhere.",
+    "viewOnGitHub": "View on GitHub",
+    "understand": "I Understand"
+  },
+  "language": {
+    "select": "Language",
+    "en": "English",
+    "ru": "Русский"
+  }
+}

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Telegram Toolset</title>
+
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>" />
+
+    <!-- SEO -->
+    <meta name="description" content="Power tools for Telegram - Export deleted messages, manage backups, and more. 100% on-device, open source, privacy-focused." />
+    <meta name="keywords" content="Telegram, deleted messages, export, backup, open source, privacy" />
+    <meta name="author" content="rmbk" />
+    <meta name="theme-color" content="#2563eb" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Telegram Toolset" />
+    <meta property="og:description" content="Power tools for Telegram - Export deleted messages, manage backups. 100% on-device and open source." />
+    <meta property="og:url" content="https://telegram-toolset.rmbk.me" />
+    <meta property="og:site_name" content="Telegram Toolset" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Telegram Toolset" />
+    <meta name="twitter:description" content="Power tools for Telegram - Export deleted messages, manage backups. 100% on-device and open source." />
+
+    <!-- SPA redirect handler for GitHub Pages -->
+    <script>
+      (function() {
+        const redirect = sessionStorage.getItem('redirect')
+        if (redirect) {
+          sessionStorage.removeItem('redirect')
+          history.replaceState(null, '', redirect)
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

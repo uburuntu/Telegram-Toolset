@@ -1,134 +1,72 @@
-# Telegram Deleted Messages Manager
+# Telegram Toolset
 
-[![CI](https://github.com/uburuntu/Telegram-Deleted-Messages-Manager/actions/workflows/ci.yml/badge.svg)](https://github.com/uburuntu/Telegram-Deleted-Messages-Manager/actions/workflows/ci.yml)
-[![Release](https://github.com/uburuntu/Telegram-Deleted-Messages-Manager/actions/workflows/cd.yml/badge.svg)](https://github.com/uburuntu/Telegram-Deleted-Messages-Manager/actions/workflows/cd.yml)
+[![CI](https://github.com/rmbk/telegram-toolset/actions/workflows/ci.yml/badge.svg)](https://github.com/rmbk/telegram-toolset/actions/workflows/ci.yml)
+[![Deploy](https://github.com/rmbk/telegram-toolset/actions/workflows/deploy.yml/badge.svg)](https://github.com/rmbk/telegram-toolset/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Export and re-send deleted Telegram messages with a modern cross-platform GUI. 📥 Archive important messages before they disappear, then 📤 resend them anywhere you need!
+**[telegram-toolset.rmbk.me](https://telegram-toolset.rmbk.me)**
 
-## Screenshots
-
-<div align="center">
-
-### Main Menu
-![Main Menu](.github/screenshots/01-main-menu.png)
-
-### 📥 Export Chat Selection
-![Export Chat Selection](.github/screenshots/02-export-chat-selection.png)
-
-### 📤 Resend Configuration
-![Resend Configuration](.github/screenshots/03-resend-configuration.png)
-
-### ⚙️ Resend Options
-![Resend Options](.github/screenshots/04-resend-options.png)
-
-### Smart Batching
-![Smart Batching](.github/screenshots/05-resend-batching.png)
-
-</div>
-
-## Download
-
-**[Latest Release](https://github.com/uburuntu/Telegram-Deleted-Messages-Manager/releases/latest)**
-
-- Windows: `TelegramDeletedMessagesManager-windows.exe`
-- macOS: `TelegramDeletedMessagesManager-macos` / `.app.zip`
-- Linux: `TelegramDeletedMessagesManager-linux`
+Power tools for Telegram that aren't available in official apps. 100% on-device, open source, and privacy-focused.
 
 ## Features
 
-- 📥 **Export deleted messages** from Telegram chats (requires admin access)
-- 📤 **Re-send messages** to any chat with customizable headers
-- ⚙️ **Smart batching** - merge consecutive short messages automatically
-- 🌍 **Timezone adjustment** - display messages in your local time
-- 🔗 **Hidden reply links** - clean formatting with clickable references
-- ⚡ **Parallel downloads** with automatic FloodWait handling
-- 🖥️ **Cross-platform** - works on Windows, macOS, and Linux
+- **Export Deleted Messages** - Save deleted messages from channels/groups where you have admin access
+- **Resend Messages** - Re-send previously exported messages to any chat
+- **Account Info** - View account details and bot capabilities
+- **Multi-Account** - Support for both user accounts and bot tokens
+- **Offline Storage** - All data stored locally in your browser (IndexedDB)
+- **Bilingual** - English and Russian language support
 
-## 🚀 Quick Start
+## Privacy First
 
-### Pre-built Binary
+- Runs entirely in your browser - no server backend
+- Your Telegram session never leaves your device
+- No tracking, no cookies, no data collection
+- Open source - verify the code yourself
 
-1. Download for your platform
-2. **macOS users**: See [macOS Security](#macos-security) below
-3. Run the executable (macOS/Linux: `chmod +x TelegramDeletedMessagesManager-*`)
-4. Enter [Telegram API credentials](https://my.telegram.org/auth) on first launch
+## Tech Stack
 
-#### macOS Security
-
-macOS will block unsigned apps with "damaged" error. To bypass Gatekeeper:
-
-```bash
-# Remove quarantine attribute
-xattr -cr TelegramDeletedMessagesManager-macos
-
-# Then run normally
-./TelegramDeletedMessagesManager-macos
-```
-
-**Alternative**: Right-click → Open → Click "Open" to allow once.
-
-### From Source
-
-```bash
-git clone https://github.com/uburuntu/Telegram-Deleted-Messages-Manager.git
-cd Telegram-Deleted-Messages-Manager
-uv sync
-uv run python main.py
-```
+- **Vue 3** + TypeScript + Vite
+- **Pinia** for state management
+- **Vue Router** for navigation
+- **TailwindCSS** for styling
+- **GramJS** for Telegram MTProto (user accounts)
+- **IndexedDB** for local storage
+- **Vitest** + Playwright for testing
 
 ## Development
 
 ```bash
-make test          # Run tests
-make lint          # Check code quality
-make format        # Auto-format code
-make build         # Build executable
+# Install dependencies
+npm install
+
+# Start dev server
+npm run dev
+
+# Run linter
+npm run lint
+
+# Run tests
+npm test
+
+# Build for production
+npm run build
 ```
-
-## Configuration
-
-Settings persist in `app_config.json`. Exports saved to `~/Documents/TelegramDeletedMessagesManager/` (or project root in dev mode).
 
 ## Requirements
 
-- Python 3.14+ (for development)
-- Telegram API credentials ([get here](https://my.telegram.org/auth))
-- Admin access to source chat (for exports)
+To use this app, you need:
 
-## Architecture
-
-```
-src/
-├── models/      # Pydantic data models
-├── services/    # Business logic
-├── ui/          # Flet UI components
-└── utils/       # Helpers
-
-tests/           # Unit tests
-```
-
-## CI/CD
-
-- **CI:** Auto-tests on push/PR (lint, format, test, build)
-- **CD:** Auto-release on version tags (`v*.*.*`)
-- **Local testing:** `brew install act && make test-ci`
-
-See [Release Process](.github/RELEASE.md) for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create feature branch
-3. Run tests: `make test && make lint`
-4. Submit pull request
+1. **For User Accounts**: Telegram API credentials from [my.telegram.org](https://my.telegram.org)
+2. **For Bots**: A bot token from [@BotFather](https://t.me/BotFather)
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) file.
 
-## Resources
+## Contributing
 
-- [Flet Framework](https://flet.dev/)
-- [Telethon Library](https://github.com/LonamiWebs/Telethon)
-- [Issue Tracker](https://github.com/uburuntu/Telegram-Deleted-Messages-Manager/issues)
+1. Fork the repository
+2. Create a feature branch
+3. Run tests: `npm test && npm run lint`
+4. Submit a pull request

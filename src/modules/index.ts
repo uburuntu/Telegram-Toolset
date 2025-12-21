@@ -1,0 +1,74 @@
+/**
+ * Module registry
+ *
+ * Each module is self-contained and lazy-loaded.
+ * To add a new module, add an entry to this array.
+ */
+
+import type { ToolModule } from '@/types'
+
+export const modules: ToolModule[] = [
+  {
+    id: 'account-info',
+    name: 'Account Info',
+    description: 'View your account profile, settings, and capabilities',
+    icon: 'user',
+    accountType: 'any',
+    route: {
+      path: '/account-info',
+      name: 'account-info',
+      component: () => import('./account-info/AccountInfoView.vue'),
+      meta: { requiresAuth: true, accountType: 'any' },
+    },
+  },
+  {
+    id: 'export-deleted',
+    name: 'Export Deleted Messages',
+    description: 'Save deleted messages from channels/groups you admin',
+    icon: 'download',
+    accountType: 'user',
+    route: {
+      path: '/export',
+      name: 'export',
+      component: () => import('./export-deleted/ExportView.vue'),
+      meta: { requiresAuth: true, accountType: 'user' },
+    },
+    requiredPermissions: ['admin_log'],
+  },
+  {
+    id: 'resend',
+    name: 'Resend Messages',
+    description: 'Re-send previously exported messages to any chat',
+    icon: 'send',
+    accountType: 'any',
+    route: {
+      path: '/resend',
+      name: 'resend',
+      component: () => import('./resend/ResendView.vue'),
+      meta: { requiresAuth: true, accountType: 'any' },
+    },
+    requiredPermissions: ['send_messages'],
+  },
+]
+
+/**
+ * Get module by ID
+ */
+export function getModule(id: string): ToolModule | undefined {
+  return modules.find((m) => m.id === id)
+}
+
+/**
+ * Get all module routes for Vue Router
+ */
+export function getModuleRoutes() {
+  return modules.map((m) => m.route)
+}
+
+/**
+ * Get modules filtered by account type
+ */
+export function getModulesForAccountType(type: 'user' | 'bot' | null): ToolModule[] {
+  if (!type) return modules
+  return modules.filter((m) => m.accountType === 'any' || m.accountType === type)
+}
