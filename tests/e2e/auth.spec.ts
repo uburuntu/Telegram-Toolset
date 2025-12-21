@@ -39,8 +39,12 @@ test.describe('Landing Page', () => {
     await page.goto('/')
     await page.getByText('Account Info').click()
 
-    await expect(page.getByText('User Account')).toBeVisible()
-    await expect(page.getByText('Bot Token')).toBeVisible()
+    // Wait for modal to appear
+    await expect(page.getByText('Add Account')).toBeVisible()
+
+    // Check tab buttons exist (emoji + text)
+    await expect(page.locator('button:has-text("User Account")')).toBeVisible()
+    await expect(page.locator('button:has-text("Bot Token")')).toBeVisible()
   })
 
   test('should close login modal with X button', async ({ page }) => {
