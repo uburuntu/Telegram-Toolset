@@ -51,6 +51,10 @@ export default defineConfig(() => {
         // (device model + system version). Provide a minimal shim.
         { find: /^os$/, replacement: resolve(__dirname, 'src/shims/os.ts') },
         { find: /^node:os$/, replacement: resolve(__dirname, 'src/shims/os.ts') },
+        // GramJS dependencies (socks, etc.) may use EventEmitter. Provide a browser shim
+        // to prevent "superclass is not a constructor" errors when 'events' is externalized.
+        { find: /^events$/, replacement: resolve(__dirname, 'src/shims/events.ts') },
+        { find: /^node:events$/, replacement: resolve(__dirname, 'src/shims/events.ts') },
       ],
     },
     define: {
@@ -104,8 +108,15 @@ export default defineConfig(() => {
         strictRequires: true,
         // Transform mixed ESM/CJS modules properly
         transformMixedEsModules: true,
+        // Don't ignore try-catch requires - GramJS has conditional requires
+        ignoreTryCatch: false,
       },
       rollupOptions: {
+        // Preserve class names to help debug and prevent minification issues with class hierarchy
+        treeshake: {
+          // Don't remove classes that might look unused but are needed for inheritance
+          moduleSideEffects: true,
+        },
         output: {
           // IMPORTANT: Do NOT use manualChunks for 'telegram' - GramJS has internal class
           // inheritance that breaks when the bundler splits it incorrectly, causing
