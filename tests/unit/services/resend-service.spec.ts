@@ -16,6 +16,8 @@ import { telegramService } from '@/services/telegram/client'
 describe('ResendService', () => {
   const baseConfig: ResendConfig = {
     targetChatId: BigInt('123456'),
+    targetChatTitle: 'Test Chat',
+    backupId: 'test-backup',
     includeText: true,
     includeMedia: true,
     showSenderName: true,
@@ -23,7 +25,7 @@ describe('ResendService', () => {
     showDate: true,
     showReplyLink: false,
     useHiddenReplyLinks: false,
-    timezoneOffsetHours: 0,
+    timezone: 'UTC',
     enableBatching: false,
     batchMaxMessages: 5,
     batchMaxMessageLength: 200,
@@ -295,7 +297,7 @@ describe('ResendService', () => {
         showSenderName: false,
         showSenderUsername: false,
         showDate: true,
-        timezoneOffsetHours: 3, // UTC+3
+        timezone: 3, // UTC+3 (legacy numeric offset)
       })
 
       const sentText = vi.mocked(telegramService.sendMessage).mock.calls[0][1]
