@@ -95,12 +95,7 @@ export interface ChatValidationResult {
 /**
  * Connection state for Telegram client
  */
-export type ConnectionState =
-  | 'disconnected'
-  | 'connecting'
-  | 'connected'
-  | 'reconnecting'
-  | 'error'
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error'
 
 export interface AuthState {
   status:

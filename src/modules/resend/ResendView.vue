@@ -481,10 +481,14 @@ function formatBytes(bytes: number): string {
             <span>Rate limited. Resuming in {{ floodWaitRemaining }}s...</span>
           </div>
           <!-- Countdown progress bar -->
-          <div class="w-full max-w-xs mx-auto h-1.5 bg-amber-200 dark:bg-amber-900 rounded-full overflow-hidden mt-2">
+          <div
+            class="w-full max-w-xs mx-auto h-1.5 bg-amber-200 dark:bg-amber-900 rounded-full overflow-hidden mt-2"
+          >
             <div
               class="h-full bg-amber-500 transition-all duration-1000 ease-linear"
-              :style="{ width: `${((floodWaitSeconds - floodWaitRemaining) / floodWaitSeconds) * 100}%` }"
+              :style="{
+                width: `${((floodWaitSeconds - floodWaitRemaining) / floodWaitSeconds) * 100}%`,
+              }"
             ></div>
           </div>
         </div>

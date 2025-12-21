@@ -193,4 +193,3 @@ export interface ChatBannedRights {
   pinMessages?: boolean
   untilDate?: number
 }
-

@@ -488,11 +488,12 @@ class TelegramService {
       try {
         // @ts-expect-error - iterAdminLog exists but isn't in type definitions
         const adminLog = this.client.iterAdminLog(entity, { limit: 1 })
-        for await (const _ of adminLog) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for await (const _event of adminLog) {
           // Successfully accessed admin log
           break
         }
-      } catch (e) {
+      } catch {
         return {
           valid: true,
           canExport: false,
@@ -604,9 +605,7 @@ class TelegramService {
       if (msg.media?.document) {
         const doc = msg.media.document
         mediaSize = doc.size
-        const filenameAttr = doc.attributes?.find(
-          (a: any) => a._ === 'documentAttributeFilename'
-        )
+        const filenameAttr = doc.attributes?.find((a: any) => a._ === 'documentAttributeFilename')
         if (filenameAttr) {
           mediaFilename = filenameAttr.fileName
         }
@@ -918,4 +917,3 @@ class TelegramService {
 
 // Singleton instance
 export const telegramService = new TelegramService()
-
