@@ -5,6 +5,7 @@ import { resolve } from 'path'
 
 function agentGramjsBrowserShimsPlugin(): Plugin {
   const shimPromisedNetSockets = resolve(__dirname, 'src/shims/telegram/PromisedNetSockets.ts')
+  const shimCryptoFile = resolve(__dirname, 'src/shims/telegram/CryptoFile.ts')
   return {
     name: 'agent-gramjs-browser-shims',
     resolveId(id, importer) {
@@ -20,6 +21,14 @@ function agentGramjsBrowserShimsPlugin(): Plugin {
         return shimPromisedNetSockets
       }
 
+      // GramJS CJS build imports `./CryptoFile` (Node's crypto). Use the browser implementation.
+      if ((id === './CryptoFile' || id === './CryptoFile.js') && imp.includes('/node_modules/telegram/')) {
+        return shimCryptoFile
+      }
+      if (id === 'telegram/CryptoFile' || id === 'telegram/CryptoFile.js') {
+        return shimCryptoFile
+      }
+
       return null
     },
   }
@@ -27,6 +36,7 @@ function agentGramjsBrowserShimsPlugin(): Plugin {
 
 export default defineConfig(() => {
   const shimPromisedNetSockets = resolve(__dirname, 'src/shims/telegram/PromisedNetSockets.ts')
+  const shimCryptoFile = resolve(__dirname, 'src/shims/telegram/CryptoFile.ts')
   const config = {
     base: '/',
     plugins: [vue(), ...tailwindcss(), agentGramjsBrowserShimsPlugin()],
@@ -37,6 +47,10 @@ export default defineConfig(() => {
         // Ensure we only alias the exact module IDs (no `util/*` subpaths).
         { find: /^util$/, replacement: resolve(__dirname, 'src/shims/util.ts') },
         { find: /^node:util$/, replacement: resolve(__dirname, 'src/shims/util.ts') },
+        // GramJS uses reminders of Node's `os` via `telegram/client/os.js` even in the browser
+        // (device model + system version). Provide a minimal shim.
+        { find: /^os$/, replacement: resolve(__dirname, 'src/shims/os.ts') },
+        { find: /^node:os$/, replacement: resolve(__dirname, 'src/shims/os.ts') },
       ],
     },
     define: {
@@ -62,6 +76,17 @@ export default defineConfig(() => {
                   // Only rewrite the require from GramJS' extensions index.
                   if (/\/telegram\/extensions\/index\.js$/.test(imp)) {
                     return { path: shimPromisedNetSockets }
+                  }
+                  return null
+                }
+              )
+
+              build.onResolve(
+                { filter: /^\.\/*CryptoFile(\.js)?$/ },
+                (args: { path: string; importer: string }) => {
+                  const imp = (args.importer ?? '').replace(/\\/g, '/')
+                  if (imp.includes('/node_modules/telegram/')) {
+                    return { path: shimCryptoFile }
                   }
                   return null
                 }
