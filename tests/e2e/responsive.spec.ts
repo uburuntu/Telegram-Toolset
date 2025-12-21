@@ -14,8 +14,8 @@ test.describe('Responsive Layout', () => {
     test('should show full header on desktop', async ({ page }) => {
       await page.goto('/')
 
-      // Header should be visible
-      await expect(page.getByText('Telegram Toolset')).toBeVisible()
+      // Header should be visible with full title
+      await expect(page.getByRole('heading', { name: 'Telegram Power Toolset' })).toBeVisible()
     })
 
     test('should show module cards in grid', async ({ page }) => {
@@ -33,17 +33,23 @@ test.describe('Responsive Layout', () => {
     test('should show landing page on mobile', async ({ page }) => {
       await page.goto('/')
 
-      await expect(page.getByText('Telegram Power Toolset')).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Telegram Power Toolset' })).toBeVisible()
     })
 
     test('should have proper layout on mobile', async ({ page }) => {
       await page.goto('/')
 
+      // Wait for content to load
+      await expect(page.getByRole('heading', { name: 'Telegram Power Toolset' })).toBeVisible()
+
       // Main content should fit within viewport
-      const main = page.locator('main')
+      const main = page.locator('.max-w-5xl')
       const box = await main.boundingBox()
 
-      expect(box!.width).toBeLessThanOrEqual(375)
+      expect(box).not.toBeNull()
+      if (box) {
+        expect(box.width).toBeLessThanOrEqual(375)
+      }
     })
 
     test('should open login modal on mobile', async ({ page }) => {
@@ -61,7 +67,7 @@ test.describe('Responsive Layout', () => {
     test('should handle tablet size gracefully', async ({ page }) => {
       await page.goto('/')
 
-      await expect(page.getByText('Telegram Power Toolset')).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Telegram Power Toolset' })).toBeVisible()
       await expect(page.getByText('Account Info')).toBeVisible()
     })
   })

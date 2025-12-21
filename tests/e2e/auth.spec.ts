@@ -11,7 +11,7 @@ test.describe('Landing Page', () => {
 
   test('should show app title', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByText('Telegram Power Toolset')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Telegram Power Toolset' })).toBeVisible()
   })
 
   test('should show module cards', async ({ page }) => {
@@ -20,15 +20,17 @@ test.describe('Landing Page', () => {
     await expect(page.getByText('Export Deleted Messages')).toBeVisible()
   })
 
-  test('should show privacy footer', async ({ page }) => {
+  test('should show privacy features section', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByText('100% on-device. No data leaves your browser.')).toBeVisible()
+    await expect(page.getByText('100% Private')).toBeVisible()
+    await expect(page.getByText('Local Storage')).toBeVisible()
+    await expect(page.getByText('Open Source')).toBeVisible()
   })
 
   test('should open login modal when clicking module without account', async ({ page }) => {
     await page.goto('/')
 
-    // Click on a module card
+    // Click on a module card (buttons, not links)
     await page.getByText('Account Info').click()
 
     // Login modal should appear

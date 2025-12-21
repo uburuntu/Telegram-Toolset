@@ -89,11 +89,11 @@ test.describe('Resend Flow', () => {
   test('should prompt for login when accessing resend without auth', async ({ page }) => {
     await page.goto('/')
 
-    // Click on resend module
-    await page.getByRole('link', { name: /Resend Messages/i }).click()
+    // Click on resend module card (it's a button, not a link)
+    await page.getByText('Resend Messages').click()
 
     // Should show login modal
-    await expect(page.getByRole('heading', { name: /Add Account/i })).toBeVisible()
+    await expect(page.getByText('Add Account')).toBeVisible()
   })
 
   test('should show backup selection when authenticated', async ({ page }) => {
@@ -103,7 +103,7 @@ test.describe('Resend Flow', () => {
     await page.goto('/resend')
 
     // Page should load resend view
-    await expect(page.getByText('Resend Messages')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Resend Messages' })).toBeVisible()
   })
 
   test('should show empty state when no backups exist', async ({ page }) => {
@@ -112,8 +112,9 @@ test.describe('Resend Flow', () => {
 
     await page.goto('/resend')
 
-    // Should show empty state or prompt to export first
-    await expect(page.getByText(/No backups|export first/i)).toBeVisible()
+    // Should show empty state with "No backups available" text
+    await expect(page.getByText('No backups available')).toBeVisible()
+    await expect(page.getByText('Export some messages first')).toBeVisible()
   })
 })
 
@@ -157,8 +158,10 @@ test.describe('Resend Error Handling', () => {
 
     await page.goto('/resend')
 
-    // Should not crash
+    // Should not crash - page should render
     await expect(page.locator('body')).toBeVisible()
+    // Check that main content area exists
+    await expect(page.locator('.max-w-2xl')).toBeVisible()
   })
 
   test('should have link to export if no backups', async ({ page }) => {
@@ -167,15 +170,20 @@ test.describe('Resend Error Handling', () => {
 
     await page.goto('/resend')
 
-    // If no backups, should have option to go to export
-    const exportLink = page.getByRole('link', { name: /export/i })
-    // This may or may not be visible depending on state
+    // When no backups exist, should have "Create Export" link
+    await expect(page.getByRole('link', { name: 'Create Export' })).toBeVisible()
   })
 })
 
 test.describe('Resend Progress UI', () => {
-  // These tests would require complete E2E flow with mock backups
-  // Placeholder for future implementation
+  // Add beforeEach to ensure page is loaded before page.evaluate calls
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/')
+    await page.evaluate(() => {
+      localStorage.clear()
+      sessionStorage.clear()
+    })
+  })
 
   test('should have proper navigation structure', async ({ page }) => {
     await setupMockedAuthWithBackups(page)
@@ -187,4 +195,3 @@ test.describe('Resend Progress UI', () => {
     await expect(page.locator('main')).toBeVisible()
   })
 })
-

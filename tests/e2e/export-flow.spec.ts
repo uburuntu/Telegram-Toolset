@@ -126,11 +126,11 @@ test.describe('Export Flow', () => {
   test('should prompt for login when accessing export without auth', async ({ page }) => {
     await page.goto('/')
 
-    // Click on export module
-    await page.getByRole('link', { name: /Export Deleted Messages/i }).click()
+    // Click on export module card (it's a button, not a link)
+    await page.getByText('Export Deleted Messages').click()
 
     // Should show login modal
-    await expect(page.getByRole('heading', { name: /Add Account/i })).toBeVisible()
+    await expect(page.getByText('Add Account')).toBeVisible()
   })
 
   test('should show chat selection when authenticated', async ({ page }) => {
@@ -139,9 +139,9 @@ test.describe('Export Flow', () => {
 
     await page.goto('/export')
 
-    // Page should load export view
-    await expect(page.getByText('Export Deleted Messages')).toBeVisible()
-    await expect(page.getByText('Select a channel or group')).toBeVisible()
+    // Page should load export view with heading
+    await expect(page.getByRole('heading', { name: 'Export Deleted Messages' })).toBeVisible()
+    await expect(page.getByText('Select a channel or group where you have admin access')).toBeVisible()
   })
 
   test('should have working search filter', async ({ page }) => {
@@ -150,8 +150,8 @@ test.describe('Export Flow', () => {
 
     await page.goto('/export')
 
-    // Wait for chats to load
-    await page.waitForSelector('input[type="search"]')
+    // Wait for search input to appear
+    await expect(page.locator('input[type="search"]')).toBeVisible({ timeout: 10000 })
 
     // Type in search
     await page.fill('input[type="search"]', 'channel')
@@ -167,11 +167,11 @@ test.describe('Export Flow', () => {
     await page.goto('/export')
 
     // Wait for chats to load and click one
-    await page.waitForSelector('button:has-text("Test Channel")', { timeout: 10000 })
-    await page.click('button:has-text("Test Channel")')
+    await expect(page.getByText('Test Channel')).toBeVisible({ timeout: 10000 })
+    await page.getByText('Test Channel').click()
 
     // Should be on configure step
-    await expect(page.getByText('Configure Export')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Configure Export' })).toBeVisible()
     await expect(page.getByText('Exporting from:')).toBeVisible()
   })
 
@@ -182,8 +182,8 @@ test.describe('Export Flow', () => {
     await page.goto('/export')
 
     // Select a chat
-    await page.waitForSelector('button:has-text("Test Channel")', { timeout: 10000 })
-    await page.click('button:has-text("Test Channel")')
+    await expect(page.getByText('Test Channel')).toBeVisible({ timeout: 10000 })
+    await page.getByText('Test Channel').click()
 
     // Check export mode options exist
     await expect(page.getByText('All content')).toBeVisible()
@@ -198,8 +198,8 @@ test.describe('Export Flow', () => {
     await page.goto('/export')
 
     // Select a chat
-    await page.waitForSelector('button:has-text("Test Channel")', { timeout: 10000 })
-    await page.click('button:has-text("Test Channel")')
+    await expect(page.getByText('Test Channel')).toBeVisible({ timeout: 10000 })
+    await page.getByText('Test Channel').click()
 
     // Check ZIP option exists
     await expect(page.getByText('Download as ZIP after export')).toBeVisible()
@@ -212,14 +212,14 @@ test.describe('Export Flow', () => {
     await page.goto('/export')
 
     // Select a chat
-    await page.waitForSelector('button:has-text("Test Channel")', { timeout: 10000 })
-    await page.click('button:has-text("Test Channel")')
+    await expect(page.getByText('Test Channel')).toBeVisible({ timeout: 10000 })
+    await page.getByText('Test Channel').click()
 
     // Click back
-    await page.click('button:has-text("← Back")')
+    await page.getByText('← Back').click()
 
     // Should be back on chat selection
-    await expect(page.getByText('Select a channel or group')).toBeVisible()
+    await expect(page.getByText('Select a channel or group where you have admin access')).toBeVisible()
   })
 })
 
@@ -239,9 +239,9 @@ test.describe('Export Progress UI', () => {
     await page.goto('/export')
 
     // Select a chat and start export
-    await page.waitForSelector('button:has-text("Test Channel")', { timeout: 10000 })
-    await page.click('button:has-text("Test Channel")')
-    await page.click('button:has-text("Start Export")')
+    await expect(page.getByText('Test Channel')).toBeVisible({ timeout: 10000 })
+    await page.getByText('Test Channel').click()
+    await page.getByRole('button', { name: 'Start Export' }).click()
 
     // Should show exporting state
     await expect(page.getByText(/Fetching|Downloading|Initializing/)).toBeVisible({ timeout: 5000 })
@@ -254,9 +254,9 @@ test.describe('Export Progress UI', () => {
     await page.goto('/export')
 
     // Select a chat and start export
-    await page.waitForSelector('button:has-text("Test Channel")', { timeout: 10000 })
-    await page.click('button:has-text("Test Channel")')
-    await page.click('button:has-text("Start Export")')
+    await expect(page.getByText('Test Channel')).toBeVisible({ timeout: 10000 })
+    await page.getByText('Test Channel').click()
+    await page.getByRole('button', { name: 'Start Export' }).click()
 
     // Cancel button should be visible
     await expect(page.getByRole('button', { name: /Cancel Export/i })).toBeVisible({
@@ -264,4 +264,3 @@ test.describe('Export Progress UI', () => {
     })
   })
 })
-
