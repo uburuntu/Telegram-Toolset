@@ -24,7 +24,8 @@ test.describe('Landing Page', () => {
     await page.goto('/')
     await expect(page.getByText('100% Private')).toBeVisible()
     await expect(page.getByText('Local Storage')).toBeVisible()
-    await expect(page.getByText('Open Source')).toBeVisible()
+    // Avoid strict-mode ambiguity: "Open Source" appears in both the heading and description text.
+    await expect(page.getByRole('heading', { name: 'Open Source' })).toBeVisible()
   })
 
   test('should open login modal when clicking module without account', async ({ page }) => {
