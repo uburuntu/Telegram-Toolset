@@ -2,10 +2,14 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: true,
+  // Vite dev-server dependency optimization is not stable under heavy parallel navigation:
+  // we observed `504 (Outdated Optimize Dep)` which cascades into lazy-route import failures.
+  // Keep E2E deterministic by default.
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // One worker avoids multiple browser contexts racing Vite optimizeDeps.
+  workers: 1,
   reporter: 'html',
   use: {
     baseURL: 'http://localhost:5173',
@@ -35,9 +39,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    // Force fresh optimizeDeps on each E2E run to prevent "Outdated Optimize Dep" 504s.
+    command: 'npm run dev -- --force --port 5173',
     url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
+    // Always start our own server so config changes take effect and optimizeDeps is fresh.
+    reuseExistingServer: false,
   },
 })
 

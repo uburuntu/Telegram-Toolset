@@ -915,5 +915,21 @@ class TelegramService {
   }
 }
 
-// Singleton instance
-export const telegramService = new TelegramService()
+// Singleton instance (with Playwright E2E hook)
+// In E2E we inject `window.__MOCK_TELEGRAM__ = true` and `window.__mockTelegramService__`
+// so the UI can run without real Telegram credentials.
+declare global {
+  // eslint-disable-next-line no-var
+  var __MOCK_TELEGRAM__: boolean | undefined
+  // eslint-disable-next-line no-var
+  var __mockTelegramService__: unknown | undefined
+}
+
+const g = globalThis as any
+const hasMockFlag = g.__MOCK_TELEGRAM__ === true
+const hasMockService = !!g.__mockTelegramService__
+const selectedMock = hasMockFlag && hasMockService
+
+export const telegramService = (
+  selectedMock ? g.__mockTelegramService__ : new TelegramService()
+) as TelegramService
