@@ -47,6 +47,13 @@ vi.mock('@/services/telegram/client', () => ({
       username: 'resolveduser',
     }),
     downloadMedia: vi.fn().mockResolvedValue(new Blob(['fake media'], { type: 'image/jpeg' })),
+    downloadMessageMedia: vi.fn().mockResolvedValue(new Blob(['fake media'], { type: 'image/jpeg' })),
+    validateChatForExport: vi.fn().mockResolvedValue({
+      valid: true,
+      canExport: true,
+      chatType: 'channel',
+      chatTitle: 'Test Channel',
+    }),
   },
 }))
 
@@ -79,6 +86,17 @@ describe('ExportService', () => {
     vi.mocked(telegramService.downloadMedia).mockResolvedValue(
       new Blob(['fake media'], { type: 'image/jpeg' })
     )
+    
+    vi.mocked(telegramService.downloadMessageMedia).mockResolvedValue(
+      new Blob(['fake media'], { type: 'image/jpeg' })
+    )
+    
+    vi.mocked(telegramService.validateChatForExport).mockResolvedValue({
+      valid: true,
+      canExport: true,
+      chatType: 'channel',
+      chatTitle: 'Test Channel',
+    })
   })
 
   afterEach(() => {
@@ -90,7 +108,8 @@ describe('ExportService', () => {
       const result = await exportService.exportDeletedMessages(baseConfig)
 
       expect(result.messages.length).toBe(3)
-      expect(telegramService.iterDeletedMessages).toHaveBeenCalledWith(baseConfig.chatId)
+      // iterDeletedMessages is now called with chatId and options object
+      expect(telegramService.iterDeletedMessages).toHaveBeenCalledWith(baseConfig.chatId, {})
     })
 
     it('should enrich messages with sender info', async () => {
@@ -107,7 +126,7 @@ describe('ExportService', () => {
       const result = await exportService.exportDeletedMessages(baseConfig)
 
       // 2 messages have media
-      expect(telegramService.downloadMedia).toHaveBeenCalledTimes(2)
+      expect(telegramService.downloadMessageMedia).toHaveBeenCalledTimes(2)
       expect(result.mediaBlobs.size).toBe(2)
       expect(result.mediaBlobs.has(1002)).toBe(true)
       expect(result.mediaBlobs.has(1003)).toBe(true)
@@ -119,7 +138,7 @@ describe('ExportService', () => {
         exportMode: 'text_only',
       })
 
-      expect(telegramService.downloadMedia).not.toHaveBeenCalled()
+      expect(telegramService.downloadMessageMedia).not.toHaveBeenCalled()
       expect(result.mediaBlobs.size).toBe(0)
       // Still should have all messages
       expect(result.messages.length).toBe(3)
@@ -236,7 +255,7 @@ describe('ExportService', () => {
       const errors: Error[] = []
 
       // Reject ALL download attempts to ensure we get consistent failures
-      vi.mocked(telegramService.downloadMedia).mockRejectedValue(new Error('Download failed'))
+      vi.mocked(telegramService.downloadMessageMedia).mockRejectedValue(new Error('Download failed'))
 
       const result = await exportService.exportDeletedMessages(baseConfig, {
         onError: (error) => {
