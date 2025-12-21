@@ -17,8 +17,6 @@ import type {
   ConnectionState,
 } from '@/types'
 
-const SESSION_KEY = 'telegram_session'
-
 // Reconnection settings
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_ATTEMPTS = 5
@@ -61,8 +59,12 @@ class TelegramService {
   private connectionStateListeners: Set<(state: ConnectionState) => void> = new Set()
 
   constructor() {
-    const savedSession = localStorage.getItem(SESSION_KEY) || ''
-    this.session = new StringSession(savedSession)
+    // IMPORTANT: This service supports multiple accounts. We intentionally do NOT
+    // read/write a single "global" session from localStorage here, because it causes
+    // cross-account session leakage (e.g. adding a new phone instantly appears "logged in").
+    //
+    // The canonical session persistence is `SavedAccount.sessionString` inside `telegram_accounts`.
+    this.session = new StringSession('')
   }
 
   get isConnected(): boolean {
@@ -152,6 +154,49 @@ class TelegramService {
       this.setConnectionState('error')
       throw error
     }
+  }
+
+  private async getConnectedClient(): Promise<TelegramClient> {
+    if (!this.client) {
+      throw new Error('Client not initialized. Please log in again.')
+    }
+    if (!this.client.connected) {
+      await this.connect()
+    }
+    if (!this.client) {
+      throw new Error('Client not initialized. Please log in again.')
+    }
+    return this.client
+  }
+
+  /**
+   * Switch the underlying Telegram client/session to a specific user account.
+   * This is required for correct multi-account behavior.
+   */
+  async useUserAccountSession(data: {
+    sessionString: string
+    apiId: number
+    apiHash: string
+  }): Promise<boolean> {
+    await this.disconnect()
+    this.currentUser = null
+    this.entityCache.clear()
+    this.session = new StringSession(data.sessionString || '')
+    await this.initClient(data.apiId, data.apiHash)
+    return await this.connect()
+  }
+
+  /**
+   * Prepare for starting a brand-new user login flow (new phone).
+   * Clears any existing session so we don't accidentally reuse another account's auth.
+   */
+  async resetForNewUserLogin(): Promise<void> {
+    await this.disconnect()
+    this.currentUser = null
+    this.entityCache.clear()
+    this.session = new StringSession('')
+    this.apiId = null
+    this.apiHash = null
   }
 
   /**
@@ -354,16 +399,12 @@ class TelegramService {
       }
       await this.disconnect()
     }
-
-    localStorage.removeItem(SESSION_KEY)
     this.session = new StringSession('')
   }
 
   private saveSession(): void {
     const sessionString = this.session.save()
-    if (sessionString) {
-      localStorage.setItem(SESSION_KEY, sessionString)
-    }
+    void sessionString
   }
 
   /**
@@ -384,11 +425,8 @@ class TelegramService {
    * Get list of dialogs/chats
    */
   async getDialogs(limit = 100): Promise<ChatInfo[]> {
-    if (!this.client) {
-      throw new Error('Client not connected')
-    }
-
-    const dialogs = await this.client.getDialogs({ limit })
+    const client = await this.getConnectedClient()
+    const dialogs = await client.getDialogs({ limit })
     const chats: ChatInfo[] = []
 
     for (const dialog of dialogs) {
@@ -456,8 +494,9 @@ class TelegramService {
     }
 
     try {
+      const client = await this.getConnectedClient()
       // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-      const entity = await this.client.getEntity(chatId)
+      const entity = await client.getEntity(chatId)
 
       if (!entity) {
         return {
@@ -500,7 +539,7 @@ class TelegramService {
       // Try to actually access the admin log
       try {
         // @ts-expect-error - iterAdminLog exists but isn't in type definitions
-        const adminLog = this.client.iterAdminLog(entity, { limit: 1 })
+        const adminLog = client.iterAdminLog(entity, { limit: 1 })
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for await (const _event of adminLog) {
           // Successfully accessed admin log
@@ -679,7 +718,7 @@ class TelegramService {
    * Accepts either a raw GramJS message or a DeletedMessage with _rawMessage
    */
   async downloadMedia(msg: DeletedMessage | unknown): Promise<Blob | null> {
-    if (!this.client) return null
+    const client = await this.getConnectedClient()
 
     // Handle DeletedMessage with preserved _rawMessage
     const rawMsg =
@@ -692,7 +731,7 @@ class TelegramService {
     }
 
     try {
-      const buffer = await this.client.downloadMedia(rawMsg as any, {})
+      const buffer = await client.downloadMedia(rawMsg as any, {})
       if (buffer) {
         // Handle both Buffer and string types from GramJS
         const data = typeof buffer === 'string' ? new TextEncoder().encode(buffer) : buffer
@@ -731,11 +770,9 @@ class TelegramService {
     const cacheKey = entityId.toString()
 
     if (!this.entityCache.has(cacheKey)) {
-      if (!this.client) {
-        throw new Error('Client not connected')
-      }
+      const client = await this.getConnectedClient()
       // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-      const entity = await this.client.getEntity(entityId)
+      const entity = await client.getEntity(entityId)
       this.entityCache.set(cacheKey, entity)
     }
 
@@ -906,7 +943,6 @@ class TelegramService {
   importSession(data: { sessionString: string; apiId?: number; apiHash?: string }): boolean {
     try {
       this.session = new StringSession(data.sessionString)
-      localStorage.setItem(SESSION_KEY, data.sessionString)
 
       if (data.apiId && data.apiHash) {
         this.apiId = data.apiId
