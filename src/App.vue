@@ -60,9 +60,15 @@ watch(
 )
 
 // Keep Telegram client session in sync with the active user account (multi-account support).
+// Skip if an auth flow is in progress (LoginModal manages its own client lifecycle during login).
 watch(
   () => accountsStore.activeAccount,
   async (account) => {
+    // Don't interfere while a login flow is active.
+    if (accountsStore.authFlow.step !== 'idle' && accountsStore.authFlow.step !== 'complete') {
+      return
+    }
+
     if (!account || account.type !== 'user') return
     if (!account.apiId || !account.apiHash) return
 
