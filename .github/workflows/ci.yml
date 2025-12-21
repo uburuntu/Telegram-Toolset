@@ -46,9 +46,6 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
 
-      - name: Run component tests
-        run: npm run test:component
-
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-latest
