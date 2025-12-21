@@ -22,7 +22,7 @@ test.describe('Landing Page', () => {
 
   test('should show privacy footer', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByText(/100% on-device/i)).toBeVisible()
+    await expect(page.getByText('100% on-device. No data leaves your browser.')).toBeVisible()
   })
 
   test('should open login modal when clicking module without account', async ({ page }) => {
@@ -39,8 +39,8 @@ test.describe('Landing Page', () => {
     await page.goto('/')
     await page.getByText('Account Info').click()
 
-    await expect(page.getByRole('button', { name: /User Account/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Bot Token/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: '👤 User Account' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '🤖 Bot Token' })).toBeVisible()
   })
 
   test('should close login modal with X button', async ({ page }) => {
