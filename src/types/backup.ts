@@ -82,12 +82,10 @@ export interface ResendConfig {
   showReplyLink: boolean
   useHiddenReplyLinks: boolean
   /**
-   * Timezone for date formatting. Defaults to browser's timezone if not set.
-   * Can be either:
-   * - IANA timezone name (e.g., 'Europe/Moscow', 'America/New_York')
-   * - Legacy numeric offset in hours (e.g., 3 for UTC+3)
+   * IANA timezone name for date formatting (e.g., 'Europe/Moscow', 'America/New_York').
+   * Defaults to browser's timezone if not set.
    */
-  timezone?: string | number
+  timezone?: string
   enableBatching: boolean
   batchMaxMessages: number
   batchTimeWindowMinutes: number

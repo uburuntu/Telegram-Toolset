@@ -288,7 +288,7 @@ describe('ResendService', () => {
       expect(sentText).toContain('@testhandle')
     })
 
-    it('should format date with timezone offset', async () => {
+    it('should format date with timezone', async () => {
       const messages = [createMessage({ date: new Date('2024-01-15T10:30:00Z') })]
       const mediaBlobs = new Map<number, Blob>()
 
@@ -297,11 +297,11 @@ describe('ResendService', () => {
         showSenderName: false,
         showSenderUsername: false,
         showDate: true,
-        timezone: 3, // UTC+3 (legacy numeric offset)
+        timezone: 'Europe/Moscow', // UTC+3
       })
 
       const sentText = vi.mocked(telegramService.sendMessage).mock.calls[0][1]
-      expect(sentText).toContain('13:30') // 10:30 + 3 hours
+      expect(sentText).toContain('13:30') // 10:30 UTC = 13:30 Moscow
     })
 
     it('should include reply link when enabled', async () => {
