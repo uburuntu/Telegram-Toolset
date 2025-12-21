@@ -98,10 +98,19 @@ export default defineConfig(() => {
     },
     build: {
       target: 'esnext',
+      // GramJS uses CommonJS with complex class hierarchies. Help Rollup handle it correctly.
+      commonjsOptions: {
+        // Ensure proper handling of circular dependencies in GramJS
+        strictRequires: true,
+        // Transform mixed ESM/CJS modules properly
+        transformMixedEsModules: true,
+      },
       rollupOptions: {
         output: {
+          // IMPORTANT: Do NOT use manualChunks for 'telegram' - GramJS has internal class
+          // inheritance that breaks when the bundler splits it incorrectly, causing
+          // "superclass is not a constructor" errors in production.
           manualChunks: {
-            telegram: ['telegram'],
             vendor: ['vue', 'vue-router', 'pinia'],
           },
         },
