@@ -127,7 +127,7 @@ const telegramLink = computed(() => {
               </code>
               <button
                 @click="copyToClipboard(isBot && botApiInfo ? String(botApiInfo.id) : account.id)"
-                class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-150"
+                class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
                 title="Copy"
               >
                 📋
@@ -221,7 +221,7 @@ const telegramLink = computed(() => {
           <a
             :href="telegramLink"
             target="_blank"
-            class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150"
+            class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-100"
           >
             <span class="text-lg">💬</span>
             <span class="text-sm text-gray-700 dark:text-gray-300">Open in Telegram</span>
@@ -231,7 +231,7 @@ const telegramLink = computed(() => {
             v-if="isBot"
             href="https://t.me/BotFather"
             target="_blank"
-            class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150"
+            class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-100"
           >
             <span class="text-lg">⚙️</span>
             <span class="text-sm text-gray-700 dark:text-gray-300">Edit with BotFather</span>

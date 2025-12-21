@@ -137,7 +137,7 @@ const sortedModules = computed(() => {
         v-for="module in sortedModules"
         :key="module.id"
         @click="handleModuleClick(module)"
-        class="group text-left p-5 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-150"
+        class="group text-left p-5 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-100"
       >
         <div class="flex items-start gap-3">
           <div

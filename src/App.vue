@@ -182,13 +182,13 @@ watch(
             href="https://github.com/uburuntu/Telegram-Deleted-Messages-Manager"
             target="_blank"
             rel="noopener noreferrer"
-            class="flex-1 px-4 py-2 rounded-md font-medium text-sm text-center transition-colors duration-150 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+            class="flex-1 px-4 py-2 rounded-md font-medium text-sm text-center transition-colors duration-100 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
           >
             View on GitHub
           </a>
           <button
             @click="uiStore.acknowledgePrivacyNotice()"
-            class="flex-1 px-4 py-2 rounded-md font-medium text-sm transition-colors duration-150 bg-blue-600 text-white hover:bg-blue-700"
+            class="flex-1 px-4 py-2 rounded-md font-medium text-sm transition-colors duration-100 bg-blue-600 text-white hover:bg-blue-700"
           >
             I Understand
           </button>
@@ -214,13 +214,13 @@ body {
   }
 }
 
-/* Toast animations - fast 150ms */
+/* Toast animations - fast 100ms */
 .toast-enter-active {
-  animation: toast-in 150ms ease-out;
+  animation: toast-in 100ms ease-out;
 }
 
 .toast-leave-active {
-  animation: toast-out 150ms ease-out;
+  animation: toast-out 100ms ease-out;
 }
 
 @keyframes toast-in {

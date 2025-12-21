@@ -70,13 +70,13 @@ function reset() {
         <div class="mt-4 flex gap-2">
           <button
             @click="reset"
-            class="px-3 py-1.5 rounded-md text-sm font-medium bg-red-100 dark:bg-red-800/50 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800 transition-colors duration-150"
+            class="px-3 py-1.5 rounded-md text-sm font-medium bg-red-100 dark:bg-red-800/50 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800 transition-colors duration-100"
           >
             Try Again
           </button>
           <button
             @click="$router.push('/')"
-            class="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-150"
+            class="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100"
           >
             Go Home
           </button>

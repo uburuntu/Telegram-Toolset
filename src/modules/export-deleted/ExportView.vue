@@ -291,7 +291,7 @@ function formatDate(date?: Date): string {
           v-model="searchQuery"
           type="search"
           placeholder="Search chats..."
-          class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-150"
+          class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
         />
       </div>
 
@@ -321,7 +321,7 @@ function formatDate(date?: Date): string {
           v-for="chat in filteredChats"
           :key="chat.id.toString()"
           @click="selectChat(chat)"
-          class="flex items-center gap-3 w-full p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-150 text-left"
+          class="flex items-center gap-3 w-full p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-100 text-left"
         >
           <div
             class="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-xl"
@@ -349,7 +349,7 @@ function formatDate(date?: Date): string {
       <header class="mb-6">
         <button
           @click="goBack"
-          class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-3 transition-colors duration-150"
+          class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-3 transition-colors duration-100"
         >
           ← Back
         </button>
@@ -366,7 +366,7 @@ function formatDate(date?: Date): string {
           </label>
           <div class="space-y-2">
             <label
-              class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+              class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-100"
             >
               <input v-model="exportMode" type="radio" value="all" class="text-blue-600" />
               <div>
@@ -375,7 +375,7 @@ function formatDate(date?: Date): string {
               </div>
             </label>
             <label
-              class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+              class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-100"
             >
               <input v-model="exportMode" type="radio" value="text_only" class="text-blue-600" />
               <div>
@@ -384,7 +384,7 @@ function formatDate(date?: Date): string {
               </div>
             </label>
             <label
-              class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+              class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-100"
             >
               <input v-model="exportMode" type="radio" value="media_only" class="text-blue-600" />
               <div>
@@ -398,7 +398,7 @@ function formatDate(date?: Date): string {
         <!-- Date Range Filter -->
         <div>
           <label
-            class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+            class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-100"
           >
             <input v-model="useDateFilter" type="checkbox" class="text-blue-600 rounded" />
             <div>
@@ -420,7 +420,7 @@ function formatDate(date?: Date): string {
                 <input
                   v-model="minDate"
                   type="date"
-                  class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-150"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
                 />
               </div>
               <div>
@@ -430,7 +430,7 @@ function formatDate(date?: Date): string {
                 <input
                   v-model="maxDate"
                   type="date"
-                  class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-150"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
                 />
               </div>
             </div>
@@ -443,7 +443,7 @@ function formatDate(date?: Date): string {
         <!-- Download as ZIP option -->
         <div>
           <label
-            class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+            class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-100"
           >
             <input v-model="downloadZipAfter" type="checkbox" class="text-blue-600 rounded" />
             <div>
@@ -479,7 +479,7 @@ function formatDate(date?: Date): string {
 
         <button
           @click="startExport"
-          class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-150"
+          class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
         >
           Start Export
         </button>
@@ -526,7 +526,7 @@ function formatDate(date?: Date): string {
           class="w-full max-w-xs mx-auto h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-4"
         >
           <div
-            class="h-full bg-blue-600 transition-all duration-150"
+            class="h-full bg-blue-600 transition-all duration-100"
             :style="{ width: `${progressPercentage}%` }"
           ></div>
         </div>
@@ -560,14 +560,14 @@ function formatDate(date?: Date): string {
               v-if="telegramService.canManualReconnect()"
               @click="handleManualReconnect"
               :disabled="isReconnecting"
-              class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+              class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-100"
             >
               <span v-if="isReconnecting">Reconnecting...</span>
               <span v-else>🔄 Reconnect</span>
             </button>
             <button
               @click="goBack"
-              class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-150"
+              class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100"
             >
               Back
             </button>
@@ -577,7 +577,7 @@ function formatDate(date?: Date): string {
         <button
           v-if="currentProgress?.phase !== 'error'"
           @click="cancelExport"
-          class="mt-6 px-4 py-2 rounded-md font-medium text-sm bg-red-600 text-white hover:bg-red-700 transition-colors duration-150"
+          class="mt-6 px-4 py-2 rounded-md font-medium text-sm bg-red-600 text-white hover:bg-red-700 transition-colors duration-100"
         >
           Cancel Export
         </button>
@@ -611,20 +611,20 @@ function formatDate(date?: Date): string {
             v-if="lastExportResult"
             @click="downloadAsZip"
             :disabled="isDownloadingZip"
-            class="px-4 py-2 rounded-md font-medium text-sm bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150 flex items-center gap-2"
+            class="px-4 py-2 rounded-md font-medium text-sm bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-100 flex items-center gap-2"
           >
             <span v-if="isDownloadingZip" class="animate-spin">⏳</span>
             <span>{{ isDownloadingZip ? 'Generating...' : '📥 Download ZIP' }}</span>
           </button>
           <router-link
             to="/backups"
-            class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-150"
+            class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
           >
             View Backups
           </router-link>
           <button
             @click="resetExport"
-            class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-150"
+            class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100"
           >
             Export Another
           </button>
