@@ -14,22 +14,21 @@ import uz from './locales/uz.json'
 import tr from './locales/tr.json'
 import uk from './locales/uk.json'
 
-export type SupportedLocale = 
-  | 'en' 
-  | 'ru' 
-  | 'es' 
-  | 'id' 
-  | 'pt' 
-  | 'fa' 
-  | 'ar' 
-  | 'uz' 
-  | 'tr' 
-  | 'uk'
+export type SupportedLocale = 'en' | 'ru' | 'es' | 'id' | 'pt' | 'fa' | 'ar' | 'uz' | 'tr' | 'uk'
 
 const LOCALE_STORAGE_KEY = 'app_locale'
 
 const SUPPORTED_LOCALES: SupportedLocale[] = [
-  'en', 'ru', 'es', 'id', 'pt', 'fa', 'ar', 'uz', 'tr', 'uk'
+  'en',
+  'ru',
+  'es',
+  'id',
+  'pt',
+  'fa',
+  'ar',
+  'uz',
+  'tr',
+  'uk',
 ]
 
 function getStoredLocale(): SupportedLocale {
@@ -37,20 +36,20 @@ function getStoredLocale(): SupportedLocale {
   if (stored && SUPPORTED_LOCALES.includes(stored as SupportedLocale)) {
     return stored as SupportedLocale
   }
-  
+
   // Detect browser language
   const browserLang = navigator.language.split('-')[0]
   if (SUPPORTED_LOCALES.includes(browserLang as SupportedLocale)) {
     return browserLang as SupportedLocale
   }
-  
+
   return 'en'
 }
 
 export function setLocale(locale: SupportedLocale): void {
   localStorage.setItem(LOCALE_STORAGE_KEY, locale)
   i18n.global.locale.value = locale
-  
+
   // Handle RTL languages
   const rtlLanguages = ['ar', 'fa']
   if (rtlLanguages.includes(locale)) {
