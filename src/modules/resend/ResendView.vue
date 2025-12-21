@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBackupsStore, useUiStore } from '@/stores'
 import { telegramService } from '@/services/telegram/client'
 import { backupManager } from '@/services/storage/backup-manager'
-import type { ChatInfo, Backup } from '@/types'
+import { resendService } from '@/services/resend/resend-service'
+import type { ChatInfo, Backup, ResendConfig, ExportProgress } from '@/types'
 
 const router = useRouter()
 const backupsStore = useBackupsStore()
@@ -21,16 +22,23 @@ const selectedTarget = ref<ChatInfo | null>(null)
 const isLoading = ref(false)
 const error = ref('')
 
-// Config options
+// Config options (matching ResendConfig type)
 const includeMedia = ref(true)
 const includeText = ref(true)
 const showSenderName = ref(true)
+const showSenderUsername = ref(true)
 const showDate = ref(true)
+const showReplyLink = ref(true)
+const useHiddenReplyLinks = ref(true)
+const timezoneOffsetHours = ref(0)
 const enableBatching = ref(false)
+const batchMaxMessages = ref(7)
+const batchTimeWindowMinutes = ref(10)
+const batchMaxMessageLength = ref(150)
 
-// Progress
-const sentCount = ref(0)
-const totalCount = ref(0)
+// Progress tracking
+const currentProgress = ref<ExportProgress | null>(null)
+const floodWaitSeconds = ref(0)
 
 // Computed
 const filteredChats = computed(() => {
@@ -38,6 +46,18 @@ const filteredChats = computed(() => {
   return chats.value
     .filter((chat) => chat.canSend)
     .filter((chat) => chat.title.toLowerCase().includes(query))
+})
+
+const progressPercentage = computed(() => {
+  if (!currentProgress.value || currentProgress.value.totalMessages === 0) return 0
+  return Math.round(
+    (currentProgress.value.processedMessages / currentProgress.value.totalMessages) * 100
+  )
+})
+
+const sentCount = computed(() => {
+  if (!currentProgress.value) return 0
+  return currentProgress.value.exportedTextMessages + currentProgress.value.exportedMediaMessages
 })
 
 // Lifecycle
@@ -50,6 +70,13 @@ onMounted(async () => {
     error.value = e instanceof Error ? e.message : 'Failed to load backups'
   } finally {
     backupsStore.setLoading(false)
+  }
+})
+
+onUnmounted(() => {
+  // Cancel any in-progress resend on unmount
+  if (resendService.isResending) {
+    resendService.cancel()
   }
 })
 
@@ -89,32 +116,68 @@ function goBack() {
   }
 }
 
+function cancelResend() {
+  resendService.cancel()
+}
+
 async function startResend() {
   if (!selectedBackup.value || !selectedTarget.value) return
 
   step.value = 'sending'
   error.value = ''
-  sentCount.value = 0
+  currentProgress.value = null
+  floodWaitSeconds.value = 0
 
   try {
+    // Load full backup with messages
     const backup = await backupManager.getBackup(selectedBackup.value.id)
     if (!backup) {
       throw new Error('Backup not found')
     }
 
-    totalCount.value = backup.messages.length
-
-    // TODO: Implement actual resend logic using telegramService
-    for (let i = 0; i < backup.messages.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      sentCount.value++
+    // Build config
+    const config: ResendConfig = {
+      targetChatId: selectedTarget.value.id,
+      targetChatTitle: selectedTarget.value.title,
+      backupId: selectedBackup.value.id,
+      includeMedia: includeMedia.value,
+      includeText: includeText.value,
+      showSenderName: showSenderName.value,
+      showSenderUsername: showSenderUsername.value,
+      showDate: showDate.value,
+      showReplyLink: showReplyLink.value,
+      useHiddenReplyLinks: useHiddenReplyLinks.value,
+      timezoneOffsetHours: timezoneOffsetHours.value,
+      enableBatching: enableBatching.value,
+      batchMaxMessages: batchMaxMessages.value,
+      batchTimeWindowMinutes: batchTimeWindowMinutes.value,
+      batchMaxMessageLength: batchMaxMessageLength.value,
     }
 
+    // Start resend with progress tracking
+    const result = await resendService.resendMessages(backup.messages, backup.mediaBlobs, config, {
+      onProgress: (progress) => {
+        currentProgress.value = { ...progress }
+      },
+      onFloodWait: (seconds) => {
+        floodWaitSeconds.value = seconds
+        uiStore.showToast('warning', `Rate limited. Waiting ${seconds} seconds...`)
+      },
+      onError: (err, messageId) => {
+        console.error(`Failed to send message ${messageId}:`, err)
+      },
+    })
+
     step.value = 'complete'
-    uiStore.showToast('success', `Successfully sent ${sentCount.value} messages!`)
+    uiStore.showToast('success', `Successfully sent ${result.sentCount} messages!`)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Resend failed'
-    step.value = 'configure'
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      uiStore.showToast('info', 'Resend cancelled')
+      step.value = 'configure'
+    } else {
+      error.value = e instanceof Error ? e.message : 'Resend failed'
+      step.value = 'configure'
+    }
   }
 }
 
@@ -179,6 +242,9 @@ function formatBytes(bytes: number): string {
             <div class="text-xs text-gray-500">
               {{ formatDate(backup.createdAt) }} • {{ backup.messageCount }} messages •
               {{ formatBytes(backup.storageSize) }}
+              <span v-if="backup.mediaCount > 0" class="text-blue-600">
+                • {{ backup.mediaCount }} media
+              </span>
             </div>
           </div>
           <span class="text-gray-400">→</span>
@@ -256,49 +322,135 @@ function formatBytes(bytes: number): string {
         </p>
       </header>
 
-      <div class="space-y-3">
-        <label
-          class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+      <div class="space-y-4">
+        <!-- Content Options -->
+        <div
+          class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800"
         >
-          <input v-model="includeMedia" type="checkbox" class="rounded text-blue-600" />
-          <span class="text-sm text-gray-900 dark:text-white">Include media files</span>
-        </label>
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Content</h3>
+          <div class="space-y-2">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input v-model="includeMedia" type="checkbox" class="rounded text-blue-600" />
+              <span class="text-sm text-gray-900 dark:text-white">Include media files</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input v-model="includeText" type="checkbox" class="rounded text-blue-600" />
+              <span class="text-sm text-gray-900 dark:text-white">Include text content</span>
+            </label>
+          </div>
+        </div>
 
-        <label
-          class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+        <!-- Header Options -->
+        <div
+          class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800"
         >
-          <input v-model="includeText" type="checkbox" class="rounded text-blue-600" />
-          <span class="text-sm text-gray-900 dark:text-white">Include text content</span>
-        </label>
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            Message Header
+          </h3>
+          <div class="space-y-2">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input v-model="showSenderName" type="checkbox" class="rounded text-blue-600" />
+              <span class="text-sm text-gray-900 dark:text-white">Show sender name</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input v-model="showSenderUsername" type="checkbox" class="rounded text-blue-600" />
+              <span class="text-sm text-gray-900 dark:text-white">Show @username</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input v-model="showDate" type="checkbox" class="rounded text-blue-600" />
+              <span class="text-sm text-gray-900 dark:text-white">Show original date</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input v-model="showReplyLink" type="checkbox" class="rounded text-blue-600" />
+              <span class="text-sm text-gray-900 dark:text-white">Show reply link</span>
+            </label>
+            <label v-if="showReplyLink" class="flex items-center gap-3 cursor-pointer ml-6">
+              <input v-model="useHiddenReplyLinks" type="checkbox" class="rounded text-blue-600" />
+              <span class="text-sm text-gray-600 dark:text-gray-400"
+                >Use hidden link (↩️ Reply)</span
+              >
+            </label>
+          </div>
+        </div>
 
-        <label
-          class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+        <!-- Timezone -->
+        <div
+          class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800"
         >
-          <input v-model="showSenderName" type="checkbox" class="rounded text-blue-600" />
-          <span class="text-sm text-gray-900 dark:text-white">Show original sender name</span>
-        </label>
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Timezone</h3>
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-gray-600 dark:text-gray-400">UTC offset (hours):</span>
+            <input
+              v-model.number="timezoneOffsetHours"
+              type="number"
+              min="-12"
+              max="14"
+              class="w-20 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center"
+            />
+            <span class="text-xs text-gray-500">(e.g., 3 for Moscow, -5 for EST)</span>
+          </div>
+        </div>
 
-        <label
-          class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+        <!-- Batching Options -->
+        <div
+          class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800"
         >
-          <input v-model="showDate" type="checkbox" class="rounded text-blue-600" />
-          <span class="text-sm text-gray-900 dark:text-white">Show original date</span>
-        </label>
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            Smart Batching
+          </h3>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input v-model="enableBatching" type="checkbox" class="rounded text-blue-600" />
+              <span class="text-sm text-gray-900 dark:text-white"
+                >Merge short consecutive messages</span
+              >
+            </label>
+            <div
+              v-if="enableBatching"
+              class="ml-6 space-y-2 text-sm text-gray-600 dark:text-gray-400"
+            >
+              <div class="flex items-center gap-2">
+                <span>Max messages per batch:</span>
+                <input
+                  v-model.number="batchMaxMessages"
+                  type="number"
+                  min="2"
+                  max="20"
+                  class="w-16 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center"
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <span>Time window (minutes):</span>
+                <input
+                  v-model.number="batchTimeWindowMinutes"
+                  type="number"
+                  min="1"
+                  max="60"
+                  class="w-16 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center"
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <span>Max message length:</span>
+                <input
+                  v-model.number="batchMaxMessageLength"
+                  type="number"
+                  min="50"
+                  max="500"
+                  class="w-20 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center"
+                />
+                <span>chars</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        <label
-          class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
-        >
-          <input v-model="enableBatching" type="checkbox" class="rounded text-blue-600" />
-          <span class="text-sm text-gray-900 dark:text-white">Batch short messages together</span>
-        </label>
-
-        <div v-if="error" class="text-red-600 text-sm">
+        <div v-if="error" class="text-red-600 text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
           {{ error }}
         </div>
 
         <button
           @click="startResend"
-          class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-150 mt-4"
+          class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-150"
         >
           Start Resending
         </button>
@@ -314,15 +466,41 @@ function formatBytes(bytes: number): string {
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
           Sending Messages...
         </h2>
-        <div class="text-2xl font-bold text-blue-600 mb-3">{{ sentCount }} / {{ totalCount }}</div>
+
+        <div v-if="floodWaitSeconds > 0" class="text-amber-600 mb-3">
+          ⏳ Rate limited. Waiting {{ floodWaitSeconds }}s...
+        </div>
+
+        <div class="text-2xl font-bold text-blue-600 mb-3">
+          {{ sentCount }} /
+          {{ currentProgress?.totalMessages || selectedBackup?.messageCount || 0 }}
+        </div>
+
         <div
-          class="w-full max-w-xs mx-auto h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden"
+          class="w-full max-w-xs mx-auto h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-4"
         >
           <div
             class="h-full bg-blue-600 transition-all duration-150"
-            :style="{ width: `${(sentCount / totalCount) * 100}%` }"
+            :style="{ width: `${progressPercentage}%` }"
           ></div>
         </div>
+
+        <div v-if="currentProgress" class="text-xs text-gray-500 space-y-1">
+          <div>
+            Text: {{ currentProgress.exportedTextMessages }} • Media:
+            {{ currentProgress.exportedMediaMessages }}
+          </div>
+          <div v-if="currentProgress.failedMessages > 0" class="text-red-500">
+            Failed: {{ currentProgress.failedMessages }}
+          </div>
+        </div>
+
+        <button
+          @click="cancelResend"
+          class="mt-6 px-4 py-2 rounded-md font-medium text-sm bg-red-600 text-white hover:bg-red-700 transition-colors duration-150"
+        >
+          Cancel
+        </button>
       </div>
     </template>
 
@@ -334,6 +512,11 @@ function formatBytes(bytes: number): string {
         <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
           Successfully sent {{ sentCount }} messages to {{ selectedTarget?.title }}
         </p>
+
+        <div v-if="currentProgress?.failedMessages" class="text-sm text-amber-600 mb-4">
+          {{ currentProgress.failedMessages }} message(s) failed to send
+        </div>
+
         <div class="flex gap-3 justify-center">
           <router-link
             to="/"

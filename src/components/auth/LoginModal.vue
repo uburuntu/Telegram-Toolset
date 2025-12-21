@@ -3,8 +3,12 @@ import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccountsStore, useUiStore } from '@/stores'
 import { getBotInfo, isValidTokenFormat, maskBotToken } from '@/services/telegram/bot-api'
+import { telegramService } from '@/services/telegram/client'
 import type { AccountType, SavedAccount } from '@/types'
 import type { BotApiUser } from '@/services/telegram/bot-api'
+
+// Auth flow promise - resolves when full auth completes
+let authPromise: Promise<void> | null = null
 
 const props = defineProps<{
   requiredType?: 'user' | 'bot' | 'any'
@@ -185,8 +189,67 @@ async function handlePhoneSubmit(): Promise<void> {
 
   isLoading.value = true
   try {
-    // TODO: Connect to telegram and send code
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // Initialize and connect the Telegram client
+    const id = parseInt(apiId.value, 10)
+    await telegramService.initClient(id, apiHash.value)
+    const alreadyAuthed = await telegramService.connect()
+
+    if (alreadyAuthed) {
+      // Already authorized, just add the account
+      const user = telegramService.user
+      const newAccount = accountsStore.addAccount({
+        type: 'user',
+        label: user?.firstName || 'User ' + phone.value.slice(-4),
+        phone: phone.value,
+        apiId: id,
+        apiHash: apiHash.value,
+        sessionString: telegramService.getSessionString(),
+      })
+      accountsStore.setActiveAccount(newAccount.id)
+      step.value = 'success'
+      uiStore.showToast('success', 'Account added successfully!')
+      setTimeout(() => {
+        handleClose()
+        if (props.targetRoute) {
+          router.push(props.targetRoute)
+        }
+      }, 1000)
+      return
+    }
+
+    // Start auth flow - this will send the code and wait for it
+    // We run this in the background and move to code step
+    authPromise = telegramService
+      .startUserAuth(phone.value)
+      .then((user) => {
+        // Auth completed successfully
+        const newAccount = accountsStore.addAccount({
+          type: 'user',
+          label: user.firstName || 'User ' + phone.value.slice(-4),
+          phone: phone.value,
+          apiId: id,
+          apiHash: apiHash.value,
+          sessionString: telegramService.getSessionString(),
+        })
+        accountsStore.setActiveAccount(newAccount.id)
+        step.value = 'success'
+        uiStore.showToast('success', 'Account added successfully!')
+        setTimeout(() => {
+          handleClose()
+          if (props.targetRoute) {
+            router.push(props.targetRoute)
+          }
+        }, 1000)
+      })
+      .catch((e: any) => {
+        if (e.errorMessage === 'SESSION_PASSWORD_NEEDED') {
+          step.value = 'password'
+        } else {
+          error.value = e.message || 'Authentication failed'
+        }
+      })
+
+    // Move to code entry step - GramJS is waiting for the code
     step.value = 'code'
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to send code'
@@ -204,29 +267,13 @@ async function handleCodeSubmit(): Promise<void> {
 
   isLoading.value = true
   try {
-    // TODO: Verify code with telegram
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // Provide the code to the waiting auth flow
+    telegramService.provideCode(code.value)
 
-    // Add account
-    const newAccount = accountsStore.addAccount({
-      type: 'user',
-      label: 'User ' + phone.value.slice(-4),
-      phone: phone.value,
-      apiId: parseInt(apiId.value, 10),
-      apiHash: apiHash.value,
-      sessionString: 'simulated_session_' + Date.now(),
-    })
-
-    accountsStore.setActiveAccount(newAccount.id)
-    step.value = 'success'
-    uiStore.showToast('success', 'Account added successfully!')
-
-    setTimeout(() => {
-      handleClose()
-      if (props.targetRoute) {
-        router.push(props.targetRoute)
-      }
-    }, 1000)
+    // Wait for the auth promise to complete
+    if (authPromise) {
+      await authPromise
+    }
   } catch (e: any) {
     if (e.errorMessage === 'SESSION_PASSWORD_NEEDED') {
       step.value = 'password'
@@ -247,28 +294,13 @@ async function handlePasswordSubmit(): Promise<void> {
 
   isLoading.value = true
   try {
-    // TODO: Verify password with telegram
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // Provide the password to the waiting auth flow
+    telegramService.providePassword(password.value)
 
-    const newAccount = accountsStore.addAccount({
-      type: 'user',
-      label: 'User ' + phone.value.slice(-4),
-      phone: phone.value,
-      apiId: parseInt(apiId.value, 10),
-      apiHash: apiHash.value,
-      sessionString: 'simulated_session_' + Date.now(),
-    })
-
-    accountsStore.setActiveAccount(newAccount.id)
-    step.value = 'success'
-    uiStore.showToast('success', 'Account added successfully!')
-
-    setTimeout(() => {
-      handleClose()
-      if (props.targetRoute) {
-        router.push(props.targetRoute)
-      }
-    }, 1000)
+    // Wait for the auth promise to complete
+    if (authPromise) {
+      await authPromise
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Incorrect password'
   } finally {
