@@ -227,9 +227,16 @@ const sortedModules = computed(() => {
       >
         <div class="flex items-start gap-3">
           <div
-            class="flex-shrink-0 w-11 h-11 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-2xl text-gray-400 dark:text-gray-500 group-hover:text-blue-500 transition-colors duration-100"
+            class="flex-shrink-0 w-11 h-11 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-400 dark:text-gray-500 group-hover:text-blue-500 transition-colors duration-100"
           >
-            <span class="text-3xl font-light">+</span>
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
           </div>
           <div class="flex-1 min-w-0">
             <h2
