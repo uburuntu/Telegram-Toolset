@@ -24,6 +24,8 @@ const TELEGRAM_MESSAGE_LIMIT = 4096
 export interface ResendCallbacks {
   onProgress?: (progress: ExportProgress) => void
   onFloodWait?: (seconds: number) => void
+  /** Called with remaining seconds during FloodWait countdown */
+  onFloodWaitCountdown?: (remainingSeconds: number) => void
   onError?: (error: Error, messageId?: number) => void
 }
 
@@ -97,6 +99,35 @@ class ResendService {
       this.abortController.abort()
       this.abortController = null
     }
+  }
+
+  /**
+   * Start a countdown timer for FloodWait
+   */
+  private startFloodWaitCountdown(
+    seconds: number,
+    callback: (remaining: number) => void,
+    signal: AbortSignal
+  ): void {
+    let remaining = seconds
+
+    const interval = setInterval(() => {
+      if (signal.aborted || remaining <= 0) {
+        clearInterval(interval)
+        return
+      }
+
+      remaining--
+      callback(remaining)
+    }, 1000)
+
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearInterval(interval)
+      },
+      { once: true }
+    )
   }
 
   /**
@@ -519,6 +550,9 @@ class ResendService {
       signal,
       onFloodWait: (seconds) => {
         callbacks.onFloodWait?.(seconds)
+        if (callbacks.onFloodWaitCountdown) {
+          this.startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
+        }
       },
       onRetry: (attempt, waitMs, error) => {
         console.warn(
@@ -550,6 +584,9 @@ class ResendService {
         signal,
         onFloodWait: (seconds) => {
           callbacks.onFloodWait?.(seconds)
+          if (callbacks.onFloodWaitCountdown) {
+            this.startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
+          }
         },
         onRetry: (attempt, waitMs, error) => {
           console.warn(

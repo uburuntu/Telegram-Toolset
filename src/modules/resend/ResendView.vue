@@ -39,6 +39,7 @@ const batchMaxMessageLength = ref(150)
 // Progress tracking
 const currentProgress = ref<ExportProgress | null>(null)
 const floodWaitSeconds = ref(0)
+const floodWaitRemaining = ref(0)
 
 // Computed
 const filteredChats = computed(() => {
@@ -161,7 +162,14 @@ async function startResend() {
       },
       onFloodWait: (seconds) => {
         floodWaitSeconds.value = seconds
+        floodWaitRemaining.value = seconds
         uiStore.showToast('warning', `Rate limited. Waiting ${seconds} seconds...`)
+      },
+      onFloodWaitCountdown: (remaining) => {
+        floodWaitRemaining.value = remaining
+        if (remaining === 0) {
+          floodWaitSeconds.value = 0
+        }
       },
       onError: (err, messageId) => {
         console.error(`Failed to send message ${messageId}:`, err)
@@ -468,7 +476,17 @@ function formatBytes(bytes: number): string {
         </h2>
 
         <div v-if="floodWaitSeconds > 0" class="text-amber-600 mb-3">
-          ⏳ Rate limited. Waiting {{ floodWaitSeconds }}s...
+          <div class="flex items-center justify-center gap-2">
+            <span class="animate-pulse">⏳</span>
+            <span>Rate limited. Resuming in {{ floodWaitRemaining }}s...</span>
+          </div>
+          <!-- Countdown progress bar -->
+          <div class="w-full max-w-xs mx-auto h-1.5 bg-amber-200 dark:bg-amber-900 rounded-full overflow-hidden mt-2">
+            <div
+              class="h-full bg-amber-500 transition-all duration-1000 ease-linear"
+              :style="{ width: `${((floodWaitSeconds - floodWaitRemaining) / floodWaitSeconds) * 100}%` }"
+            ></div>
+          </div>
         </div>
 
         <div class="text-2xl font-bold text-blue-600 mb-3">

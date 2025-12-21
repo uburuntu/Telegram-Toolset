@@ -11,7 +11,7 @@
 
 import { telegramService } from '../telegram/client'
 import { Semaphore, withRetry, formatDuration } from '../telegram/rate-limiter'
-import type { DeletedMessage, ExportProgress, ExportConfig } from '@/types'
+import type { DeletedMessage, ExportProgress, ExportConfig, AdminLogIterOptions } from '@/types'
 
 // Constants matching Python implementation
 const MAX_PARALLEL_DOWNLOADS = 4
@@ -21,12 +21,19 @@ export interface ExportCallbacks {
   onProgress?: (progress: ExportProgress) => void
   onFloodWait?: (seconds: number) => void
   onError?: (error: Error, messageId?: number) => void
+  /** Called with remaining seconds during FloodWait countdown */
+  onFloodWaitCountdown?: (remainingSeconds: number) => void
 }
 
 export interface ExportResult {
   messages: DeletedMessage[]
   mediaBlobs: Map<number, Blob>
   progress: ExportProgress
+}
+
+export interface ExportOptions extends AdminLogIterOptions {
+  /** Validate chat before export (default: true) */
+  validateFirst?: boolean
 }
 
 class ExportService {
@@ -55,10 +62,15 @@ class ExportService {
    * Uses two-phase approach:
    * 1. Fast metadata extraction from admin log
    * 2. Parallel media downloads
+   *
+   * @param config - Export configuration (chatId, exportMode, etc.)
+   * @param callbacks - Progress and error callbacks
+   * @param options - Additional options (minId, maxId, limit, validateFirst)
    */
   async exportDeletedMessages(
     config: ExportConfig,
-    callbacks: ExportCallbacks = {}
+    callbacks: ExportCallbacks = {},
+    options: ExportOptions = {}
   ): Promise<ExportResult> {
     // Create new abort controller for this export
     this.abortController = new AbortController()
@@ -79,11 +91,25 @@ class ExportService {
     const messagesWithMedia: DeletedMessage[] = []
 
     try {
+      // Validate chat first (unless explicitly skipped)
+      if (options.validateFirst !== false) {
+        const validation = await telegramService.validateChatForExport(config.chatId)
+        if (!validation.canExport) {
+          throw new Error(validation.errorMessage || 'Cannot export from this chat')
+        }
+      }
+
       // Phase 1: Collect metadata
       progress.phase = 'fetching_metadata'
       callbacks.onProgress?.(progress)
 
-      for await (const msg of telegramService.iterDeletedMessages(config.chatId)) {
+      // Build iteration options
+      const iterOptions: AdminLogIterOptions = {}
+      if (options.minId !== undefined) iterOptions.minId = options.minId
+      if (options.maxId !== undefined) iterOptions.maxId = options.maxId
+      if (options.limit !== undefined) iterOptions.limit = options.limit
+
+      for await (const msg of telegramService.iterDeletedMessages(config.chatId, iterOptions)) {
         // Check for cancellation
         if (signal.aborted) {
           progress.phase = 'cancelled'
@@ -139,6 +165,14 @@ class ExportService {
     } finally {
       this.abortController = null
     }
+  }
+
+  /**
+   * Validate a chat for export without starting the export
+   * Useful for UI validation before showing export options
+   */
+  async validateChat(chatId: bigint) {
+    return telegramService.validateChatForExport(chatId)
   }
 
   /**
@@ -209,6 +243,7 @@ class ExportService {
 
   /**
    * Download media with retry logic
+   * Uses the preserved _rawMessage for accurate media download
    */
   private async downloadMediaWithRetry(
     msg: DeletedMessage,
@@ -217,7 +252,8 @@ class ExportService {
   ): Promise<Blob | null> {
     return withRetry(
       async () => {
-        const blob = await telegramService.downloadMedia(msg)
+        // Use downloadMessageMedia which handles _rawMessage properly
+        const blob = await telegramService.downloadMessageMedia(msg)
         return blob
       },
       {
@@ -225,6 +261,11 @@ class ExportService {
         signal,
         onFloodWait: (seconds) => {
           callbacks.onFloodWait?.(seconds)
+
+          // Start countdown if callback is provided
+          if (callbacks.onFloodWaitCountdown) {
+            this.startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
+          }
         },
         onRetry: (attempt, waitMs, error) => {
           console.warn(
@@ -232,6 +273,37 @@ class ExportService {
           )
         },
       }
+    )
+  }
+
+  /**
+   * Start a countdown timer for FloodWait
+   * Calls the callback every second with remaining seconds
+   */
+  private startFloodWaitCountdown(
+    seconds: number,
+    callback: (remaining: number) => void,
+    signal: AbortSignal
+  ): void {
+    let remaining = seconds
+
+    const interval = setInterval(() => {
+      if (signal.aborted || remaining <= 0) {
+        clearInterval(interval)
+        return
+      }
+
+      remaining--
+      callback(remaining)
+    }, 1000)
+
+    // Clean up on abort
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearInterval(interval)
+      },
+      { once: true }
     )
   }
 
