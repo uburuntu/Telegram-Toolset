@@ -49,6 +49,7 @@ class TelegramService {
   private codeDeferred: DeferredPromise<string> | null = null
   private passwordDeferred: DeferredPromise<string> | null = null
   private currentUser: UserInfo | null = null
+  private onPasswordNeeded: ((hint?: string) => void) | null = null
 
   // Entity cache for sender resolution (like Python's _entity_cache)
   private entityCache: Map<string, unknown> = new Map()
@@ -326,8 +327,15 @@ class TelegramService {
   /**
    * Start user authentication flow
    * Returns a promise that resolves when auth is complete
+   *
+   * @param phone - Phone number to authenticate
+   * @param options - Optional callbacks for auth flow events
+   * @param options.onPasswordNeeded - Called when 2FA password is required (with optional hint)
    */
-  async startUserAuth(phone: string): Promise<UserInfo> {
+  async startUserAuth(
+    phone: string,
+    options?: { onPasswordNeeded?: (hint?: string) => void }
+  ): Promise<UserInfo> {
     if (!this.client) {
       throw new Error('Client not initialized')
     }
@@ -336,6 +344,7 @@ class TelegramService {
     this.phoneDeferred = createDeferred<string>()
     this.codeDeferred = createDeferred<string>()
     this.passwordDeferred = createDeferred<string>()
+    this.onPasswordNeeded = options?.onPasswordNeeded || null
 
     // Resolve phone immediately since we already have it
     this.phoneDeferred.resolve(phone)
@@ -348,7 +357,11 @@ class TelegramService {
         phoneCode: async () => {
           return this.codeDeferred!.promise
         },
-        password: async () => {
+        password: async (hint?: string) => {
+          // Notify UI that password is needed before waiting
+          if (this.onPasswordNeeded) {
+            this.onPasswordNeeded(hint)
+          }
           return this.passwordDeferred!.promise
         },
         onError: (err) => {
@@ -373,6 +386,7 @@ class TelegramService {
       this.phoneDeferred = null
       this.codeDeferred = null
       this.passwordDeferred = null
+      this.onPasswordNeeded = null
     }
   }
 

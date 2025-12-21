@@ -53,6 +53,7 @@ const apiHash = ref('')
 const phone = ref('')
 const code = ref('')
 const password = ref('')
+const passwordHint = ref<string | undefined>(undefined)
 
 // Bot fields
 const botToken = ref('')
@@ -83,6 +84,7 @@ function resetForm(): void {
   phone.value = ''
   code.value = ''
   password.value = ''
+  passwordHint.value = undefined
   botToken.value = ''
   botTokenDisplay.value = ''
   botInfo.value = null
@@ -206,7 +208,14 @@ async function handlePhoneSubmit(): Promise<void> {
     // Start auth flow - client.start() handles connect + sendCode + waitForCode internally
     // We run this in the background and move to code step
     authPromise = telegramService
-      .startUserAuth(phone.value)
+      .startUserAuth(phone.value, {
+        onPasswordNeeded: (hint) => {
+          // GramJS is now waiting for 2FA password - transition to password step
+          passwordHint.value = hint
+          step.value = 'password'
+          isLoading.value = false
+        },
+      })
       .then((user) => {
         // Auth completed successfully
         const newAccount = accountsStore.addAccount({
@@ -662,14 +671,17 @@ function goBack(): void {
             ← Back
           </button>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Enter your two-factor authentication password
+            Your account has two-factor authentication enabled. Enter your password to continue.
           </p>
 
           <form @submit.prevent="handlePasswordSubmit" class="space-y-3">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >Password</label
+                >2FA Password</label
               >
+              <p v-if="passwordHint" class="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                Hint: {{ passwordHint }}
+              </p>
               <input
                 v-model="password"
                 type="password"
