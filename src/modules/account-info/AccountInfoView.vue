@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAccountsStore, useUiStore } from '@/stores'
 import { getBotInfo, type BotApiUser } from '@/services/telegram/bot-api'
 
+const { t } = useI18n()
 const accountsStore = useAccountsStore()
 const uiStore = useUiStore()
 
@@ -18,7 +20,7 @@ const isUser = computed(() => account.value?.type === 'user')
 
 onMounted(async () => {
   if (!account.value) {
-    error.value = 'No account selected'
+    error.value = t('accountInfo.noAccountSelected')
     isLoading.value = false
     return
   }
@@ -29,7 +31,7 @@ onMounted(async () => {
       botApiInfo.value = await getBotInfo(account.value.botToken)
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to load account info'
+    error.value = e instanceof Error ? e.message : t('common.error')
   } finally {
     isLoading.value = false
   }
@@ -37,7 +39,7 @@ onMounted(async () => {
 
 function copyToClipboard(text: string): void {
   navigator.clipboard.writeText(text)
-  uiStore.showToast('success', 'Copied to clipboard')
+  uiStore.showToast('success', t('common.copied'))
 }
 
 // Computed display values
@@ -66,8 +68,10 @@ const telegramLink = computed(() => {
 <template>
   <div class="max-w-2xl mx-auto py-8 px-4">
     <header class="mb-6">
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Account Info</h1>
-      <p class="text-gray-600 dark:text-gray-400">View your account profile and settings</p>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+        {{ t('accountInfo.title') }}
+      </h1>
+      <p class="text-gray-600 dark:text-gray-400">{{ t('accountInfo.subtitle') }}</p>
     </header>
 
     <!-- Loading -->
@@ -75,7 +79,7 @@ const telegramLink = computed(() => {
       <div
         class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"
       ></div>
-      <p class="text-gray-600 dark:text-gray-400">Loading account info...</p>
+      <p class="text-gray-600 dark:text-gray-400">{{ t('accountInfo.loading') }}</p>
     </div>
 
     <!-- Error -->
@@ -112,7 +116,7 @@ const telegramLink = computed(() => {
                   : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
               ]"
             >
-              {{ isBot ? 'Bot' : 'User Account' }}
+              {{ isBot ? t('accountInfo.botAccount') : t('accountInfo.userAccount') }}
             </span>
           </div>
         </div>
@@ -120,7 +124,9 @@ const telegramLink = computed(() => {
         <div class="space-y-2">
           <!-- Account ID -->
           <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded">
-            <span class="text-sm text-gray-600 dark:text-gray-400">Account ID</span>
+            <span class="text-sm text-gray-600 dark:text-gray-400">{{
+              t('accountInfo.accountId')
+            }}</span>
             <div class="flex items-center gap-2">
               <code class="text-sm font-mono text-gray-900 dark:text-white">
                 {{ isBot && botApiInfo ? botApiInfo.id : account.id.slice(0, 8) }}
@@ -128,7 +134,7 @@ const telegramLink = computed(() => {
               <button
                 @click="copyToClipboard(isBot && botApiInfo ? String(botApiInfo.id) : account.id)"
                 class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
-                title="Copy"
+                :title="t('common.copy')"
               >
                 📋
               </button>
@@ -140,7 +146,9 @@ const telegramLink = computed(() => {
             v-if="displayUsername"
             class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded"
           >
-            <span class="text-sm text-gray-600 dark:text-gray-400">Username</span>
+            <span class="text-sm text-gray-600 dark:text-gray-400">{{
+              t('accountInfo.username')
+            }}</span>
             <a
               v-if="telegramLink"
               :href="telegramLink"
@@ -157,7 +165,9 @@ const telegramLink = computed(() => {
             v-if="isUser && account.phone"
             class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded"
           >
-            <span class="text-sm text-gray-600 dark:text-gray-400">Phone</span>
+            <span class="text-sm text-gray-600 dark:text-gray-400">{{
+              t('accountInfo.phone')
+            }}</span>
             <span class="text-sm text-gray-900 dark:text-white">{{ account.phone }}</span>
           </div>
         </div>
@@ -168,44 +178,64 @@ const telegramLink = computed(() => {
         v-if="isBot && botApiInfo"
         class="bg-white dark:bg-gray-900 rounded-lg p-5 border border-gray-200 dark:border-gray-800 shadow-sm"
       >
-        <h3 class="font-medium text-gray-900 dark:text-white mb-3">Bot Capabilities</h3>
+        <h3 class="font-medium text-gray-900 dark:text-white mb-3">
+          {{ t('accountInfo.capabilities') }}
+        </h3>
 
         <div class="space-y-2">
           <div class="flex items-center justify-between p-2">
-            <span class="text-sm text-gray-600 dark:text-gray-400">Can join groups</span>
+            <span class="text-sm text-gray-600 dark:text-gray-400">{{
+              t('accountInfo.canJoinGroups')
+            }}</span>
             <span
               :class="botApiInfo.can_join_groups ? 'text-green-600' : 'text-red-600'"
               class="text-sm"
             >
-              {{ botApiInfo.can_join_groups ? '✅ Yes' : '❌ No' }}
+              {{
+                botApiInfo.can_join_groups
+                  ? '✅ ' + t('accountInfo.yes')
+                  : '❌ ' + t('accountInfo.no')
+              }}
             </span>
           </div>
 
           <div class="flex items-center justify-between p-2">
-            <span class="text-sm text-gray-600 dark:text-gray-400"
-              >Can read all group messages</span
-            >
+            <span class="text-sm text-gray-600 dark:text-gray-400">{{
+              t('accountInfo.canReadAllMessages')
+            }}</span>
             <span
               :class="botApiInfo.can_read_all_group_messages ? 'text-green-600' : 'text-amber-600'"
               class="text-sm"
             >
-              {{ botApiInfo.can_read_all_group_messages ? '✅ Yes' : '⚠️ Privacy mode' }}
+              {{
+                botApiInfo.can_read_all_group_messages
+                  ? '✅ ' + t('accountInfo.yes')
+                  : '⚠️ ' + t('accountInfo.privacyMode')
+              }}
             </span>
           </div>
 
           <div class="flex items-center justify-between p-2">
-            <span class="text-sm text-gray-600 dark:text-gray-400">Inline queries</span>
+            <span class="text-sm text-gray-600 dark:text-gray-400">{{
+              t('accountInfo.supportsInline')
+            }}</span>
             <span
               :class="botApiInfo.supports_inline_queries ? 'text-green-600' : 'text-gray-500'"
               class="text-sm"
             >
-              {{ botApiInfo.supports_inline_queries ? '✅ Enabled' : '— Disabled' }}
+              {{
+                botApiInfo.supports_inline_queries
+                  ? '✅ ' + t('accountInfo.enabled')
+                  : '— ' + t('accountInfo.disabled')
+              }}
             </span>
           </div>
 
           <div v-if="botApiInfo.has_main_web_app" class="flex items-center justify-between p-2">
-            <span class="text-sm text-gray-600 dark:text-gray-400">Web App</span>
-            <span class="text-green-600 text-sm">✅ Has Web App</span>
+            <span class="text-sm text-gray-600 dark:text-gray-400">{{
+              t('accountInfo.hasWebApp')
+            }}</span>
+            <span class="text-green-600 text-sm">✅ {{ t('accountInfo.yes') }}</span>
           </div>
         </div>
       </div>
@@ -215,7 +245,9 @@ const telegramLink = computed(() => {
         v-if="telegramLink"
         class="bg-white dark:bg-gray-900 rounded-lg p-5 border border-gray-200 dark:border-gray-800 shadow-sm"
       >
-        <h3 class="font-medium text-gray-900 dark:text-white mb-3">Quick Links</h3>
+        <h3 class="font-medium text-gray-900 dark:text-white mb-3">
+          {{ t('accountInfo.quickLinks') }}
+        </h3>
 
         <div class="grid gap-2 sm:grid-cols-2">
           <a
@@ -224,7 +256,9 @@ const telegramLink = computed(() => {
             class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-100"
           >
             <span class="text-lg">💬</span>
-            <span class="text-sm text-gray-700 dark:text-gray-300">Open in Telegram</span>
+            <span class="text-sm text-gray-700 dark:text-gray-300">{{
+              t('accountInfo.openInTelegram')
+            }}</span>
           </a>
 
           <a
@@ -234,7 +268,9 @@ const telegramLink = computed(() => {
             class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-100"
           >
             <span class="text-lg">⚙️</span>
-            <span class="text-sm text-gray-700 dark:text-gray-300">Edit with BotFather</span>
+            <span class="text-sm text-gray-700 dark:text-gray-300">{{
+              t('accountInfo.editWithBotFather')
+            }}</span>
           </a>
         </div>
       </div>
@@ -243,11 +279,19 @@ const telegramLink = computed(() => {
       <div
         class="bg-white dark:bg-gray-900 rounded-lg p-5 border border-gray-200 dark:border-gray-800 shadow-sm"
       >
-        <h3 class="font-medium text-gray-900 dark:text-white mb-3">Account Management</h3>
+        <h3 class="font-medium text-gray-900 dark:text-white mb-3">
+          {{ t('accountInfo.accountManagement') }}
+        </h3>
 
         <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-          <p><strong>Added:</strong> {{ new Date(account.createdAt).toLocaleDateString() }}</p>
-          <p><strong>Last used:</strong> {{ new Date(account.lastUsedAt).toLocaleDateString() }}</p>
+          <p>
+            <strong>{{ t('accountInfo.added') }}:</strong>
+            {{ new Date(account.createdAt).toLocaleDateString() }}
+          </p>
+          <p>
+            <strong>{{ t('accountInfo.lastUsed') }}:</strong>
+            {{ new Date(account.lastUsedAt).toLocaleDateString() }}
+          </p>
         </div>
       </div>
     </div>

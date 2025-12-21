@@ -33,6 +33,24 @@ function getAccountTypeBadgeClass(type: 'user' | 'bot' | 'any'): string {
   }
 }
 
+function getModuleName(moduleId: string): string {
+  const keyMap: Record<string, string> = {
+    'account-info': 'modules.accountInfo.name',
+    'export-deleted': 'modules.exportDeleted.name',
+    resend: 'modules.resend.name',
+  }
+  return t(keyMap[moduleId] || moduleId)
+}
+
+function getModuleDescription(moduleId: string): string {
+  const keyMap: Record<string, string> = {
+    'account-info': 'modules.accountInfo.description',
+    'export-deleted': 'modules.exportDeleted.description',
+    resend: 'modules.resend.description',
+  }
+  return t(keyMap[moduleId] || moduleId)
+}
+
 function handleModuleClick(module: ToolModule): void {
   // Check if we have a compatible account
   if (!accountsStore.isActiveAccountCompatible(module.accountType)) {
@@ -72,7 +90,9 @@ const sortedModules = computed(() => {
   <div class="max-w-5xl mx-auto py-10 px-4">
     <!-- Hero Section -->
     <header class="text-center mb-10">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-3">{{ t('landing.title') }}</h1>
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+        {{ t('landing.title') }}
+      </h1>
       <p class="text-base text-gray-600 dark:text-gray-400 max-w-xl mx-auto">
         {{ t('landing.subtitle') }}
       </p>
@@ -86,7 +106,9 @@ const sortedModules = computed(() => {
       <div class="flex items-center gap-3">
         <span class="text-xl">👋</span>
         <div class="flex-1">
-          <p class="font-medium text-sm text-gray-900 dark:text-white">{{ t('landing.welcome') }}</p>
+          <p class="font-medium text-sm text-gray-900 dark:text-white">
+            {{ t('landing.welcome') }}
+          </p>
           <p class="text-sm text-gray-600 dark:text-gray-400">
             {{ t('landing.welcomeText') }}
           </p>
@@ -120,13 +142,16 @@ const sortedModules = computed(() => {
             </span>
           </p>
           <p class="text-xs text-gray-600 dark:text-gray-400">
-            {{ accountsStore.activeAccount.type === 'bot' ? t('accounts.botToken') : t('accounts.userAccount') }}
+            {{
+              accountsStore.activeAccount.type === 'bot'
+                ? t('accounts.botToken')
+                : t('accounts.userAccount')
+            }}
           </p>
         </div>
         <span class="text-xs text-gray-500">
-          {{ accountsStore.accounts.length }} account{{
-            accountsStore.accounts.length !== 1 ? 's' : ''
-          }}
+          {{ accountsStore.accounts.length }}
+          {{ accountsStore.accounts.length === 1 ? t('common.account') : t('common.accounts') }}
         </span>
       </div>
     </div>
@@ -150,10 +175,10 @@ const sortedModules = computed(() => {
           </div>
           <div class="flex-1 min-w-0">
             <h2 class="font-medium text-gray-900 dark:text-white mb-1">
-              {{ module.name }}
+              {{ getModuleName(module.id) }}
             </h2>
             <p class="text-sm text-gray-600 dark:text-gray-400 mb-2.5 line-clamp-2">
-              {{ module.description }}
+              {{ getModuleDescription(module.id) }}
             </p>
             <span
               :class="[
@@ -177,10 +202,17 @@ const sortedModules = computed(() => {
           <p class="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
             <span>⚠️</span>
             <span v-if="accountsStore.hasCompatibleAccount(module.accountType)">
-              Switch to a {{ module.accountType }} account to use
+              {{ t('landing.switchAccountHint', { type: module.accountType }) }}
             </span>
             <span v-else>
-              Add a {{ module.accountType === 'user' ? 'user account' : 'bot token' }} to use
+              {{
+                t('landing.addAccountHint', {
+                  type:
+                    module.accountType === 'user'
+                      ? t('landing.userAccountType')
+                      : t('landing.botTokenType'),
+                })
+              }}
             </span>
           </p>
         </div>
@@ -203,15 +235,15 @@ const sortedModules = computed(() => {
             <h2
               class="font-medium text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 mb-1 transition-colors duration-100"
             >
-              {{ contributeCard.name }}
+              {{ t('landing.contributeCard.name') }}
             </h2>
             <p class="text-sm text-gray-500 dark:text-gray-500 mb-2.5">
-              {{ contributeCard.description }}
+              {{ t('landing.contributeCard.description') }}
             </p>
             <span
               class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500"
             >
-              Open Source
+              {{ t('common.openSource') }}
             </span>
           </div>
         </div>
@@ -222,21 +254,27 @@ const sortedModules = computed(() => {
     <div class="mt-12 grid gap-6 md:grid-cols-3">
       <div class="text-center">
         <div class="text-3xl mb-2">🔒</div>
-        <h3 class="font-medium text-gray-900 dark:text-white mb-1">{{ t('landing.features.private.title') }}</h3>
+        <h3 class="font-medium text-gray-900 dark:text-white mb-1">
+          {{ t('landing.features.private.title') }}
+        </h3>
         <p class="text-sm text-gray-600 dark:text-gray-400">
           {{ t('landing.features.private.text') }}
         </p>
       </div>
       <div class="text-center">
         <div class="text-3xl mb-2">💾</div>
-        <h3 class="font-medium text-gray-900 dark:text-white mb-1">{{ t('landing.features.localStorage.title') }}</h3>
+        <h3 class="font-medium text-gray-900 dark:text-white mb-1">
+          {{ t('landing.features.localStorage.title') }}
+        </h3>
         <p class="text-sm text-gray-600 dark:text-gray-400">
           {{ t('landing.features.localStorage.text') }}
         </p>
       </div>
       <div class="text-center">
         <div class="text-3xl mb-2">📖</div>
-        <h3 class="font-medium text-gray-900 dark:text-white mb-1">{{ t('landing.features.openSource.title') }}</h3>
+        <h3 class="font-medium text-gray-900 dark:text-white mb-1">
+          {{ t('landing.features.openSource.title') }}
+        </h3>
         <p class="text-sm text-gray-600 dark:text-gray-400">
           {{ t('landing.features.openSource.text') }}
         </p>
