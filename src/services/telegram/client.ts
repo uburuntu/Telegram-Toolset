@@ -7,9 +7,21 @@
 
 import { TelegramClient } from 'telegram'
 import { StringSession } from 'telegram/sessions'
-import type { UserInfo, ChatInfo, DeletedMessage, MediaType } from '@/types'
+import type {
+  UserInfo,
+  ChatInfo,
+  DeletedMessage,
+  MediaType,
+  AdminLogIterOptions,
+  ChatValidationResult,
+  ConnectionState,
+} from '@/types'
 
 const SESSION_KEY = 'telegram_session'
+
+// Reconnection settings
+const RECONNECT_DELAY_MS = 2000
+const MAX_RECONNECT_ATTEMPTS = 5
 
 // Deferred promise helper for interactive auth flow
 interface DeferredPromise<T> {
@@ -31,6 +43,8 @@ function createDeferred<T>(): DeferredPromise<T> {
 class TelegramService {
   private client: TelegramClient | null = null
   private session: StringSession
+  private apiId: number | null = null
+  private apiHash: string | null = null
 
   // Auth flow state
   private phoneDeferred: DeferredPromise<string> | null = null
@@ -40,6 +54,11 @@ class TelegramService {
 
   // Entity cache for sender resolution (like Python's _entity_cache)
   private entityCache: Map<string, unknown> = new Map()
+
+  // Connection state management
+  private _connectionState: ConnectionState = 'disconnected'
+  private reconnectAttempts = 0
+  private connectionStateListeners: Set<(state: ConnectionState) => void> = new Set()
 
   constructor() {
     const savedSession = localStorage.getItem(SESSION_KEY) || ''
@@ -54,11 +73,30 @@ class TelegramService {
     return this.currentUser
   }
 
+  get connectionState(): ConnectionState {
+    return this._connectionState
+  }
+
+  /**
+   * Subscribe to connection state changes
+   */
+  onConnectionStateChange(listener: (state: ConnectionState) => void): () => void {
+    this.connectionStateListeners.add(listener)
+    return () => this.connectionStateListeners.delete(listener)
+  }
+
+  private setConnectionState(state: ConnectionState): void {
+    this._connectionState = state
+    this.connectionStateListeners.forEach((listener) => listener(state))
+  }
+
   /**
    * Initialize client with API credentials
    */
   async initClient(apiId: number, apiHash: string): Promise<void> {
-    // Store credentials for potential reconnection (unused currently)
+    // Store credentials for reconnection
+    this.apiId = apiId
+    this.apiHash = apiHash
 
     this.client = new TelegramClient(this.session, apiId, apiHash, {
       connectionRetries: 5,
@@ -74,23 +112,66 @@ class TelegramService {
       throw new Error('Client not initialized. Call initClient first.')
     }
 
-    await this.client.connect()
+    this.setConnectionState('connecting')
 
-    if (await this.client.isUserAuthorized()) {
-      const me = await this.client.getMe()
-      if (me) {
-        this.currentUser = {
-          id: BigInt(me.id.toString()),
-          firstName: me.firstName || '',
-          lastName: me.lastName || undefined,
-          username: me.username || undefined,
+    try {
+      await this.client.connect()
+      this.reconnectAttempts = 0
+
+      if (await this.client.isUserAuthorized()) {
+        const me = await this.client.getMe()
+        if (me) {
+          this.currentUser = {
+            id: BigInt(me.id.toString()),
+            firstName: me.firstName || '',
+            lastName: me.lastName || undefined,
+            username: me.username || undefined,
+          }
+          this.saveSession()
+          this.setConnectionState('connected')
+          return true
         }
-        this.saveSession()
-        return true
       }
+
+      this.setConnectionState('connected')
+      return false
+    } catch (error) {
+      this.setConnectionState('error')
+      throw error
+    }
+  }
+
+  /**
+   * Attempt to reconnect after connection loss
+   */
+  async reconnect(): Promise<boolean> {
+    if (!this.apiId || !this.apiHash) {
+      throw new Error('Cannot reconnect: API credentials not available')
     }
 
-    return false
+    if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      this.setConnectionState('error')
+      throw new Error(`Failed to reconnect after ${MAX_RECONNECT_ATTEMPTS} attempts`)
+    }
+
+    this.reconnectAttempts++
+    this.setConnectionState('reconnecting')
+
+    // Exponential backoff
+    const delay = RECONNECT_DELAY_MS * Math.pow(2, this.reconnectAttempts - 1)
+    await new Promise((resolve) => setTimeout(resolve, delay))
+
+    try {
+      await this.initClient(this.apiId, this.apiHash)
+      const result = await this.connect()
+      return result
+    } catch (error) {
+      console.error(`Reconnection attempt ${this.reconnectAttempts} failed:`, error)
+      if (this.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        return this.reconnect()
+      }
+      throw error
+    }
   }
 
   /**
@@ -293,46 +374,181 @@ class TelegramService {
 
   /**
    * Check if we can export from a chat (admin log access)
+   * @deprecated Use validateChatForExport for detailed validation
    */
   async canExportFromChat(chatId: bigint): Promise<boolean> {
-    if (!this.client) return false
+    const result = await this.validateChatForExport(chatId)
+    return result.canExport
+  }
+
+  /**
+   * Validate a chat for export with detailed results
+   * Returns structured information about why export may not be possible
+   */
+  async validateChatForExport(chatId: bigint): Promise<ChatValidationResult> {
+    if (!this.client) {
+      return {
+        valid: false,
+        canExport: false,
+        reason: 'unknown_error',
+        errorMessage: 'Client not connected',
+      }
+    }
 
     try {
       // @ts-expect-error - GramJS accepts bigint but types don't reflect it
       const entity = await this.client.getEntity(chatId)
-      if (!entity || !('adminRights' in entity)) return false
 
-      // @ts-expect-error - iterAdminLog exists but isn't in type definitions
-      const adminLog = this.client.iterAdminLog(entity, { limit: 1 })
-      for await (const _ of adminLog) {
-        return true
+      if (!entity) {
+        return {
+          valid: false,
+          canExport: false,
+          reason: 'not_found',
+          errorMessage: 'Chat not found',
+        }
       }
-      return true
-    } catch {
-      return false
+
+      const chatTitle = 'title' in entity ? entity.title : 'Unknown'
+      const chatType = this.getEntityType(entity)
+
+      // Admin logs only work for channels and supergroups
+      if (!('broadcast' in entity || 'megagroup' in entity || 'gigagroup' in entity)) {
+        return {
+          valid: true,
+          canExport: false,
+          reason: 'not_channel',
+          chatType,
+          chatTitle,
+          errorMessage: `Cannot export from ${chatType}. Admin logs are only available for channels and supergroups.`,
+        }
+      }
+
+      // Check for admin rights
+      const hasAdminRights = !!(entity as any).adminRights
+
+      if (!hasAdminRights) {
+        return {
+          valid: true,
+          canExport: false,
+          reason: 'no_admin_rights',
+          chatType,
+          chatTitle,
+          errorMessage: `You don't have admin rights in "${chatTitle}". Admin access is required to view deleted messages.`,
+        }
+      }
+
+      // Try to actually access the admin log
+      try {
+        // @ts-expect-error - iterAdminLog exists but isn't in type definitions
+        const adminLog = this.client.iterAdminLog(entity, { limit: 1 })
+        for await (const _ of adminLog) {
+          // Successfully accessed admin log
+          break
+        }
+      } catch (e) {
+        return {
+          valid: true,
+          canExport: false,
+          reason: 'no_admin_rights',
+          chatType,
+          chatTitle,
+          errorMessage: `Cannot access admin log for "${chatTitle}". You may need "View Admin Log" permission.`,
+        }
+      }
+
+      return {
+        valid: true,
+        canExport: true,
+        chatType,
+        chatTitle,
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      return {
+        valid: false,
+        canExport: false,
+        reason: 'unknown_error',
+        errorMessage: `Failed to validate chat: ${message}`,
+      }
     }
+  }
+
+  private getEntityType(entity: unknown): string {
+    if (!entity || typeof entity !== 'object') return 'unknown'
+
+    if ('broadcast' in entity && (entity as any).broadcast) return 'channel'
+    if ('megagroup' in entity && (entity as any).megagroup) return 'supergroup'
+    if ('gigagroup' in entity) return 'supergroup'
+    if ('title' in entity) return 'group'
+    if ('firstName' in entity) return 'user'
+    return 'chat'
   }
 
   /**
    * Iterate over deleted messages from admin log
+   * Supports filtering by message ID range and limits
+   *
+   * @param chatId - Chat ID to fetch deleted messages from
+   * @param options - Filtering options (minId, maxId, limit)
    */
-  async *iterDeletedMessages(chatId: bigint): AsyncGenerator<DeletedMessage> {
+  async *iterDeletedMessages(
+    chatId: bigint,
+    options: AdminLogIterOptions = {}
+  ): AsyncGenerator<DeletedMessage> {
     if (!this.client) {
       throw new Error('Client not connected')
     }
 
+    // Validate chat first
+    const validation = await this.validateChatForExport(chatId)
+    if (!validation.canExport) {
+      throw new Error(validation.errorMessage || 'Cannot export from this chat')
+    }
+
     // @ts-expect-error - GramJS accepts bigint but types don't reflect it
     const entity = await this.client.getEntity(chatId)
-    // @ts-expect-error - iterAdminLog exists but isn't in type definitions
-    const adminLog = this.client.iterAdminLog(entity, {
+
+    // Build admin log options
+    const adminLogOptions: Record<string, unknown> = {
       delete: true,
-    })
+    }
+
+    if (options.minId !== undefined && options.minId > 0) {
+      adminLogOptions.minId = options.minId
+    }
+    if (options.maxId !== undefined && options.maxId > 0) {
+      adminLogOptions.maxId = options.maxId
+    }
+    if (options.limit !== undefined && options.limit > 0) {
+      adminLogOptions.limit = options.limit
+    }
+
+    // @ts-expect-error - iterAdminLog exists but isn't in type definitions
+    const adminLog = this.client.iterAdminLog(entity, adminLogOptions)
 
     for await (const event of adminLog) {
       if (!event.deletedMessage || !event.old) continue
 
       const msg = event.old
       const mediaType = this.getMediaType(msg)
+
+      // Extract media filename from document attributes if available
+      let mediaFilename: string | undefined
+      let mediaSize: number | undefined
+
+      if (msg.media?.document) {
+        const doc = msg.media.document
+        mediaSize = doc.size
+        const filenameAttr = doc.attributes?.find(
+          (a: any) => a._ === 'documentAttributeFilename'
+        )
+        if (filenameAttr) {
+          mediaFilename = filenameAttr.fileName
+        }
+      } else if (msg.media?.photo) {
+        // For photos, generate a filename
+        mediaFilename = `photo_${msg.id}.jpg`
+      }
 
       yield {
         id: msg.id,
@@ -342,8 +558,13 @@ class TelegramService {
         date: new Date(msg.date * 1000),
         hasMedia: !!msg.media,
         mediaType,
+        mediaFilename,
+        mediaSize,
         replyToMsgId: msg.replyTo?.replyToMsgId,
         replyToTopId: msg.replyTo?.replyToTopId,
+        quoteText: msg.replyTo?.quoteText,
+        // Preserve raw message for media download
+        _rawMessage: msg.media ? msg : undefined,
       }
     }
   }
@@ -378,12 +599,23 @@ class TelegramService {
 
   /**
    * Download media from a message
+   * Accepts either a raw GramJS message or a DeletedMessage with _rawMessage
    */
-  async downloadMedia(msg: any): Promise<Blob | null> {
-    if (!this.client || !msg.media) return null
+  async downloadMedia(msg: DeletedMessage | unknown): Promise<Blob | null> {
+    if (!this.client) return null
+
+    // Handle DeletedMessage with preserved _rawMessage
+    const rawMsg =
+      msg && typeof msg === 'object' && '_rawMessage' in msg
+        ? (msg as DeletedMessage)._rawMessage
+        : msg
+
+    if (!rawMsg || typeof rawMsg !== 'object' || !('media' in rawMsg) || !(rawMsg as any).media) {
+      return null
+    }
 
     try {
-      const buffer = await this.client.downloadMedia(msg, {})
+      const buffer = await this.client.downloadMedia(rawMsg as any, {})
       if (buffer) {
         // Handle both Buffer and string types from GramJS
         const data = typeof buffer === 'string' ? new TextEncoder().encode(buffer) : buffer
@@ -391,8 +623,20 @@ class TelegramService {
       }
     } catch (error) {
       console.error('Failed to download media:', error)
+      throw error // Re-throw so retry logic can handle it
     }
     return null
+  }
+
+  /**
+   * Download media from a DeletedMessage
+   * Uses the preserved _rawMessage reference for accurate download
+   */
+  async downloadMessageMedia(message: DeletedMessage): Promise<Blob | null> {
+    if (!message.hasMedia || !message._rawMessage) {
+      return null
+    }
+    return this.downloadMedia(message._rawMessage)
   }
 
   /**
@@ -561,7 +805,52 @@ class TelegramService {
       messages: [messageId],
     })
   }
+
+  /**
+   * Export session data for backup/migration
+   * Returns an object that can be safely stored
+   */
+  exportSession(): { sessionString: string; apiId?: number; apiHash?: string } | null {
+    const sessionString = this.session.save()
+    if (!sessionString) return null
+
+    return {
+      sessionString,
+      apiId: this.apiId ?? undefined,
+      apiHash: this.apiHash ?? undefined,
+    }
+  }
+
+  /**
+   * Import session data from backup
+   * @param data - Exported session data
+   * @returns true if import was successful
+   */
+  importSession(data: { sessionString: string; apiId?: number; apiHash?: string }): boolean {
+    try {
+      this.session = new StringSession(data.sessionString)
+      localStorage.setItem(SESSION_KEY, data.sessionString)
+
+      if (data.apiId && data.apiHash) {
+        this.apiId = data.apiId
+        this.apiHash = data.apiHash
+      }
+
+      return true
+    } catch (error) {
+      console.error('Failed to import session:', error)
+      return false
+    }
+  }
+
+  /**
+   * Check if we have stored API credentials
+   */
+  hasStoredCredentials(): boolean {
+    return this.apiId !== null && this.apiHash !== null
+  }
 }
 
 // Singleton instance
 export const telegramService = new TelegramService()
+

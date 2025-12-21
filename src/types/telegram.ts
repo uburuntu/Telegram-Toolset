@@ -60,7 +60,43 @@ export interface DeletedMessage {
   replyToMsgId?: number
   replyToTopId?: number
   quoteText?: string
+  /** Raw GramJS message object for media download - not serialized */
+  _rawMessage?: unknown
 }
+
+/**
+ * Options for iterating deleted messages from admin log
+ */
+export interface AdminLogIterOptions {
+  /** Minimum message ID (exclusive) - start after this ID */
+  minId?: number
+  /** Maximum message ID (exclusive) - stop before this ID */
+  maxId?: number
+  /** Maximum number of events to fetch */
+  limit?: number
+}
+
+/**
+ * Result of chat validation for export
+ */
+export interface ChatValidationResult {
+  valid: boolean
+  canExport: boolean
+  reason?: 'not_channel' | 'no_admin_rights' | 'not_found' | 'unknown_error'
+  chatType?: string
+  chatTitle?: string
+  errorMessage?: string
+}
+
+/**
+ * Connection state for Telegram client
+ */
+export type ConnectionState =
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'error'
 
 export interface AuthState {
   status:
