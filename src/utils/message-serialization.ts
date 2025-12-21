@@ -33,10 +33,5 @@ export function stripRawMessages<T extends DeletedMessage>(
  * Use this for size estimation or any serialization path that might see `bigint`.
  */
 export function safeJsonStringify(value: unknown, space?: number): string {
-  return JSON.stringify(
-    value,
-    (_key, v) => (typeof v === 'bigint' ? v.toString() : v),
-    space
-  )
+  return JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? v.toString() : v), space)
 }
-

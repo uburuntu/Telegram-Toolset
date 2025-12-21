@@ -233,3 +233,38 @@ export function formatDuration(ms: number): string {
   }
   return `${seconds}s`
 }
+
+/**
+ * Start a countdown timer for FloodWait that calls back every second
+ * with the remaining time.
+ *
+ * @param seconds - Initial countdown duration
+ * @param callback - Called every second with remaining seconds
+ * @param signal - AbortSignal to stop the countdown early
+ */
+export function startFloodWaitCountdown(
+  seconds: number,
+  callback: (remaining: number) => void,
+  signal: AbortSignal
+): void {
+  let remaining = seconds
+
+  const interval = setInterval(() => {
+    if (signal.aborted || remaining <= 0) {
+      clearInterval(interval)
+      return
+    }
+
+    remaining--
+    callback(remaining)
+  }, 1000)
+
+  // Clean up on abort
+  signal.addEventListener(
+    'abort',
+    () => {
+      clearInterval(interval)
+    },
+    { once: true }
+  )
+}

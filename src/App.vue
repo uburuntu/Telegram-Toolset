@@ -72,11 +72,19 @@ watch(
     if (!account || account.type !== 'user') return
     if (!account.apiId || !account.apiHash) return
 
-    const svc: any = telegramService as any
-    if (typeof svc.useUserAccountSession !== 'function') return // E2E mocks
+    // Check for useUserAccountSession method (may be missing in E2E mocks)
+    if (!('useUserAccountSession' in telegramService)) return
+    // eslint-disable-next-line no-unused-vars
+    type SessionFn = (o: {
+      sessionString?: string
+      apiId: number
+      apiHash: string
+    }) => Promise<boolean>
+    const useSession = telegramService.useUserAccountSession as SessionFn | undefined
+    if (typeof useSession !== 'function') return
 
     try {
-      await svc.useUserAccountSession({
+      await useSession({
         sessionString: account.sessionString,
         apiId: account.apiId,
         apiHash: account.apiHash,

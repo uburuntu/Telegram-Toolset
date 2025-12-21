@@ -295,6 +295,8 @@ test.describe('Export Progress UI', () => {
     // Select a chat and start export
     await expect(page.getByText('Test Channel')).toBeVisible({ timeout: 10000 })
     await page.getByText('Test Channel').click()
+    // Click Continue on configure step, then Start Export on confirmation step
+    await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'Start Export' }).click()
 
     // Depending on speed/browser, we may still be exporting or already complete.
@@ -312,6 +314,8 @@ test.describe('Export Progress UI', () => {
     // Select a chat and start export
     await expect(page.getByText('Test Channel')).toBeVisible({ timeout: 10000 })
     await page.getByText('Test Channel').click()
+    // Click Continue on configure step, then Start Export on confirmation step
+    await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'Start Export' }).click()
 
     // Cancel button should be visible

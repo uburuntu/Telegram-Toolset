@@ -10,7 +10,12 @@
  */
 
 import { telegramService } from '../telegram/client'
-import { Semaphore, withRetry, formatDuration } from '../telegram/rate-limiter'
+import {
+  Semaphore,
+  withRetry,
+  formatDuration,
+  startFloodWaitCountdown,
+} from '../telegram/rate-limiter'
 import { safeJsonStringify } from '@/utils/message-serialization'
 import type { DeletedMessage, ExportProgress, ExportConfig, AdminLogIterOptions } from '@/types'
 
@@ -276,7 +281,7 @@ class ExportService {
 
           // Start countdown if callback is provided
           if (callbacks.onFloodWaitCountdown) {
-            this.startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
+            startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
           }
         },
         onRetry: (attempt, waitMs, error) => {
@@ -285,37 +290,6 @@ class ExportService {
           )
         },
       }
-    )
-  }
-
-  /**
-   * Start a countdown timer for FloodWait
-   * Calls the callback every second with remaining seconds
-   */
-  private startFloodWaitCountdown(
-    seconds: number,
-    callback: (remaining: number) => void,
-    signal: AbortSignal
-  ): void {
-    let remaining = seconds
-
-    const interval = setInterval(() => {
-      if (signal.aborted || remaining <= 0) {
-        clearInterval(interval)
-        return
-      }
-
-      remaining--
-      callback(remaining)
-    }, 1000)
-
-    // Clean up on abort
-    signal.addEventListener(
-      'abort',
-      () => {
-        clearInterval(interval)
-      },
-      { once: true }
     )
   }
 

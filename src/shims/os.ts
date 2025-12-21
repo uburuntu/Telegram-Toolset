@@ -42,5 +42,3 @@ export const cpus = osShim.cpus
 export const freemem = osShim.freemem
 export const totalmem = osShim.totalmem
 export const uptime = osShim.uptime
-
-

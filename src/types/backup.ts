@@ -81,11 +81,42 @@ export interface ResendConfig {
   showDate: boolean
   showReplyLink: boolean
   useHiddenReplyLinks: boolean
-  timezoneOffsetHours: number
+  /**
+   * Timezone for date formatting. Defaults to browser's timezone if not set.
+   * Can be either:
+   * - IANA timezone name (e.g., 'Europe/Moscow', 'America/New_York')
+   * - Legacy numeric offset in hours (e.g., 3 for UTC+3)
+   */
+  timezone?: string | number
   enableBatching: boolean
   batchMaxMessages: number
   batchTimeWindowMinutes: number
   batchMaxMessageLength: number
+}
+
+/**
+ * Get the user's browser timezone as IANA name (e.g., 'Europe/Moscow')
+ */
+export function getBrowserTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
+/**
+ * Get a human-readable label for a timezone
+ */
+export function getTimezoneLabel(timezone: string): string {
+  try {
+    const now = new Date()
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      timeZoneName: 'short',
+    })
+    const parts = formatter.formatToParts(now)
+    const tzPart = parts.find((p) => p.type === 'timeZoneName')
+    return tzPart?.value || timezone
+  } catch {
+    return timezone
+  }
 }
 
 export interface StorageEstimate {

@@ -15,5 +15,3 @@ import * as browserCrypto from 'telegram/crypto/crypto'
 
 export default browserCrypto
 export * from 'telegram/crypto/crypto'
-
-

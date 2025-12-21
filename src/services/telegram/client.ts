@@ -605,7 +605,9 @@ class TelegramService {
       // Try to actually access the admin log using the proper API
       try {
         // Get input channel for the API call
-        const inputChannel = (await client.getInputEntity(entity)) as unknown as Api.TypeInputChannel
+        const inputChannel = (await client.getInputEntity(
+          entity
+        )) as unknown as Api.TypeInputChannel
 
         await client.invoke(
           new Api.channels.GetAdminLog({
@@ -758,8 +760,7 @@ class TelegramService {
           const doc = msg.media.document as Api.Document
           mediaSize = Number(doc.size)
           const filenameAttr = doc.attributes?.find(
-            (a): a is Api.DocumentAttributeFilename =>
-              a instanceof Api.DocumentAttributeFilename
+            (a): a is Api.DocumentAttributeFilename => a instanceof Api.DocumentAttributeFilename
           )
           if (filenameAttr) {
             mediaFilename = filenameAttr.fileName
@@ -772,15 +773,18 @@ class TelegramService {
         yield {
           id: msg.id,
           chatId,
-          senderId: msg.fromId && 'userId' in msg.fromId ? BigInt(msg.fromId.userId.toString()) : undefined,
+          senderId:
+            msg.fromId && 'userId' in msg.fromId ? BigInt(msg.fromId.userId.toString()) : undefined,
           text: msg.message || undefined,
           date: new Date(msg.date * 1000),
           hasMedia: !!msg.media,
           mediaType,
           mediaFilename,
           mediaSize,
-          replyToMsgId: msg.replyTo && 'replyToMsgId' in msg.replyTo ? msg.replyTo.replyToMsgId : undefined,
-          replyToTopId: msg.replyTo && 'replyToTopId' in msg.replyTo ? msg.replyTo.replyToTopId : undefined,
+          replyToMsgId:
+            msg.replyTo && 'replyToMsgId' in msg.replyTo ? msg.replyTo.replyToMsgId : undefined,
+          replyToTopId:
+            msg.replyTo && 'replyToTopId' in msg.replyTo ? msg.replyTo.replyToTopId : undefined,
           quoteText: msg.replyTo && 'quoteText' in msg.replyTo ? msg.replyTo.quoteText : undefined,
           // Preserve raw message for media download
           _rawMessage: msg.media ? msg : undefined,
@@ -1086,9 +1090,8 @@ class TelegramService {
 // In E2E we inject `window.__MOCK_TELEGRAM__ = true` and `window.__mockTelegramService__`
 // so the UI can run without real Telegram credentials.
 declare global {
-  // eslint-disable-next-line no-var
   var __MOCK_TELEGRAM__: boolean | undefined
-  // eslint-disable-next-line no-var
+
   var __mockTelegramService__: unknown | undefined
 }
 
