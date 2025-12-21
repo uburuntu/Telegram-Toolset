@@ -314,7 +314,10 @@ function formatDate(date?: Date): string {
             View Backups
           </router-link>
           <button
-            @click="step = 'select-chat'; selectedChat = null"
+            @click="
+              step = 'select-chat'
+              selectedChat = null
+            "
             class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-150"
           >
             Export Another
