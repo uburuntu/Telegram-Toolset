@@ -1,64 +1,38 @@
-# Python-generated files
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
+# Dependencies
+node_modules/
+
+# Build output
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 
-# Virtual environments
-.venv/
-venv/
-ENV/
-env/
+# Logs
+*.log
+npm-debug.log*
 
-# Telegram sensitive files
-*.session
-*.session-journal
-app_config.json
-
-# IDE
+# Editor
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-
-# PyInstaller
-*.spec
-
-# Exports and backups
-exported_messages/
-backup_will_be_inside_me/
-test_exports/
-
-# Logs
-*.log
-
 # OS
 .DS_Store
 Thumbs.db
 
-# Act (GitHub Actions local testing)
-.secrets
-.env.act
+# Testing
+coverage/
+playwright-report/
+test-results/
+
+# Telegram sensitive files
+*.session
+*.session-journal
+app_config.json
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# TypeScript cache
+*.tsbuildinfo
