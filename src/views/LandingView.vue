@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAccountsStore, useUiStore } from '@/stores'
-import { modules } from '@/modules'
+import { modules, contributeCard } from '@/modules'
 import type { ToolModule } from '@/types'
 
 const router = useRouter()
@@ -185,6 +185,37 @@ const sortedModules = computed(() => {
           </p>
         </div>
       </button>
+
+      <!-- Contribute Card -->
+      <a
+        :href="contributeCard.url"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="group text-left p-5 bg-white dark:bg-gray-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-100"
+      >
+        <div class="flex items-start gap-3">
+          <div
+            class="flex-shrink-0 w-11 h-11 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-2xl text-gray-400 dark:text-gray-500 group-hover:text-blue-500 transition-colors duration-100"
+          >
+            <span class="text-3xl font-light">+</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <h2
+              class="font-medium text-gray-600 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 mb-1 transition-colors duration-100"
+            >
+              {{ contributeCard.name }}
+            </h2>
+            <p class="text-sm text-gray-500 dark:text-gray-500 mb-2.5">
+              {{ contributeCard.description }}
+            </p>
+            <span
+              class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500"
+            >
+              Open Source
+            </span>
+          </div>
+        </div>
+      </a>
     </div>
 
     <!-- Features Section -->
