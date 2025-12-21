@@ -40,14 +40,14 @@ function getLanguageName(code: SupportedLocale): string {
   <div class="relative">
     <button
       @click="toggleDropdown"
-      class="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-150 text-sm"
+      class="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-100 text-sm"
     >
       <span>{{ currentLanguage.flag }}</span>
       <span class="text-gray-600 dark:text-gray-400 hidden sm:inline">{{
         getLanguageName(currentLanguage.code)
       }}</span>
       <svg
-        class="w-3 h-3 text-gray-400 transition-transform duration-150"
+        class="w-3 h-3 text-gray-400 transition-transform duration-100"
         :class="{ 'rotate-180': isOpen }"
         fill="none"
         stroke="currentColor"
@@ -75,7 +75,7 @@ function getLanguageName(code: SupportedLocale): string {
           :key="lang.code"
           @click="switchLanguage(lang.code)"
           :class="[
-            'w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors duration-150',
+            'w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors duration-100',
             lang.code === currentLocale
               ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
               : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800',

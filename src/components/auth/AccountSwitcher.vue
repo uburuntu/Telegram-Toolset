@@ -59,7 +59,7 @@ const displayIcon = computed(() => {
   <div class="relative">
     <button
       @click="toggleDropdown"
-      class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-150"
+      class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-100"
     >
       <span>{{ displayIcon }}</span>
       <span
@@ -68,7 +68,7 @@ const displayIcon = computed(() => {
         {{ displayName }}
       </span>
       <svg
-        class="w-3.5 h-3.5 text-gray-400 transition-transform duration-150"
+        class="w-3.5 h-3.5 text-gray-400 transition-transform duration-100"
         :class="{ 'rotate-180': isOpen }"
         fill="none"
         stroke="currentColor"
@@ -102,7 +102,7 @@ const displayIcon = computed(() => {
             :key="account.id"
             @click="selectAccount(account.id)"
             :class="[
-              'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left transition-colors duration-150 group',
+              'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left transition-colors duration-100 group',
               account.id === accountsStore.activeAccountId
                 ? 'bg-blue-50 dark:bg-blue-900/30'
                 : 'hover:bg-gray-50 dark:hover:bg-gray-800',
@@ -130,7 +130,7 @@ const displayIcon = computed(() => {
               </span>
               <button
                 @click="removeAccount(account.id, $event)"
-                class="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                class="p-1 text-gray-400 hover:text-red-500 transition-colors duration-100"
                 title="Remove account"
               >
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,14 +156,14 @@ const displayIcon = computed(() => {
         <div class="p-1.5">
           <button
             @click="addUserAccount"
-            class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+            class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-100"
           >
             <span class="text-base">➕</span>
             <span class="text-sm text-gray-700 dark:text-gray-300">Add User Account</span>
           </button>
           <button
             @click="addBotAccount"
-            class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+            class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-100"
           >
             <span class="text-base">🤖</span>
             <span class="text-sm text-gray-700 dark:text-gray-300">Add Bot Token</span>

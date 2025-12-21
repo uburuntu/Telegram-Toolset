@@ -230,7 +230,7 @@ function formatBytes(bytes: number): string {
         <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Export some messages first</p>
         <router-link
           to="/export"
-          class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-150"
+          class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
         >
           Create Export
         </router-link>
@@ -241,7 +241,7 @@ function formatBytes(bytes: number): string {
           v-for="backup in backupsStore.backups"
           :key="backup.id"
           @click="selectBackup(backup)"
-          class="flex items-center gap-3 w-full p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-150 text-left"
+          class="flex items-center gap-3 w-full p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-100 text-left"
         >
           <div class="flex-1 min-w-0">
             <div class="font-medium text-gray-900 dark:text-white truncate">
@@ -265,7 +265,7 @@ function formatBytes(bytes: number): string {
       <header class="mb-6">
         <button
           @click="goBack"
-          class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-3 transition-colors duration-150"
+          class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-3 transition-colors duration-100"
         >
           ← Back
         </button>
@@ -280,7 +280,7 @@ function formatBytes(bytes: number): string {
           v-model="searchQuery"
           type="search"
           placeholder="Search chats..."
-          class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-150"
+          class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
         />
       </div>
 
@@ -295,7 +295,7 @@ function formatBytes(bytes: number): string {
           v-for="chat in filteredChats"
           :key="chat.id.toString()"
           @click="selectTarget(chat)"
-          class="flex items-center gap-3 w-full p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-150 text-left"
+          class="flex items-center gap-3 w-full p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-100 text-left"
         >
           <div
             class="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-xl"
@@ -319,7 +319,7 @@ function formatBytes(bytes: number): string {
       <header class="mb-6">
         <button
           @click="goBack"
-          class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-3 transition-colors duration-150"
+          class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-3 transition-colors duration-100"
         >
           ← Back
         </button>
@@ -337,11 +337,11 @@ function formatBytes(bytes: number): string {
         >
           <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Content</h3>
           <div class="space-y-2">
-            <label class="flex items-center gap-3 cursor-pointer">
+            <label class="flex items-center gap-3">
               <input v-model="includeMedia" type="checkbox" class="rounded text-blue-600" />
               <span class="text-sm text-gray-900 dark:text-white">Include media files</span>
             </label>
-            <label class="flex items-center gap-3 cursor-pointer">
+            <label class="flex items-center gap-3">
               <input v-model="includeText" type="checkbox" class="rounded text-blue-600" />
               <span class="text-sm text-gray-900 dark:text-white">Include text content</span>
             </label>
@@ -356,19 +356,19 @@ function formatBytes(bytes: number): string {
             Message Header
           </h3>
           <div class="space-y-2">
-            <label class="flex items-center gap-3 cursor-pointer">
+            <label class="flex items-center gap-3">
               <input v-model="showSenderName" type="checkbox" class="rounded text-blue-600" />
               <span class="text-sm text-gray-900 dark:text-white">Show sender name</span>
             </label>
-            <label class="flex items-center gap-3 cursor-pointer">
+            <label class="flex items-center gap-3">
               <input v-model="showSenderUsername" type="checkbox" class="rounded text-blue-600" />
               <span class="text-sm text-gray-900 dark:text-white">Show @username</span>
             </label>
-            <label class="flex items-center gap-3 cursor-pointer">
+            <label class="flex items-center gap-3">
               <input v-model="showDate" type="checkbox" class="rounded text-blue-600" />
               <span class="text-sm text-gray-900 dark:text-white">Show original date</span>
             </label>
-            <label class="flex items-center gap-3 cursor-pointer">
+            <label class="flex items-center gap-3">
               <input v-model="showReplyLink" type="checkbox" class="rounded text-blue-600" />
               <span class="text-sm text-gray-900 dark:text-white">Show reply link</span>
             </label>
@@ -407,7 +407,7 @@ function formatBytes(bytes: number): string {
             Smart Batching
           </h3>
           <div class="space-y-3">
-            <label class="flex items-center gap-3 cursor-pointer">
+            <label class="flex items-center gap-3">
               <input v-model="enableBatching" type="checkbox" class="rounded text-blue-600" />
               <span class="text-sm text-gray-900 dark:text-white"
                 >Merge short consecutive messages</span
@@ -458,7 +458,7 @@ function formatBytes(bytes: number): string {
 
         <button
           @click="startResend"
-          class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-150"
+          class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
         >
           Start Resending
         </button>
@@ -502,7 +502,7 @@ function formatBytes(bytes: number): string {
           class="w-full max-w-xs mx-auto h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-4"
         >
           <div
-            class="h-full bg-blue-600 transition-all duration-150"
+            class="h-full bg-blue-600 transition-all duration-100"
             :style="{ width: `${progressPercentage}%` }"
           ></div>
         </div>
@@ -519,7 +519,7 @@ function formatBytes(bytes: number): string {
 
         <button
           @click="cancelResend"
-          class="mt-6 px-4 py-2 rounded-md font-medium text-sm bg-red-600 text-white hover:bg-red-700 transition-colors duration-150"
+          class="mt-6 px-4 py-2 rounded-md font-medium text-sm bg-red-600 text-white hover:bg-red-700 transition-colors duration-100"
         >
           Cancel
         </button>
@@ -542,13 +542,13 @@ function formatBytes(bytes: number): string {
         <div class="flex gap-3 justify-center">
           <router-link
             to="/"
-            class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-150"
+            class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
           >
             Back to Home
           </router-link>
           <button
             @click="step = 'select-backup'"
-            class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-150"
+            class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100"
           >
             Resend Another
           </button>

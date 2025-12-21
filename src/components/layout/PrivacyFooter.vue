@@ -15,7 +15,7 @@ const repoUrl = 'https://github.com/uburuntu/Telegram-Deleted-Messages-Manager'
             :href="repoUrl"
             target="_blank"
             rel="noopener noreferrer"
-            class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-150"
+            class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
           >
             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path

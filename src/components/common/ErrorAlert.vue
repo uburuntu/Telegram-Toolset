@@ -51,14 +51,14 @@ const emit = defineEmits<{
           <button
             v-if="showRetry"
             @click="emit('retry')"
-            class="px-3 py-1 rounded text-xs font-medium bg-red-100 dark:bg-red-800/50 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800 transition-colors duration-150"
+            class="px-3 py-1 rounded text-xs font-medium bg-red-100 dark:bg-red-800/50 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800 transition-colors duration-100"
           >
             Try Again
           </button>
           <button
             v-if="showDismiss"
             @click="emit('dismiss')"
-            class="px-3 py-1 rounded text-xs font-medium text-red-700 dark:text-red-300 hover:text-red-800 dark:hover:text-red-200 transition-colors duration-150"
+            class="px-3 py-1 rounded text-xs font-medium text-red-700 dark:text-red-300 hover:text-red-800 dark:hover:text-red-200 transition-colors duration-100"
           >
             Dismiss
           </button>
@@ -67,7 +67,7 @@ const emit = defineEmits<{
       <button
         v-if="showDismiss"
         @click="emit('dismiss')"
-        class="flex-shrink-0 text-red-400 hover:text-red-600 dark:hover:text-red-200 transition-colors duration-150"
+        class="flex-shrink-0 text-red-400 hover:text-red-600 dark:hover:text-red-200 transition-colors duration-100"
       >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path

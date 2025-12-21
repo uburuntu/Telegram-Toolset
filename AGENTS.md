@@ -4,6 +4,8 @@
 
 Clean, professional, fast. No gimmicks. The interface should feel like a native tool, not a flashy website.
 
+**Respect the user**: No cookie popups, no notifications/badges, no onboarding tours, no update prompts, no newsletter, no AI, no review begging. Request permissions only when the feature is used.
+
 ## Border Radius
 
 Use minimal rounding for a professional appearance:
@@ -33,25 +35,25 @@ Subtle, functional shadows only:
 
 ## Animations & Transitions
 
-Fast animations create a responsive feel:
+Instant feedback. Animations should be imperceptible, not decorative.
 
 | Type | Duration | Easing |
 |------|----------|--------|
 | Hover effects | 100ms | ease-out |
-| State changes | 150ms | ease-out |
-| Modal open/close | 150ms | ease-out |
-| Page transitions | 200ms | ease-out |
+| State changes | 100ms | ease-out |
+| Modal open/close | 100ms | ease-out |
+| Page transitions | 100ms | ease-out |
 | Loading spinners | 600ms | linear |
 
 ```css
 /* Standard transition */
-transition: all 150ms ease-out;
+transition: all 100ms ease-out;
 
 /* Tailwind */
-transition-all duration-150 ease-out
+transition-all duration-100 ease-out
 ```
 
-**Never use**: Slow transitions (>300ms), bouncy effects, or decorative animations.
+**Never use**: Slow transitions (>150ms for interactions), bouncy effects, or decorative animations.
 
 ## Color Palette
 
@@ -150,12 +152,18 @@ Use consistent spacing within component types.
 
 1. **Excessive rounding** - No `rounded-2xl` or `rounded-3xl`
 2. **Heavy shadows** - No `shadow-xl` or `shadow-2xl`
-3. **Slow animations** - Nothing over 200ms for interactions
+3. **Slow animations** - Nothing over 150ms for interactions
 4. **Gradient backgrounds** - Keep backgrounds solid
 5. **Decorative icons** - Icons should be functional
 6. **Bouncy/spring effects** - Keep animations linear/ease-out
 7. **Parallax or scroll effects** - Keep it simple
 8. **Excessive spacing** - Don't waste screen space
+9. **Text truncation** - Never truncate primary content; OK for navigation previews
+10. **Right-aligned text** - Left-align everything
+11. **Relative dates** - Use absolute dates ("Dec 22, 2024" not "2 days ago")
+12. **Hover-only controls** - All actions must be visible without hovering
+13. **cursor-pointer on buttons** - Native cursor is sufficient; don't add to `<button>` or `<label>`
+14. **Floating controls** - Controls stay in place; content scrolls
 
 ## Accessibility
 

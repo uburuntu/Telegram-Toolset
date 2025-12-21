@@ -421,7 +421,7 @@ function goBack(): void {
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Add Account</h2>
         <button
           @click="handleClose"
-          class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-150"
+          class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
         >
           ✕
         </button>
@@ -436,7 +436,7 @@ function goBack(): void {
           data-testid="tab-user"
           @click="activeTab = 'user'"
           :class="[
-            'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-150',
+            'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-100',
             activeTab === 'user'
               ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
               : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
@@ -448,7 +448,7 @@ function goBack(): void {
           data-testid="tab-bot"
           @click="activeTab = 'bot'"
           :class="[
-            'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-150',
+            'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-100',
             activeTab === 'bot'
               ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
               : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
@@ -478,7 +478,7 @@ function goBack(): void {
             <!-- Use saved credentials -->
             <button
               @click="useSavedCredentials"
-              class="w-full p-3 text-left rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-150"
+              class="w-full p-3 text-left rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-100"
             >
               <div class="flex items-center gap-3">
                 <div
@@ -500,7 +500,7 @@ function goBack(): void {
             <!-- Enter new credentials -->
             <button
               @click="step = 'credentials'"
-              class="w-full p-3 text-left rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 transition-colors duration-150"
+              class="w-full p-3 text-left rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 transition-colors duration-100"
             >
               <div class="flex items-center gap-3">
                 <div
@@ -526,7 +526,7 @@ function goBack(): void {
           <button
             v-if="accountsStore.storedApiCredentials"
             @click="goBack"
-            class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-150"
+            class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-100"
           >
             ← Back
           </button>
@@ -559,7 +559,7 @@ function goBack(): void {
                 placeholder="123456"
                 spellcheck="false"
                 autocomplete="off"
-                class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-150"
+                class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
                 required
               />
             </div>
@@ -573,14 +573,14 @@ function goBack(): void {
                 placeholder="0123456789abcdef..."
                 spellcheck="false"
                 autocomplete="off"
-                class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-150"
+                class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
                 required
               />
             </div>
             <div v-if="error" class="text-red-600 text-sm">{{ error }}</div>
             <button
               type="submit"
-              class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-150"
+              class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
             >
               Continue
             </button>
@@ -591,7 +591,7 @@ function goBack(): void {
         <template v-else-if="step === 'phone'">
           <button
             @click="goBack"
-            class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-150"
+            class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-100"
           >
             ← Back
           </button>
@@ -608,7 +608,7 @@ function goBack(): void {
                 v-model="phone"
                 type="tel"
                 placeholder="+1234567890"
-                class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-150"
+                class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
                 required
                 autofocus
               />
@@ -616,7 +616,7 @@ function goBack(): void {
             <div v-if="error" class="text-red-600 text-sm">{{ error }}</div>
             <button
               type="submit"
-              class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-150"
+              class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
               :disabled="isLoading"
             >
               {{ isLoading ? 'Sending...' : 'Send Code' }}
@@ -628,7 +628,7 @@ function goBack(): void {
         <template v-else-if="step === 'code'">
           <button
             @click="goBack"
-            class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-150"
+            class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-100"
           >
             ← Back
           </button>
@@ -646,7 +646,7 @@ function goBack(): void {
                 type="text"
                 inputmode="numeric"
                 placeholder="12345"
-                class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-xl tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-150"
+                class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-xl tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
                 required
                 autofocus
               />
@@ -654,7 +654,7 @@ function goBack(): void {
             <div v-if="error" class="text-red-600 text-sm">{{ error }}</div>
             <button
               type="submit"
-              class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-150"
+              class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
               :disabled="isLoading"
             >
               {{ isLoading ? 'Verifying...' : 'Verify' }}
@@ -666,7 +666,7 @@ function goBack(): void {
         <template v-else-if="step === 'password'">
           <button
             @click="goBack"
-            class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-150"
+            class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-100"
           >
             ← Back
           </button>
@@ -685,7 +685,7 @@ function goBack(): void {
               <input
                 v-model="password"
                 type="password"
-                class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-150"
+                class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
                 required
                 autofocus
               />
@@ -693,7 +693,7 @@ function goBack(): void {
             <div v-if="error" class="text-red-600 text-sm">{{ error }}</div>
             <button
               type="submit"
-              class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-150"
+              class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
               :disabled="isLoading"
             >
               {{ isLoading ? 'Signing in...' : 'Sign In' }}
@@ -727,7 +727,7 @@ function goBack(): void {
                 autocomplete="off"
                 autocorrect="off"
                 autocapitalize="off"
-                class="w-full px-3 py-2 pr-10 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors duration-150"
+                class="w-full px-3 py-2 pr-10 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors duration-100"
                 :class="{
                   'border-green-500 dark:border-green-500': tokenValidated,
                   'border-red-500 dark:border-red-500': error && botToken,
@@ -797,7 +797,7 @@ function goBack(): void {
 
           <button
             type="submit"
-            class="w-full px-4 py-2 rounded-md font-medium text-sm bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors duration-150"
+            class="w-full px-4 py-2 rounded-md font-medium text-sm bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors duration-100"
             :disabled="isLoading || !tokenValidated"
           >
             <template v-if="isLoading">{{
