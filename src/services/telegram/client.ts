@@ -98,9 +98,22 @@ class TelegramService {
     this.apiId = apiId
     this.apiHash = apiHash
 
+    // GramJS sends these fields inside InitConnection. Telegram can reject empty/invalid values
+    // with errors like `CONNECTION_SYSTEM_EMPTY`. In browsers, Node's `os` module isn't available,
+    // so we provide stable values here explicitly.
+    const nav = typeof navigator !== 'undefined' ? navigator : null
+    const lang = (nav?.language ?? 'en').split('-')[0] || 'en'
+    const deviceModel = `Web${nav?.platform ? ` (${nav.platform})` : ''}`
+    const systemVersion = (nav?.userAgent ?? 'Web').slice(0, 64)
+
     this.client = new TelegramClient(this.session, apiId, apiHash, {
       connectionRetries: 5,
       useWSS: true,
+      deviceModel,
+      systemVersion,
+      appVersion: '1.0',
+      langCode: lang,
+      systemLangCode: lang,
     })
   }
 
