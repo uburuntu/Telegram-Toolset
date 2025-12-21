@@ -14,19 +14,22 @@ async function setupMockedAuth(page: Page) {
     const mockAccount = {
       id: '123456789',
       type: 'user',
+      label: 'Test User',
       firstName: 'Test',
-      lastName: 'User',
       username: 'testuser',
       phone: '+1234567890',
       sessionString: 'mock_session_string',
       apiId: 12345,
       apiHash: 'mock_api_hash',
-      isActive: true,
-      addedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      lastUsedAt: new Date().toISOString(),
     }
 
     localStorage.setItem('telegram_accounts', JSON.stringify([mockAccount]))
-    localStorage.setItem('active_account_id', '123456789')
+    localStorage.setItem('telegram_active_account', '123456789')
+
+    // Prevent the privacy notice modal from blocking clicks in E2E.
+    localStorage.setItem('privacy_notice_seen', 'true')
   })
 }
 
@@ -111,6 +114,7 @@ test.describe('Export Flow', () => {
   test.beforeEach(async ({ page }) => {
     // Start with clean state
     await page.goto('/')
+
     await page.evaluate(() => {
       localStorage.clear()
       sessionStorage.clear()
