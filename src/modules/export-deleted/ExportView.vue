@@ -236,8 +236,13 @@ async function startExport() {
       uiStore.showToast('info', 'Export cancelled')
       step.value = 'configure'
     } else {
+      console.error('[ExportView] Export failed:', e)
       const friendlyError = toUserFriendlyError(e)
+      // Show both friendly message and original error for debugging
       error.value = friendlyError.message
+      if (friendlyError.originalError && friendlyError.originalError !== friendlyError.message) {
+        error.value += ` (${friendlyError.originalError})`
+      }
       backupsStore.setExportError(friendlyError.originalError)
       step.value = 'configure'
     }
@@ -307,7 +312,7 @@ function formatDate(date?: Date): string {
           No exportable chats found
         </h2>
         <p class="text-sm text-gray-600 dark:text-gray-400">
-          You need admin access to channels or supergroups to export deleted messages
+          You need admin access to groups or channels to export deleted messages
         </p>
       </div>
 

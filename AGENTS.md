@@ -261,6 +261,103 @@ Lazy-loaded route components in `modules/`:
 7. **Batched resend**: Reduces API calls by combining short consecutive messages.
 8. **Centralized retry logic**: `withRetry()` handles FloodWait uniformly across all operations.
 
+## GramJS Browser Integration (Critical)
+
+GramJS is designed for Node.js but works in browsers with proper shimming. These lessons are hard-won:
+
+### 1. DO NOT call `connect()` before `client.start()`
+
+```javascript
+// ❌ WRONG - causes TIMEOUT errors
+await telegramService.initClient(apiId, apiHash)
+await telegramService.connect()  // <-- This breaks things
+await telegramService.startUserAuth(phone)
+
+// ✅ CORRECT - client.start() handles connection internally
+await telegramService.initClient(apiId, apiHash)
+await telegramService.startUserAuth(phone)  // This calls client.start() which connects
+```
+
+`client.start()` internally calls `connect()`. Double-connecting puts the client in a bad state causing authentication timeouts.
+
+### 2. Required Browser Shims (in `src/shims/`)
+
+GramJS imports Node.js modules that don't exist in browsers. Vite aliases redirect them:
+
+| Node Module | Shim File | Purpose |
+|------------|-----------|---------|
+| `util` | `src/shims/util.ts` | `util.inspect.custom` symbol for GramJS debugging |
+| `os` | `src/shims/os.ts` | `os.type()`, `os.release()` for device info in MTProto |
+| `crypto` | `src/shims/telegram/CryptoFile.ts` | Re-exports GramJS's own browser crypto (`telegram/crypto/crypto`) |
+| `telegram/extensions/PromisedNetSockets` | `src/shims/telegram/PromisedNetSockets.ts` | Throws error - WebSocket is used instead |
+
+These are configured in `vite.config.ts` via `resolve.alias` and `optimizeDeps.esbuildOptions.plugins`.
+
+### 3. Session Isolation for Multi-Account
+
+Each account must have its own session string. **Never** use a single global `telegram_session` localStorage key:
+
+```javascript
+// ❌ WRONG - session leakage between accounts
+constructor() {
+  this.session = new StringSession(localStorage.getItem('telegram_session') || '')
+}
+
+// ✅ CORRECT - session comes from the active account's SavedAccount.sessionString
+async useUserAccountSession(data: { sessionString, apiId, apiHash }) {
+  this.session = new StringSession(data.sessionString || '')
+  await this.initClient(data.apiId, data.apiHash)
+  // ...
+}
+```
+
+### 4. Race Condition: Auth Flow vs Account Watcher
+
+When `App.vue` watches `activeAccount` to sync the Telegram client, it can interfere with an in-progress login flow. Guard the watcher:
+
+```javascript
+watch(() => accountsStore.activeAccount, async (account) => {
+  // Skip during active login flow
+  if (accountsStore.authFlow.step !== 'idle' && accountsStore.authFlow.step !== 'complete') {
+    return
+  }
+  // ... sync session
+})
+```
+
+### 5. `_rawMessage` is Runtime-Only
+
+`DeletedMessage._rawMessage` holds a raw GramJS object for media downloads. It's **non-serializable** (has circular refs, functions, BigInt). Strip it at persistence boundaries:
+
+```javascript
+// In indexed-db.ts saveMessages()
+const sanitized = stripRawMessage(message)
+await store.put({ ...sanitized, backupId })
+
+// In zip-generator.ts
+const clean = stripRawMessage(msg)  // Before JSON.stringify
+```
+
+### 6. BigInt JSON Serialization
+
+`JSON.stringify()` throws on `bigint`. Use a replacer:
+
+```javascript
+function safeJsonStringify(value: unknown, space?: number): string {
+  return JSON.stringify(value, (_key, v) => typeof v === 'bigint' ? v.toString() : v, space)
+}
+```
+
+### 7. HTML Escaping for Resend
+
+When using `parseMode: 'html'` for resend, escape user text to prevent injection:
+
+```javascript
+// App-generated safe markup (links, pre) is fine
+// User message text must be escaped
+textParts.push(escapeHtml(message.text))
+```
+
 ## Migration Status (Python → TypeScript)
 
 ### Completed
@@ -269,7 +366,11 @@ Lazy-loaded route components in `modules/`:
 - Resend service with batching, media, header formatting
 - Telegram service enhancements (entity cache, sender resolution, sendFile)
 - ExportView and ResendView with full config options and progress display
-- Unit tests for rate-limiter, export-service, resend-service (63 tests)
+- Unit tests for rate-limiter, export-service, resend-service (86 tests)
 - E2E tests for export/resend flows with mocked Telegram
 - Error UX: ErrorBoundary, ErrorAlert components, user-friendly error messages
 - ZIP export integration (download as ZIP option in ExportView)
+- Multi-account session isolation (issue #4)
+- BigInt-safe JSON serialization utilities
+- `_rawMessage` stripping at persistence boundaries
+- Resend HTML escaping for user safety

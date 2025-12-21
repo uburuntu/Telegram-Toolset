@@ -5,7 +5,7 @@
  * See: https://gram.js.org/getting-started/authorization
  */
 
-import { TelegramClient } from 'telegram'
+import { TelegramClient, Api } from 'telegram'
 import { StringSession } from 'telegram/sessions'
 import type {
   UserInfo,
@@ -496,15 +496,19 @@ class TelegramService {
       let canExport = false
       let canSend = true
 
+      // Check for admin rights or creator status
+      const hasAdminRights = !!(entity as any).adminRights
+      const isCreator = !!(entity as any).creator
+
       if ('broadcast' in entity && entity.broadcast) {
         type = 'channel'
-        canExport = !!(entity as any).adminRights
+        canExport = hasAdminRights || isCreator
       } else if ('megagroup' in entity && entity.megagroup) {
         type = 'supergroup'
-        canExport = !!(entity as any).adminRights
+        canExport = hasAdminRights || isCreator
       } else if ('gigagroup' in entity) {
         type = 'supergroup'
-        canExport = !!(entity as any).adminRights
+        canExport = hasAdminRights || isCreator
       } else if ('title' in entity) {
         type = 'group'
       }
@@ -583,10 +587,11 @@ class TelegramService {
         }
       }
 
-      // Check for admin rights
+      // Check for admin rights or creator status
       const hasAdminRights = !!(entity as any).adminRights
+      const isCreator = !!(entity as any).creator
 
-      if (!hasAdminRights) {
+      if (!hasAdminRights && !isCreator) {
         return {
           valid: true,
           canExport: false,
@@ -597,23 +602,35 @@ class TelegramService {
         }
       }
 
-      // Try to actually access the admin log
+      // Try to actually access the admin log using the proper API
       try {
-        // @ts-expect-error - iterAdminLog exists but isn't in type definitions
-        const adminLog = client.iterAdminLog(entity, { limit: 1 })
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for await (const _event of adminLog) {
-          // Successfully accessed admin log
-          break
-        }
-      } catch {
+        // Get input channel for the API call
+        const inputChannel = (await client.getInputEntity(entity)) as unknown as Api.TypeInputChannel
+
+        await client.invoke(
+          new Api.channels.GetAdminLog({
+            channel: inputChannel,
+            q: '',
+            maxId: 0 as unknown as Api.long,
+            minId: 0 as unknown as Api.long,
+            limit: 1,
+            eventsFilter: new Api.ChannelAdminLogEventsFilter({
+              delete: true,
+            }),
+          })
+        )
+        // If we got here, admin log access is working
+      } catch (adminLogError) {
+        console.error('[TelegramService] Admin log access failed:', adminLogError)
+        const errorDetail =
+          adminLogError instanceof Error ? adminLogError.message : String(adminLogError)
         return {
           valid: true,
           canExport: false,
           reason: 'no_admin_rights',
           chatType,
           chatTitle,
-          errorMessage: `Cannot access admin log for "${chatTitle}". You may need "View Admin Log" permission.`,
+          errorMessage: `Cannot access admin log for "${chatTitle}": ${errorDetail}`,
         }
       }
 
@@ -668,80 +685,120 @@ class TelegramService {
 
     // @ts-expect-error - GramJS accepts bigint but types don't reflect it
     const entity = await this.client.getEntity(chatId)
-
-    // Build admin log options
-    const adminLogOptions: Record<string, unknown> = {
-      delete: true,
-    }
-
-    if (options.minId !== undefined && options.minId > 0) {
-      adminLogOptions.minId = options.minId
-    }
-    if (options.maxId !== undefined && options.maxId > 0) {
-      adminLogOptions.maxId = options.maxId
-    }
-    if (options.limit !== undefined && options.limit > 0) {
-      adminLogOptions.limit = options.limit
-    }
+    const inputChannel = await this.client.getInputEntity(entity)
 
     // Prepare date filters (convert to timestamps for comparison)
     const minTimestamp = options.minDate ? options.minDate.getTime() : null
     const maxTimestamp = options.maxDate ? options.maxDate.getTime() : null
 
-    // @ts-expect-error - iterAdminLog exists but isn't in type definitions
-    const adminLog = this.client.iterAdminLog(entity, adminLogOptions)
+    // Pagination state - use number for API compatibility
+    let maxIdNum = options.maxId !== undefined ? options.maxId : 0
+    const minIdNum = options.minId !== undefined ? options.minId : 0
+    const batchLimit = 100 // Fetch 100 events per request
+    let totalYielded = 0
+    const maxTotal = options.limit ?? Infinity
 
-    for await (const event of adminLog) {
-      if (!event.deletedMessage || !event.old) continue
+    // Cast inputChannel for API call
+    const typedInputChannel = inputChannel as unknown as Api.TypeInputChannel
 
-      const msg = event.old
+    // Paginate through admin log
+    while (totalYielded < maxTotal) {
+      const result = await this.client.invoke(
+        new Api.channels.GetAdminLog({
+          channel: typedInputChannel,
+          q: '',
+          maxId: maxIdNum as unknown as Api.long,
+          minId: minIdNum as unknown as Api.long,
+          limit: Math.min(batchLimit, maxTotal - totalYielded),
+          eventsFilter: new Api.ChannelAdminLogEventsFilter({
+            delete: true,
+          }),
+        })
+      )
 
-      // Apply date filtering
-      const msgTimestamp = msg.date * 1000 // Convert to milliseconds
-
-      // Skip messages before minDate
-      if (minTimestamp !== null && msgTimestamp < minTimestamp) {
-        continue
+      const events = result.events
+      if (!events || events.length === 0) {
+        break // No more events
       }
 
-      // Skip messages after maxDate
-      if (maxTimestamp !== null && msgTimestamp > maxTimestamp) {
-        continue
-      }
+      for (const event of events) {
+        if (totalYielded >= maxTotal) break
 
-      const mediaType = this.getMediaType(msg)
-
-      // Extract media filename from document attributes if available
-      let mediaFilename: string | undefined
-      let mediaSize: number | undefined
-
-      if (msg.media?.document) {
-        const doc = msg.media.document
-        mediaSize = doc.size
-        const filenameAttr = doc.attributes?.find((a: any) => a._ === 'documentAttributeFilename')
-        if (filenameAttr) {
-          mediaFilename = filenameAttr.fileName
+        // Check if this is a delete event with the old message
+        const action = event.action
+        if (!(action instanceof Api.ChannelAdminLogEventActionDeleteMessage)) {
+          continue
         }
-      } else if (msg.media?.photo) {
-        // For photos, generate a filename
-        mediaFilename = `photo_${msg.id}.jpg`
+
+        const msg = action.message
+        if (!msg || !(msg instanceof Api.Message)) {
+          continue
+        }
+
+        // Apply date filtering
+        const msgTimestamp = msg.date * 1000 // Convert to milliseconds
+
+        // Skip messages before minDate
+        if (minTimestamp !== null && msgTimestamp < minTimestamp) {
+          continue
+        }
+
+        // Skip messages after maxDate
+        if (maxTimestamp !== null && msgTimestamp > maxTimestamp) {
+          continue
+        }
+
+        const mediaType = this.getMediaType(msg)
+
+        // Extract media filename from document attributes if available
+        let mediaFilename: string | undefined
+        let mediaSize: number | undefined
+
+        if (msg.media && 'document' in msg.media && msg.media.document) {
+          const doc = msg.media.document as Api.Document
+          mediaSize = Number(doc.size)
+          const filenameAttr = doc.attributes?.find(
+            (a): a is Api.DocumentAttributeFilename =>
+              a instanceof Api.DocumentAttributeFilename
+          )
+          if (filenameAttr) {
+            mediaFilename = filenameAttr.fileName
+          }
+        } else if (msg.media && 'photo' in msg.media && msg.media.photo) {
+          // For photos, generate a filename
+          mediaFilename = `photo_${msg.id}.jpg`
+        }
+
+        yield {
+          id: msg.id,
+          chatId,
+          senderId: msg.fromId && 'userId' in msg.fromId ? BigInt(msg.fromId.userId.toString()) : undefined,
+          text: msg.message || undefined,
+          date: new Date(msg.date * 1000),
+          hasMedia: !!msg.media,
+          mediaType,
+          mediaFilename,
+          mediaSize,
+          replyToMsgId: msg.replyTo && 'replyToMsgId' in msg.replyTo ? msg.replyTo.replyToMsgId : undefined,
+          replyToTopId: msg.replyTo && 'replyToTopId' in msg.replyTo ? msg.replyTo.replyToTopId : undefined,
+          quoteText: msg.replyTo && 'quoteText' in msg.replyTo ? msg.replyTo.quoteText : undefined,
+          // Preserve raw message for media download
+          _rawMessage: msg.media ? msg : undefined,
+        }
+
+        totalYielded++
       }
 
-      yield {
-        id: msg.id,
-        chatId,
-        senderId: msg.fromId ? BigInt((msg.fromId as any).userId?.toString() || '0') : undefined,
-        text: msg.message || undefined,
-        date: new Date(msg.date * 1000),
-        hasMedia: !!msg.media,
-        mediaType,
-        mediaFilename,
-        mediaSize,
-        replyToMsgId: msg.replyTo?.replyToMsgId,
-        replyToTopId: msg.replyTo?.replyToTopId,
-        quoteText: msg.replyTo?.quoteText,
-        // Preserve raw message for media download
-        _rawMessage: msg.media ? msg : undefined,
+      // Update maxId for next page (use the last event's id)
+      const lastEvent = events[events.length - 1]
+      if (lastEvent) {
+        // Convert BigInteger to number for next iteration
+        maxIdNum = Number(lastEvent.id)
+      }
+
+      // If we got fewer events than requested, we've reached the end
+      if (events.length < batchLimit) {
+        break
       }
     }
   }
