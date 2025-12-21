@@ -199,12 +199,11 @@ async function handlePhoneSubmit(): Promise<void> {
       telegramService.restoreSession('')
     }
 
-    // Initialize and connect the Telegram client
+    // Initialize the Telegram client (but don't connect yet - client.start() does that).
     const id = parseInt(apiId.value, 10)
     await telegramService.initClient(id, apiHash.value)
-    await telegramService.connect()
 
-    // Start auth flow - this will send the code and wait for it
+    // Start auth flow - client.start() handles connect + sendCode + waitForCode internally
     // We run this in the background and move to code step
     authPromise = telegramService
       .startUserAuth(phone.value)

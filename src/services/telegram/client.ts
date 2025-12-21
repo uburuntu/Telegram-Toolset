@@ -227,12 +227,20 @@ class TelegramService {
    * Clears any existing session so we don't accidentally reuse another account's auth.
    */
   async resetForNewUserLogin(): Promise<void> {
+    // Cancel any in-flight account init to avoid race conditions with the App.vue watcher.
+    this._activeAccountInitPromise = null
+
     await this.disconnect()
     this.currentUser = null
     this.entityCache.clear()
     this.session = new StringSession('')
     this.apiId = null
     this.apiHash = null
+
+    // Also clear any lingering auth deferreds from a previous login attempt.
+    this.phoneDeferred = null
+    this.codeDeferred = null
+    this.passwordDeferred = null
   }
 
   /**
