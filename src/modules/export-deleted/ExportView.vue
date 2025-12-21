@@ -16,7 +16,7 @@ const backupsStore = useBackupsStore()
 const uiStore = useUiStore()
 
 // State
-const step = ref<'select-chat' | 'configure' | 'exporting' | 'complete'>('select-chat')
+const step = ref<'select-chat' | 'configure' | 'confirm' | 'exporting' | 'complete'>('select-chat')
 const chats = ref<ChatInfo[]>([])
 const searchQuery = ref('')
 const selectedChat = ref<ChatInfo | null>(null)
@@ -28,8 +28,68 @@ const isDownloadingZip = ref(false)
 
 // Date range filtering
 const useDateFilter = ref(false)
+const datePreset = ref<'custom' | '7days' | '30days' | '90days' | 'thisMonth' | 'lastMonth'>(
+  'custom'
+)
 const minDate = ref('')
 const maxDate = ref('')
+
+// Date preset options
+const datePresets = [
+  { value: 'custom', label: 'Custom range' },
+  { value: '7days', label: 'Last 7 days' },
+  { value: '30days', label: 'Last 30 days' },
+  { value: '90days', label: 'Last 90 days' },
+  { value: 'thisMonth', label: 'This month' },
+  { value: 'lastMonth', label: 'Last month' },
+] as const
+
+// Apply date preset
+function applyDatePreset(preset: typeof datePreset.value) {
+  datePreset.value = preset
+  const now = new Date()
+
+  switch (preset) {
+    case '7days': {
+      const sevenDaysAgo = new Date(now)
+      sevenDaysAgo.setDate(now.getDate() - 7)
+      minDate.value = sevenDaysAgo.toISOString().split('T')[0] || ''
+      maxDate.value = now.toISOString().split('T')[0] || ''
+      break
+    }
+    case '30days': {
+      const thirtyDaysAgo = new Date(now)
+      thirtyDaysAgo.setDate(now.getDate() - 30)
+      minDate.value = thirtyDaysAgo.toISOString().split('T')[0] || ''
+      maxDate.value = now.toISOString().split('T')[0] || ''
+      break
+    }
+    case '90days': {
+      const ninetyDaysAgo = new Date(now)
+      ninetyDaysAgo.setDate(now.getDate() - 90)
+      minDate.value = ninetyDaysAgo.toISOString().split('T')[0] || ''
+      maxDate.value = now.toISOString().split('T')[0] || ''
+      break
+    }
+    case 'thisMonth': {
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      minDate.value = firstOfMonth.toISOString().split('T')[0] || ''
+      maxDate.value = now.toISOString().split('T')[0] || ''
+      break
+    }
+    case 'lastMonth': {
+      const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const lastOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+      minDate.value = firstOfLastMonth.toISOString().split('T')[0] || ''
+      maxDate.value = lastOfLastMonth.toISOString().split('T')[0] || ''
+      break
+    }
+    case 'custom':
+    default:
+      // Keep current values for custom
+      break
+  }
+}
 
 // Connection state for reconnect
 const isReconnecting = ref(false)
@@ -117,9 +177,19 @@ function goBack() {
   if (step.value === 'configure') {
     step.value = 'select-chat'
     selectedChat.value = null
+  } else if (step.value === 'confirm') {
+    step.value = 'configure'
   } else if (step.value === 'complete') {
     router.push('/backups')
   }
+}
+
+function showConfirmation() {
+  step.value = 'confirm'
+}
+
+function confirmAndStart() {
+  startExport()
 }
 
 function resetExport() {
@@ -412,6 +482,24 @@ function formatDate(date?: Date): string {
           </label>
 
           <div v-if="useDateFilter" class="mt-3 pl-10 space-y-3">
+            <!-- Quick presets -->
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="preset in datePresets"
+                :key="preset.value"
+                @click="applyDatePreset(preset.value)"
+                :class="[
+                  'px-3 py-1.5 text-xs font-medium rounded-md transition-colors duration-100',
+                  datePreset === preset.value
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700',
+                ]"
+              >
+                {{ preset.label }}
+              </button>
+            </div>
+
+            <!-- Custom date inputs -->
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
@@ -420,6 +508,7 @@ function formatDate(date?: Date): string {
                 <input
                   v-model="minDate"
                   type="date"
+                  @input="datePreset = 'custom'"
                   class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
                 />
               </div>
@@ -430,6 +519,7 @@ function formatDate(date?: Date): string {
                 <input
                   v-model="maxDate"
                   type="date"
+                  @input="datePreset = 'custom'"
                   class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
                 />
               </div>
@@ -478,11 +568,111 @@ function formatDate(date?: Date): string {
         </div>
 
         <button
-          @click="startExport"
+          @click="showConfirmation"
           class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
         >
-          Start Export
+          Continue
         </button>
+      </div>
+    </template>
+
+    <!-- Step 3: Confirm -->
+    <template v-else-if="step === 'confirm'">
+      <header class="mb-6">
+        <button
+          @click="goBack"
+          class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-3 transition-colors duration-100"
+        >
+          ← Back
+        </button>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Confirm Export</h1>
+        <p class="text-gray-600 dark:text-gray-400">Review your selection before starting</p>
+      </header>
+
+      <div class="space-y-4">
+        <!-- Summary card -->
+        <div
+          class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800"
+        >
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-gray-600 dark:text-gray-400">Chat:</span>
+              <span class="font-medium text-gray-900 dark:text-white">
+                {{ selectedChat?.title }}
+              </span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-gray-600 dark:text-gray-400">Export mode:</span>
+              <span class="font-medium text-gray-900 dark:text-white">
+                {{
+                  exportMode === 'all'
+                    ? 'All content'
+                    : exportMode === 'text_only'
+                      ? 'Text only'
+                      : 'Media only'
+                }}
+              </span>
+            </div>
+            <div
+              v-if="useDateFilter && (minDate || maxDate)"
+              class="flex justify-between items-center"
+            >
+              <span class="text-sm text-gray-600 dark:text-gray-400">Date range:</span>
+              <span class="font-medium text-gray-900 dark:text-white">
+                {{ minDate || 'Any' }} → {{ maxDate || 'Any' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configuration summary -->
+        <div
+          class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+        >
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            What to expect
+          </h3>
+          <ul class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+            <li>• Deleted messages will be fetched from the admin log</li>
+            <li v-if="exportMode !== 'text_only'">• Media files will be downloaded in parallel</li>
+            <li>• Data will be saved to your browser's storage</li>
+            <li v-if="downloadZipAfter">• A ZIP file will be downloaded after export</li>
+          </ul>
+        </div>
+
+        <!-- Info box -->
+        <div
+          class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+        >
+          <div class="flex gap-3">
+            <span class="text-blue-600">ℹ️</span>
+            <div class="text-sm text-blue-800 dark:text-blue-300">
+              <p>
+                The export may take a while depending on the number of messages. You can cancel at
+                any time.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="error" class="text-red-600 text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+          {{ error }}
+        </div>
+
+        <div class="flex gap-3">
+          <button
+            @click="goBack"
+            class="flex-1 px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100"
+          >
+            Back
+          </button>
+          <button
+            @click="confirmAndStart"
+            class="flex-1 px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
+          >
+            Start Export
+          </button>
+        </div>
       </div>
     </template>
 

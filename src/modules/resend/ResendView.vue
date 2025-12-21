@@ -1,20 +1,22 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBackupsStore, useUiStore } from '@/stores'
 import { telegramService } from '@/services/telegram/client'
 import { backupManager } from '@/services/storage/backup-manager'
 import { resendService } from '@/services/resend/resend-service'
-import type { ChatInfo, Backup, ResendConfig, ExportProgress } from '@/types'
+import { getBrowserTimezone, getTimezoneLabel } from '@/types/backup'
+import type { ChatInfo, Backup, ResendConfig, ExportProgress, DeletedMessage } from '@/types'
 
 const router = useRouter()
 const backupsStore = useBackupsStore()
 const uiStore = useUiStore()
 
 // State
-const step = ref<'select-backup' | 'select-target' | 'configure' | 'sending' | 'complete'>(
-  'select-backup'
-)
+const step = ref<
+  'select-backup' | 'select-target' | 'configure' | 'confirm' | 'sending' | 'complete'
+>('select-backup')
+const showConfirmDialog = ref(false)
 const chats = ref<ChatInfo[]>([])
 const searchQuery = ref('')
 const selectedBackup = ref<Backup | null>(null)
@@ -30,7 +32,9 @@ const showSenderUsername = ref(true)
 const showDate = ref(true)
 const showReplyLink = ref(true)
 const useHiddenReplyLinks = ref(true)
-const timezoneOffsetHours = ref(0)
+// Auto-detect timezone from browser
+const timezone = ref(getBrowserTimezone())
+const useCustomTimezone = ref(false)
 const enableBatching = ref(false)
 const batchMaxMessages = ref(7)
 const batchTimeWindowMinutes = ref(10)
@@ -40,6 +44,52 @@ const batchMaxMessageLength = ref(150)
 const currentProgress = ref<ExportProgress | null>(null)
 const floodWaitSeconds = ref(0)
 const floodWaitRemaining = ref(0)
+
+// Preview sample messages
+const sampleMessages = ref<DeletedMessage[]>([])
+
+// Generate preview HTML based on current config
+const previewHtml = computed(() => {
+  if (sampleMessages.value.length === 0) return ''
+
+  const config: Partial<ResendConfig> = {
+    showSenderName: showSenderName.value,
+    showSenderUsername: showSenderUsername.value,
+    showDate: showDate.value,
+    showReplyLink: showReplyLink.value,
+    useHiddenReplyLinks: useHiddenReplyLinks.value,
+    timezone: timezone.value,
+  }
+
+  // Generate preview for first sample message
+  const msg = sampleMessages.value[0]
+  if (!msg) return ''
+
+  return resendService.generatePreview(msg, config)
+})
+
+// Load sample messages when backup is selected
+watch(
+  () => selectedBackup.value,
+  async (backup) => {
+    if (!backup) {
+      sampleMessages.value = []
+      return
+    }
+
+    try {
+      const fullBackup = await backupManager.getBackup(backup.id)
+      if (fullBackup && fullBackup.messages.length > 0) {
+        // Pick up to 2 sample messages with text
+        const samples = fullBackup.messages.filter((m) => m.text || m.senderName).slice(0, 2)
+        sampleMessages.value = samples.length > 0 ? samples : fullBackup.messages.slice(0, 2)
+      }
+    } catch {
+      // Silently ignore - preview is optional
+    }
+  },
+  { immediate: true }
+)
 
 // Computed
 const filteredChats = computed(() => {
@@ -112,9 +162,22 @@ function goBack() {
   } else if (step.value === 'configure') {
     step.value = 'select-target'
     selectedTarget.value = null
+  } else if (step.value === 'confirm') {
+    step.value = 'configure'
+    showConfirmDialog.value = false
   } else if (step.value === 'complete') {
     router.push('/')
   }
+}
+
+function showConfirmation() {
+  step.value = 'confirm'
+  showConfirmDialog.value = true
+}
+
+function confirmAndStart() {
+  showConfirmDialog.value = false
+  startResend()
 }
 
 function cancelResend() {
@@ -148,7 +211,7 @@ async function startResend() {
       showDate: showDate.value,
       showReplyLink: showReplyLink.value,
       useHiddenReplyLinks: useHiddenReplyLinks.value,
-      timezoneOffsetHours: timezoneOffsetHours.value,
+      timezone: timezone.value,
       enableBatching: enableBatching.value,
       batchMaxMessages: batchMaxMessages.value,
       batchTimeWindowMinutes: batchTimeWindowMinutes.value,
@@ -386,16 +449,37 @@ function formatBytes(bytes: number): string {
           class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800"
         >
           <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Timezone</h3>
-          <div class="flex items-center gap-3">
-            <span class="text-sm text-gray-600 dark:text-gray-400">UTC offset (hours):</span>
-            <input
-              v-model.number="timezoneOffsetHours"
-              type="number"
-              min="-12"
-              max="14"
-              class="w-20 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center"
-            />
-            <span class="text-xs text-gray-500">(e.g., 3 for Moscow, -5 for EST)</span>
+          <div class="space-y-3">
+            <div class="flex items-center gap-2 text-sm">
+              <span class="text-gray-600 dark:text-gray-400">Detected:</span>
+              <span class="font-medium text-gray-900 dark:text-white">
+                {{ getTimezoneLabel(getBrowserTimezone()) }}
+              </span>
+              <span class="text-xs text-gray-500">({{ getBrowserTimezone() }})</span>
+            </div>
+            <label class="flex items-center gap-3">
+              <input v-model="useCustomTimezone" type="checkbox" class="rounded text-blue-600" />
+              <span class="text-sm text-gray-900 dark:text-white">Use a different timezone</span>
+            </label>
+            <div v-if="useCustomTimezone" class="ml-6">
+              <select
+                v-model="timezone"
+                class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
+              >
+                <optgroup label="Common Timezones">
+                  <option value="UTC">UTC</option>
+                  <option value="Europe/London">London (GMT/BST)</option>
+                  <option value="Europe/Paris">Paris (CET/CEST)</option>
+                  <option value="Europe/Moscow">Moscow (MSK)</option>
+                  <option value="America/New_York">New York (EST/EDT)</option>
+                  <option value="America/Los_Angeles">Los Angeles (PST/PDT)</option>
+                  <option value="Asia/Tokyo">Tokyo (JST)</option>
+                  <option value="Asia/Shanghai">Shanghai (CST)</option>
+                  <option value="Asia/Dubai">Dubai (GST)</option>
+                  <option value="Australia/Sydney">Sydney (AEST/AEDT)</option>
+                </optgroup>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -452,16 +536,132 @@ function formatBytes(bytes: number): string {
           </div>
         </div>
 
+        <!-- Live Preview -->
+        <div
+          v-if="previewHtml && showDate"
+          class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800"
+        >
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            Message Preview
+          </h3>
+          <div
+            class="p-3 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700"
+          >
+            <div
+              class="text-sm text-gray-900 dark:text-white whitespace-pre-wrap break-words"
+              v-html="previewHtml"
+            ></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">This is how messages will appear when resent.</p>
+        </div>
+
         <div v-if="error" class="text-red-600 text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
           {{ error }}
         </div>
 
         <button
-          @click="startResend"
+          @click="showConfirmation"
           class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
         >
-          Start Resending
+          Continue
         </button>
+      </div>
+    </template>
+
+    <!-- Step 4: Confirm -->
+    <template v-else-if="step === 'confirm'">
+      <header class="mb-6">
+        <button
+          @click="goBack"
+          class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-3 transition-colors duration-100"
+        >
+          ← Back
+        </button>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Confirm Resend</h1>
+        <p class="text-gray-600 dark:text-gray-400">Review your selection before starting</p>
+      </header>
+
+      <div class="space-y-4">
+        <!-- Summary card -->
+        <div
+          class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800"
+        >
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-gray-600 dark:text-gray-400">From backup:</span>
+              <span class="font-medium text-gray-900 dark:text-white">
+                {{ selectedBackup?.chatTitle }}
+              </span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-gray-600 dark:text-gray-400">Send to:</span>
+              <span class="font-medium text-gray-900 dark:text-white">
+                {{ selectedTarget?.title }}
+              </span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-gray-600 dark:text-gray-400">Messages:</span>
+              <span class="font-medium text-gray-900 dark:text-white">
+                {{ selectedBackup?.messageCount }}
+              </span>
+            </div>
+            <div v-if="selectedBackup?.mediaCount" class="flex justify-between items-center">
+              <span class="text-sm text-gray-600 dark:text-gray-400">Media files:</span>
+              <span class="font-medium text-gray-900 dark:text-white">
+                {{ selectedBackup.mediaCount }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configuration summary -->
+        <div
+          class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+        >
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Configuration</h3>
+          <div class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+            <div v-if="includeMedia && selectedBackup?.mediaCount">✓ Include media files</div>
+            <div v-if="includeText">✓ Include text content</div>
+            <div v-if="showSenderName">✓ Show sender name</div>
+            <div v-if="showDate">✓ Show original date</div>
+            <div v-if="enableBatching">✓ Smart batching enabled</div>
+          </div>
+        </div>
+
+        <!-- Warning -->
+        <div
+          class="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800"
+        >
+          <div class="flex gap-3">
+            <span class="text-amber-600">⚠️</span>
+            <div class="text-sm text-amber-800 dark:text-amber-300">
+              <p>
+                This will send <strong>{{ selectedBackup?.messageCount }} messages</strong> to
+                <strong>{{ selectedTarget?.title }}</strong
+                >. This action cannot be undone.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="error" class="text-red-600 text-sm p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+          {{ error }}
+        </div>
+
+        <div class="flex gap-3">
+          <button
+            @click="goBack"
+            class="flex-1 px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100"
+          >
+            Back
+          </button>
+          <button
+            @click="confirmAndStart"
+            class="flex-1 px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
+          >
+            Start Resending
+          </button>
+        </div>
       </div>
     </template>
 

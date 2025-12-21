@@ -12,7 +12,8 @@
  */
 
 import { telegramService } from '../telegram/client'
-import { withRetry, formatDuration } from '../telegram/rate-limiter'
+import { withRetry, formatDuration, startFloodWaitCountdown } from '../telegram/rate-limiter'
+import { getBrowserTimezone } from '@/types/backup'
 import type { DeletedMessage, ResendConfig, ExportProgress } from '@/types'
 
 // Constants matching Python implementation
@@ -102,32 +103,30 @@ class ResendService {
   }
 
   /**
-   * Start a countdown timer for FloodWait
+   * Generate a preview of how a message will look with the current config
+   * Returns HTML-formatted text as it would appear in Telegram
    */
-  private startFloodWaitCountdown(
-    seconds: number,
-    callback: (remaining: number) => void,
-    signal: AbortSignal
-  ): void {
-    let remaining = seconds
+  generatePreview(message: DeletedMessage, config: Partial<ResendConfig>): string {
+    // Build a minimal config with defaults for preview
+    const fullConfig: ResendConfig = {
+      targetChatId: BigInt(0),
+      targetChatTitle: '',
+      backupId: '',
+      includeMedia: true,
+      includeText: true,
+      showSenderName: config.showSenderName ?? true,
+      showSenderUsername: config.showSenderUsername ?? true,
+      showDate: config.showDate ?? true,
+      showReplyLink: config.showReplyLink ?? true,
+      useHiddenReplyLinks: config.useHiddenReplyLinks ?? true,
+      timezone: config.timezone,
+      enableBatching: false,
+      batchMaxMessages: 7,
+      batchTimeWindowMinutes: 10,
+      batchMaxMessageLength: 150,
+    }
 
-    const interval = setInterval(() => {
-      if (signal.aborted || remaining <= 0) {
-        clearInterval(interval)
-        return
-      }
-
-      remaining--
-      callback(remaining)
-    }, 1000)
-
-    signal.addEventListener(
-      'abort',
-      () => {
-        clearInterval(interval)
-      },
-      { once: true }
-    )
+    return this.buildMessageText(message, fullConfig)
   }
 
   /**
@@ -432,9 +431,9 @@ class ResendService {
       }
     }
 
-    // Date with timezone adjustment
+    // Date with timezone
     if (config.showDate && message.date) {
-      const formattedDate = this.formatDate(message.date, config.timezoneOffsetHours)
+      const formattedDate = this.formatDate(message.date, config.timezone)
       headerParts.push(formattedDate)
     }
 
@@ -456,7 +455,7 @@ class ResendService {
 
     // Fallback
     if (textParts.length === 0 && message.date) {
-      textParts.push(this.formatDate(message.date, config.timezoneOffsetHours))
+      textParts.push(this.formatDate(message.date, config.timezone))
     }
 
     return textParts.join('\n\n')
@@ -502,7 +501,7 @@ class ResendService {
 
     // Date from first message
     if (config.showDate && firstMessage.date) {
-      const formattedDate = this.formatDate(firstMessage.date, config.timezoneOffsetHours)
+      const formattedDate = this.formatDate(firstMessage.date, config.timezone)
       headerParts.push(formattedDate)
     }
 
@@ -526,19 +525,44 @@ class ResendService {
   }
 
   /**
-   * Format date with timezone adjustment
-   * Matches Python's get_formatted_date
+   * Format date with timezone
+   * Supports both IANA timezone names (preferred) and legacy numeric offsets
    */
-  private formatDate(date: Date, timezoneOffsetHours: number): string {
-    const adjustedDate = new Date(date.getTime() + timezoneOffsetHours * 60 * 60 * 1000)
+  private formatDate(date: Date, timezone?: string | number): string {
+    // Handle legacy numeric offset (hours from UTC)
+    if (typeof timezone === 'number') {
+      const adjustedDate = new Date(date.getTime() + timezone * 60 * 60 * 1000)
+      const year = adjustedDate.getUTCFullYear()
+      const month = adjustedDate.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
+      const day = adjustedDate.getUTCDate().toString().padStart(2, '0')
+      const hours = adjustedDate.getUTCHours().toString().padStart(2, '0')
+      const minutes = adjustedDate.getUTCMinutes().toString().padStart(2, '0')
+      return `${year} ${month} ${day}, ${hours}:${minutes}`
+    }
 
-    const year = adjustedDate.getUTCFullYear()
-    const month = adjustedDate.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
-    const day = adjustedDate.getUTCDate().toString().padStart(2, '0')
-    const hours = adjustedDate.getUTCHours().toString().padStart(2, '0')
-    const minutes = adjustedDate.getUTCMinutes().toString().padStart(2, '0')
-
-    return `${year} ${month} ${day}, ${hours}:${minutes}`
+    // Use IANA timezone name (or browser default)
+    const tz = timezone || getBrowserTimezone()
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: tz,
+      }).format(date)
+    } catch {
+      // Fallback if timezone is invalid
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
+    }
   }
 
   /**
@@ -556,7 +580,7 @@ class ResendService {
       onFloodWait: (seconds) => {
         callbacks.onFloodWait?.(seconds)
         if (callbacks.onFloodWaitCountdown) {
-          this.startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
+          startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
         }
       },
       onRetry: (attempt, waitMs, error) => {
@@ -590,7 +614,7 @@ class ResendService {
         onFloodWait: (seconds) => {
           callbacks.onFloodWait?.(seconds)
           if (callbacks.onFloodWaitCountdown) {
-            this.startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
+            startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
           }
         },
         onRetry: (attempt, waitMs, error) => {
