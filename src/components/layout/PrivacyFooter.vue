@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 const repoUrl = 'https://github.com/uburuntu/Telegram-Deleted-Messages-Manager'
 </script>
 
@@ -8,7 +11,7 @@ const repoUrl = 'https://github.com/uburuntu/Telegram-Deleted-Messages-Manager'
       <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
         <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
           <span>🔒</span>
-          <span class="text-xs">100% on-device. No data leaves your browser.</span>
+          <span class="text-xs">{{ t('privacy.footer') }}</span>
         </div>
         <div class="flex items-center gap-4 text-xs">
           <a
@@ -24,7 +27,7 @@ const repoUrl = 'https://github.com/uburuntu/Telegram-Deleted-Messages-Manager'
                 clip-rule="evenodd"
               />
             </svg>
-            View Source
+            {{ t('privacy.viewSource') }}
           </a>
         </div>
       </div>
