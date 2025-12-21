@@ -58,6 +58,9 @@ class TelegramService {
   private reconnectAttempts = 0
   private connectionStateListeners: Set<(state: ConnectionState) => void> = new Set()
 
+  // Race-free initialization orchestrator: if an account switch/init is in-flight, callers can await this.
+  private _activeAccountInitPromise: Promise<boolean> | null = null
+
   constructor() {
     // IMPORTANT: This service supports multiple accounts. We intentionally do NOT
     // read/write a single "global" session from localStorage here, because it causes
@@ -157,6 +160,9 @@ class TelegramService {
   }
 
   private async getConnectedClient(): Promise<TelegramClient> {
+    // Wait for any in-flight account initialization to complete first (race-free orchestration).
+    await this.waitForActiveAccountInit()
+
     if (!this.client) {
       throw new Error('Client not initialized. Please log in again.')
     }
@@ -172,18 +178,48 @@ class TelegramService {
   /**
    * Switch the underlying Telegram client/session to a specific user account.
    * This is required for correct multi-account behavior.
+   *
+   * This method is the **single entry-point** for activating a user account's session.
+   * It sets `_activeAccountInitPromise` so that concurrent callers (e.g. ExportView calling
+   * `getDialogs()` while App.vue is still connecting) will await until initialization completes.
    */
   async useUserAccountSession(data: {
     sessionString: string
     apiId: number
     apiHash: string
   }): Promise<boolean> {
-    await this.disconnect()
-    this.currentUser = null
-    this.entityCache.clear()
-    this.session = new StringSession(data.sessionString || '')
-    await this.initClient(data.apiId, data.apiHash)
-    return await this.connect()
+    // If there's already an in-flight init for the same session, just return that promise.
+    // (Avoids duplicate connects on rapid watcher triggers.)
+    if (this._activeAccountInitPromise) {
+      return this._activeAccountInitPromise
+    }
+
+    const initPromise = (async () => {
+      try {
+        await this.disconnect()
+        this.currentUser = null
+        this.entityCache.clear()
+        this.session = new StringSession(data.sessionString || '')
+        await this.initClient(data.apiId, data.apiHash)
+        return await this.connect()
+      } finally {
+        // Clear the promise once done so future switches can proceed.
+        this._activeAccountInitPromise = null
+      }
+    })()
+
+    this._activeAccountInitPromise = initPromise
+    return initPromise
+  }
+
+  /**
+   * Wait for any in-flight account initialization to complete.
+   * Useful for APIs that need the client to be ready before proceeding.
+   */
+  async waitForActiveAccountInit(): Promise<void> {
+    if (this._activeAccountInitPromise) {
+      await this._activeAccountInitPromise
+    }
   }
 
   /**
@@ -484,6 +520,9 @@ class TelegramService {
    * Returns structured information about why export may not be possible
    */
   async validateChatForExport(chatId: bigint): Promise<ChatValidationResult> {
+    // Wait for any in-flight account initialization first.
+    await this.waitForActiveAccountInit()
+
     if (!this.client) {
       return {
         valid: false,
