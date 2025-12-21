@@ -4,17 +4,25 @@ import { i18n, setLocale, type SupportedLocale } from '@/i18n'
 
 const isOpen = ref(false)
 
-const languages: { code: SupportedLocale; flag: string }[] = [
-  { code: 'en', flag: '🇺🇸' },
-  { code: 'ru', flag: '🇷🇺' },
+const languages: { code: SupportedLocale; flag: string; name: string }[] = [
+  { code: 'id', flag: '🇮🇩', name: 'Bahasa Indonesia' },
+  { code: 'en', flag: '🇺🇸', name: 'English' },
+  { code: 'es', flag: '🇪🇸', name: 'Español' },
+  { code: 'uz', flag: '🇺🇿', name: 'Oʻzbek' },
+  { code: 'pt', flag: '🇵🇹', name: 'Português' },
+  { code: 'tr', flag: '🇹🇷', name: 'Türkçe' },
+  { code: 'ru', flag: '🇷🇺', name: 'Русский' },
+  { code: 'uk', flag: '🇺🇦', name: 'Українська' },
+  { code: 'ar', flag: '🇸🇦', name: 'العربية' },
+  { code: 'fa', flag: '🇮🇷', name: 'فارسی' },
 ]
 
 // Use i18n.global.locale directly for proper reactivity
 const currentLocale = computed(() => i18n.global.locale.value as SupportedLocale)
 
-const currentLanguage = computed(() => {
+const currentLanguage = computed<{ code: SupportedLocale; flag: string; name: string }>(() => {
   const found = languages.find((l) => l.code === currentLocale.value)
-  return found ?? { code: 'en' as SupportedLocale, flag: '🇺🇸' }
+  return found || languages[0]!
 })
 
 function toggleDropdown(): void {
@@ -29,11 +37,6 @@ function switchLanguage(code: SupportedLocale): void {
   setLocale(code)
   closeDropdown()
 }
-
-// Get translated language name
-function getLanguageName(code: SupportedLocale): string {
-  return code === 'en' ? 'English' : 'Русский'
-}
 </script>
 
 <template>
@@ -44,7 +47,7 @@ function getLanguageName(code: SupportedLocale): string {
     >
       <span>{{ currentLanguage.flag }}</span>
       <span class="text-gray-600 dark:text-gray-400 hidden sm:inline">{{
-        getLanguageName(currentLanguage.code)
+        currentLanguage.name
       }}</span>
       <svg
         class="w-3 h-3 text-gray-400 transition-transform duration-100"
@@ -68,21 +71,21 @@ function getLanguageName(code: SupportedLocale): string {
     >
       <div
         v-if="isOpen"
-        class="absolute right-0 mt-1 py-1 bg-white dark:bg-gray-900 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50 min-w-[120px]"
+        class="absolute right-0 mt-1 py-1 bg-white dark:bg-gray-900 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50 min-w-[160px] w-max"
       >
         <button
           v-for="lang in languages"
           :key="lang.code"
           @click="switchLanguage(lang.code)"
           :class="[
-            'w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors duration-100',
+            'w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-100 whitespace-nowrap text-left',
             lang.code === currentLocale
               ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
               : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800',
           ]"
         >
-          <span>{{ lang.flag }}</span>
-          <span>{{ getLanguageName(lang.code) }}</span>
+          <span class="text-base">{{ lang.flag }}</span>
+          <span>{{ lang.name }}</span>
         </button>
       </div>
     </Transition>

@@ -252,7 +252,15 @@
   "language": {
     "select": "Language",
     "en": "English",
-    "ru": "Русский"
+    "ru": "Русский",
+    "es": "Español",
+    "id": "Bahasa Indonesia",
+    "pt": "Português",
+    "fa": "فارسی",
+    "ar": "العربية",
+    "uz": "Oʻzbek",
+    "tr": "Türkçe",
+    "uk": "Українська"
   },
   "resend": {
     "title": "Resend Messages",
