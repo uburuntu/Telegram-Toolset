@@ -26,6 +26,14 @@ const isLoading = ref(false)
 const error = ref('')
 const isDownloadingZip = ref(false)
 
+// Date range filtering
+const useDateFilter = ref(false)
+const minDate = ref('')
+const maxDate = ref('')
+
+// Connection state for reconnect
+const isReconnecting = ref(false)
+
 // Progress tracking
 const currentProgress = ref<ExportProgress | null>(null)
 const floodWaitSeconds = ref(0)
@@ -126,6 +134,25 @@ function cancelExport() {
   exportService.cancel()
 }
 
+async function handleManualReconnect() {
+  isReconnecting.value = true
+  error.value = ''
+
+  try {
+    await telegramService.manualReconnect()
+    uiStore.showToast('success', 'Reconnected successfully!')
+
+    // Go back to configure step to retry
+    step.value = 'configure'
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Failed to reconnect'
+    error.value = message
+    uiStore.showToast('error', message)
+  } finally {
+    isReconnecting.value = false
+  }
+}
+
 async function startExport() {
   if (!selectedChat.value) return
 
@@ -139,6 +166,11 @@ async function startExport() {
     chatTitle: selectedChat.value.title,
     exportMode: exportMode.value,
     storageStrategy: 'indexeddb',
+    // Date filters
+    minDate: useDateFilter.value && minDate.value ? new Date(minDate.value) : undefined,
+    maxDate: useDateFilter.value && maxDate.value
+      ? new Date(maxDate.value + 'T23:59:59') // Include the entire day
+      : undefined,
   }
 
   // Check storage
@@ -357,6 +389,49 @@ function formatDate(date?: Date): string {
           </div>
         </div>
 
+        <!-- Date Range Filter -->
+        <div>
+          <label
+            class="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+          >
+            <input v-model="useDateFilter" type="checkbox" class="text-blue-600 rounded" />
+            <div>
+              <div class="font-medium text-sm text-gray-900 dark:text-white">
+                Filter by date range
+              </div>
+              <div class="text-xs text-gray-500">Only export messages within a specific time period</div>
+            </div>
+          </label>
+
+          <div v-if="useDateFilter" class="mt-3 pl-10 space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  From date
+                </label>
+                <input
+                  v-model="minDate"
+                  type="date"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-150"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  To date
+                </label>
+                <input
+                  v-model="maxDate"
+                  type="date"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-150"
+                />
+              </div>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              Leave empty to export all messages without date restriction.
+            </p>
+          </div>
+        </div>
+
         <!-- Download as ZIP option -->
         <div>
           <label
@@ -460,7 +535,35 @@ function formatDate(date?: Date): string {
           </div>
         </div>
 
+        <!-- Error state with reconnect option -->
+        <div
+          v-if="currentProgress?.phase === 'error'"
+          class="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"
+        >
+          <p class="text-sm text-red-700 dark:text-red-300 mb-3">
+            {{ currentProgress.errorMessage || 'Export failed' }}
+          </p>
+          <div class="flex justify-center gap-3">
+            <button
+              v-if="telegramService.canManualReconnect()"
+              @click="handleManualReconnect"
+              :disabled="isReconnecting"
+              class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
+            >
+              <span v-if="isReconnecting">Reconnecting...</span>
+              <span v-else>🔄 Reconnect</span>
+            </button>
+            <button
+              @click="goBack"
+              class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-150"
+            >
+              Back
+            </button>
+          </div>
+        </div>
+
         <button
+          v-if="currentProgress?.phase !== 'error'"
           @click="cancelExport"
           class="mt-6 px-4 py-2 rounded-md font-medium text-sm bg-red-600 text-white hover:bg-red-700 transition-colors duration-150"
         >
