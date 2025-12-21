@@ -11,6 +11,7 @@
 
 import { telegramService } from '../telegram/client'
 import { Semaphore, withRetry, formatDuration } from '../telegram/rate-limiter'
+import { safeJsonStringify } from '@/utils/message-serialization'
 import type { DeletedMessage, ExportProgress, ExportConfig, AdminLogIterOptions } from '@/types'
 
 // Constants matching Python implementation
@@ -324,8 +325,8 @@ class ExportService {
   estimateExportSize(messages: DeletedMessage[], mediaBlobs: Map<number, Blob>): number {
     let size = 0
 
-    // Estimate JSON metadata size
-    size += JSON.stringify(messages).length
+    // Estimate JSON metadata size (use BigInt-safe stringify because messages contain bigint IDs)
+    size += safeJsonStringify(messages).length
 
     // Add media blob sizes
     for (const blob of mediaBlobs.values()) {

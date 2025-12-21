@@ -40,12 +40,13 @@ export const modules: ToolModule[] = [
     name: 'Resend Messages',
     description: 'Re-send previously exported messages to any chat',
     icon: 'send',
-    accountType: 'any',
+    // Resend requires MTProto sendMessage, which is only available for user accounts.
+    accountType: 'user',
     route: {
       path: '/resend',
       name: 'resend',
       component: () => import('./resend/ResendView.vue'),
-      meta: { requiresAuth: true, accountType: 'any' },
+      meta: { requiresAuth: true, accountType: 'user' },
     },
     requiredPermissions: ['send_messages'],
   },

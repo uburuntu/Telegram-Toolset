@@ -60,7 +60,7 @@ const botTokenDisplay = ref('') // Masked version for display
 const botInfo = ref<BotApiUser | null>(null)
 const isValidatingToken = ref(false)
 const tokenValidated = ref(false)
-const tokenValidationWarning = ref('')
+// NOTE: "tokenValidationWarning" path removed per issue #4 - bot tokens must validate successfully.
 const existingBotAccount = ref<SavedAccount | null>(null)
 
 // Computed
@@ -87,7 +87,6 @@ function resetForm(): void {
   botTokenDisplay.value = ''
   botInfo.value = null
   tokenValidated.value = false
-  tokenValidationWarning.value = ''
   existingBotAccount.value = null
 }
 
@@ -127,7 +126,6 @@ async function validateBotToken(token: string): Promise<void> {
   error.value = ''
   tokenValidated.value = false
   botInfo.value = null
-  tokenValidationWarning.value = ''
   existingBotAccount.value = null
 
   try {
@@ -142,14 +140,9 @@ async function validateBotToken(token: string): Promise<void> {
     }
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Invalid bot token'
-    // If network/CORS prevents validation, allow user to proceed with a warning.
-    if (message.toLowerCase().includes('failed to fetch')) {
-      tokenValidationWarning.value = 'Network/CORS prevented validation. Token will be used as-is.'
-      tokenValidated.value = false
-    } else {
-      error.value = message
-      tokenValidated.value = false
-    }
+    // Validation must succeed before adding a bot. No "add without validation" path.
+    error.value = message
+    tokenValidated.value = false
   } finally {
     isValidatingToken.value = false
   }
@@ -789,19 +782,12 @@ function goBack(): void {
             </p>
           </div>
 
-          <div
-            v-else-if="tokenValidationWarning"
-            class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-sm text-amber-700 dark:text-amber-300"
-          >
-            {{ tokenValidationWarning }}
-          </div>
-
           <div v-if="error" class="text-red-600 text-sm">{{ error }}</div>
 
           <button
             type="submit"
             class="w-full px-4 py-2 rounded-md font-medium text-sm bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors duration-150"
-            :disabled="isLoading || (!tokenValidated && !tokenValidationWarning)"
+            :disabled="isLoading || !tokenValidated"
           >
             <template v-if="isLoading">{{
               existingBotAccount ? 'Updating...' : 'Adding...'
@@ -810,7 +796,6 @@ function goBack(): void {
               >Update {{ botInfo?.first_name }}</template
             >
             <template v-else-if="tokenValidated">Add {{ botInfo?.first_name }}</template>
-            <template v-else-if="tokenValidationWarning">Add without validation</template>
             <template v-else>Enter a valid token</template>
           </button>
         </form>
