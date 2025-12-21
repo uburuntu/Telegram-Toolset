@@ -388,6 +388,7 @@ function goBack(): void {
         class="flex mb-5 gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg"
       >
         <button
+          data-testid="tab-user"
           @click="activeTab = 'user'"
           :class="[
             'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-150',
@@ -399,6 +400,7 @@ function goBack(): void {
           👤 User Account
         </button>
         <button
+          data-testid="tab-bot"
           @click="activeTab = 'bot'"
           :class="[
             'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-150',
