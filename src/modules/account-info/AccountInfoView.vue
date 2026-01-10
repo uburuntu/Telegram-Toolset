@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccountsStore, useUiStore } from '@/stores'
 import { getBotInfo, type BotApiUser } from '@/services/telegram/bot-api'
@@ -54,6 +54,12 @@ onMounted(async () => {
     error.value = e instanceof Error ? e.message : t('common.error')
   } finally {
     isLoading.value = false
+  }
+})
+
+onUnmounted(() => {
+  if (profilePhotoUrl.value) {
+    URL.revokeObjectURL(profilePhotoUrl.value)
   }
 })
 
@@ -263,7 +269,7 @@ const initials = computed(() => {
             <span class="text-sm text-gray-600 dark:text-gray-400">{{
               t('accountInfo.phone')
             }}</span>
-            <span class="text-sm text-gray-900 dark:text-white">+{{ displayPhone }}</span>
+            <span class="text-sm text-gray-900 dark:text-white">{{ displayPhone?.startsWith('+') ? displayPhone : `+${displayPhone}` }}</span>
           </div>
 
           <!-- DC ID -->
