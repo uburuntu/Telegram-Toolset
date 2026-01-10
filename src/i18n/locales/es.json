@@ -126,7 +126,7 @@
     },
     "scheduled": {
       "name": "Mensajes Programados",
-      "description": "Ver y gestionar sus mensajes programados en todos los chats"
+      "description": "Gestionar sus mensajes programados"
     },
     "llmExport": {
       "name": "Exportar Contexto LLM",
@@ -225,7 +225,7 @@
     "complete": "¡Completado!",
     "errorOccurred": "Ocurrió un error",
     "cancelled": "Cancelado",
-    "rateLimited": "Límite de tasa. Reanudando en {seconds}s...",
+    "rateLimited": "Límite de velocidad. Reanudando en {seconds}s...",
     "messages": "{count} mensaje | {count} mensajes",
     "textMessages": "{count} mensajes de texto",
     "mediaFiles": "{count} archivos multimedia",
@@ -367,5 +367,85 @@
     "deleteSuccess": "Mensajes programados eliminados exitosamente",
     "exportSuccess": "Mensajes programados exportados a JSON",
     "cancelled": "Operación cancelada"
+  },
+  "llmExport": {
+    "title": "Exportación de Contexto LLM",
+    "description": "Exporte el historial de chat formateado para asistentes de IA como Claude",
+    "newExport": "Nueva Exportación",
+    "myExports": "Mis Exportaciones",
+    "selectChat": "Seleccione un chat para exportar",
+    "searchChats": "Buscar chats...",
+    "loadingChats": "Cargando chats...",
+    "noChatsFound": "No hay chats que coincidan con su búsqueda",
+    "noChats": "No se encontraron chats",
+    "downloadOptions": "Opciones de Descarga",
+    "messageLimit": "Límite de mensajes",
+    "noLimit": "Sin límite (todos los mensajes)",
+    "fromDate": "Desde",
+    "toDate": "Hasta",
+    "startDownload": "Descargar Historial de Chat",
+    "downloading": "Descargando...",
+    "messages": "mensajes",
+    "downloadComplete": "¡Historial de chat descargado con éxito!",
+    "downloadCancelled": "Descarga cancelada",
+    "rateLimited": "Límite de velocidad. Esperando {seconds}s...",
+    "infoTitle": "Descargue una vez, formatee muchas veces",
+    "infoDescription": "El historial de chat se almacena localmente. Después de descargar, puede experimentar con diferentes formatos de salida al instante sin volver a descargar.",
+    "cachedExports": "Exportaciones en Caché",
+    "noExports": "Aún no hay exportaciones",
+    "noExportsHint": "Descargue un chat para comenzar",
+    "exported": "Exportado",
+    "confirmDelete": "¿Está seguro de que desea eliminar esta exportación?",
+    "exportDeleted": "Exportación eliminada",
+    "deleteError": "Error al eliminar la exportación",
+    "selectExport": "Seleccione una exportación",
+    "selectExportDesc": "Elija una exportación en caché de la lista para configurar su formato",
+    "formatConfig": "Configuración de Formato",
+    "template": "Plantilla de Salida",
+    "templates": {
+      "plain": "Texto Plano",
+      "custom": "Personalizado"
+    },
+    "customTemplate": "Plantilla Personalizada",
+    "customTemplateHint": "Use {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} dentro de {{#each messages}}...{{/each}}",
+    "includeSenderName": "Incluir nombre del remitente",
+    "includeSenderUsername": "Incluir @nombredeusuario",
+    "useOriginalNames": "Usar nombres originales",
+    "useOriginalNamesHint": "Usar el nombre de visualización de Telegram de la persona en lugar de su nombre de contacto",
+    "includeReplyContext": "Incluir contexto de respuesta",
+    "includeDate": "Incluir fechas",
+    "includeMessageIds": "Incluir IDs de mensaje",
+    "reverseOrder": "Más antiguos primero (recomendado para LLMs)",
+    "dateFormat": "Formato de fecha",
+    "dateFormats": {
+      "short": "Corto (10 Ene)",
+      "long": "Largo (Sáb, 10 Ene, 2024)",
+      "timeOnly": "Solo hora (10:30 AM)",
+      "none": "Ocultar fechas"
+    },
+    "dateGrouping": "Agrupación de fechas",
+    "dateGroupingHint": "Por día ahorra tokens mostrando la fecha una vez al día",
+    "dateGroupings": {
+      "perMessage": "Por mensaje",
+      "perDay": "Por día (ahorra tokens)"
+    },
+    "mediaPlaceholder": "Mensajes multimedia",
+    "mediaOptions": {
+      "bracket": "Mostrar como [foto], [video], etc.",
+      "emoji": "Mostrar como emoji (📷, 🎬, etc.)",
+      "skip": "Omitir mensajes multimedia"
+    },
+    "outputLimit": "Límite de mensajes de salida",
+    "outputLimitHint": "0 = incluir todos los mensajes",
+    "chars": "caracteres",
+    "lines": "líneas",
+    "tokens": "tokens (est.)",
+    "copy": "Copiar",
+    "download": "Descargar",
+    "copiedToClipboard": "¡Copiado al portapapeles!",
+    "copyError": "Error al copiar al portapapeles",
+    "preview": "Vista Previa en Vivo",
+    "noPreview": "Configure una exportación para ver la vista previa",
+    "previewNote": "Mostrando los primeros 15 mensajes. La salida completa incluirá todos los mensajes."
   }
 }

@@ -126,7 +126,7 @@
     },
     "scheduled": {
       "name": "پیام‌های زمان‌بندی شده",
-      "description": "مشاهده و مدیریت پیام‌های زمان‌بندی شده در تمام چت‌ها"
+      "description": "مدیریت پیام‌های زمان‌بندی شده"
     },
     "llmExport": {
       "name": "خروجی برای LLM",
@@ -367,5 +367,85 @@
     "deleteSuccess": "پیام‌های زمان‌بندی شده با موفقیت حذف شدند",
     "exportSuccess": "پیام‌های زمان‌بندی شده به JSON صادر شدند",
     "cancelled": "عملیات لغو شد"
+  },
+  "llmExport": {
+    "title": "خروجی زمینه LLM",
+    "description": "خروجی تاریخچه چت با فرمت مناسب برای دستیاران هوش مصنوعی مانند Claude",
+    "newExport": "خروجی جدید",
+    "myExports": "خروجی‌های من",
+    "selectChat": "یک چت برای خروجی انتخاب کنید",
+    "searchChats": "جستجوی چت‌ها...",
+    "loadingChats": "در حال بارگذاری چت‌ها...",
+    "noChatsFound": "هیچ چتی با جستجوی شما مطابقت ندارد",
+    "noChats": "چتی پیدا نشد",
+    "downloadOptions": "گزینه‌های دانلود",
+    "messageLimit": "محدودیت پیام",
+    "noLimit": "بدون محدودیت (همه پیام‌ها)",
+    "fromDate": "از تاریخ",
+    "toDate": "تا تاریخ",
+    "startDownload": "دانلود تاریخچه چت",
+    "downloading": "در حال دانلود...",
+    "messages": "پیام",
+    "downloadComplete": "تاریخچه چت با موفقیت دانلود شد!",
+    "downloadCancelled": "دانلود لغو شد",
+    "rateLimited": "محدودیت نرخ. انتظار {seconds} ثانیه...",
+    "infoTitle": "یک بار دانلود کنید، بارها فرمت کنید",
+    "infoDescription": "تاریخچه چت به صورت محلی ذخیره می‌شود. پس از دانلود، می‌توانید فوراً با فرمت‌های خروجی مختلف بدون نیاز به دانلود مجدد آزمایش کنید.",
+    "cachedExports": "خروجی‌های ذخیره شده",
+    "noExports": "هنوز خروجی وجود ندارد",
+    "noExportsHint": "برای شروع یک چت را دانلود کنید",
+    "exported": "خروجی گرفته شد",
+    "confirmDelete": "آیا مطمئن هستید که می‌خواهید این خروجی را حذف کنید؟",
+    "exportDeleted": "خروجی حذف شد",
+    "deleteError": "حذف خروجی ناموفق بود",
+    "selectExport": "یک خروجی انتخاب کنید",
+    "selectExportDesc": "یک خروجی ذخیره شده را از لیست برای پیکربندی فرمت آن انتخاب کنید",
+    "formatConfig": "پیکربندی فرمت",
+    "template": "قالب خروجی",
+    "templates": {
+      "plain": "متن ساده",
+      "custom": "سفارشی"
+    },
+    "customTemplate": "قالب سفارشی",
+    "customTemplateHint": "از {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} در داخل {{#each messages}}...{{/each}} استفاده کنید",
+    "includeSenderName": "شامل نام فرستنده",
+    "includeSenderUsername": "شامل نام کاربری @",
+    "useOriginalNames": "استفاده از نام‌های اصلی",
+    "useOriginalNamesHint": "استفاده از نام نمایشی تلگرام شخص به جای نام مخاطب شما",
+    "includeReplyContext": "شامل زمینه پاسخ",
+    "includeDate": "شامل تاریخ‌ها",
+    "includeMessageIds": "شامل شناسه‌های پیام",
+    "reverseOrder": "قدیمی‌ترین اول (توصیه شده برای LLMها)",
+    "dateFormat": "فرمت تاریخ",
+    "dateFormats": {
+      "short": "کوتاه (۱۰ دی)",
+      "long": "طولانی (شنبه، ۱۰ دی ۱۴۰۳)",
+      "timeOnly": "فقط زمان (۱۰:۳۰ ق.ظ)",
+      "none": "مخفی کردن تاریخ‌ها"
+    },
+    "dateGrouping": "گروه‌بندی تاریخ",
+    "dateGroupingHint": "بر اساس روز با نمایش تاریخ یک بار در روز در مصرف توکن صرفه‌جویی می‌کند",
+    "dateGroupings": {
+      "perMessage": "برای هر پیام",
+      "perDay": "برای هر روز (صرفه‌جویی در توکن)"
+    },
+    "mediaPlaceholder": "پیام‌های رسانه‌ای",
+    "mediaOptions": {
+      "bracket": "نمایش به صورت [عکس]، [ویدیو] و غیره",
+      "emoji": "نمایش به صورت ایموجی (📷، 🎬 و غیره)",
+      "skip": "نادیده گرفتن پیام‌های رسانه‌ای"
+    },
+    "outputLimit": "محدودیت پیام خروجی",
+    "outputLimitHint": "۰ = شامل همه پیام‌ها",
+    "chars": "کاراکتر",
+    "lines": "خط",
+    "tokens": "توکن (تخمینی)",
+    "copy": "کپی",
+    "download": "دانلود",
+    "copiedToClipboard": "در کلیپ‌بورد کپی شد!",
+    "copyError": "کپی در کلیپ‌بورد ناموفق بود",
+    "preview": "پیش‌نمایش زنده",
+    "noPreview": "برای مشاهده پیش‌نمایش یک خروجی را پیکربندی کنید",
+    "previewNote": "نمایش ۱۵ پیام اول. خروجی کامل شامل تمام پیام‌ها خواهد بود."
   }
 }

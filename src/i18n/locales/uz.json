@@ -126,7 +126,7 @@
     },
     "scheduled": {
       "name": "Rejalashtirilgan xabarlar",
-      "description": "Barcha chatlardagi rejalashtirilgan xabarlaringizni ko'rish va boshqarish"
+      "description": "Rejalashtirilgan xabarlarni boshqarish"
     },
     "llmExport": {
       "name": "LLM kontekstini eksport",
@@ -367,5 +367,85 @@
     "deleteSuccess": "Rejalashtirilgan xabarlar muvaffaqiyatli o'chirildi",
     "exportSuccess": "Rejalashtirilgan xabarlar JSON formatida eksport qilindi",
     "cancelled": "Amal bekor qilindi"
+  },
+  "llmExport": {
+    "title": "LLM Kontekst Eksporti",
+    "description": "Claude kabi AI yordamchilari uchun formatlangan chat tarixini eksport qiling",
+    "newExport": "Yangi Eksport",
+    "myExports": "Mening Eksportlarim",
+    "selectChat": "Eksport qilish uchun chat tanlang",
+    "searchChats": "Chatlarni qidirish...",
+    "loadingChats": "Chatlar yuklanmoqda...",
+    "noChatsFound": "Qidiruvingizga mos chatlar topilmadi",
+    "noChats": "Chatlar topilmadi",
+    "downloadOptions": "Yuklash Variantlari",
+    "messageLimit": "Xabar limiti",
+    "noLimit": "Cheklovsiz (barcha xabarlar)",
+    "fromDate": "Sanadan",
+    "toDate": "Sanagacha",
+    "startDownload": "Chat Tarixini Yuklash",
+    "downloading": "Yuklanmoqda...",
+    "messages": "xabarlar",
+    "downloadComplete": "Chat tarixi muvaffaqiyatli yuklandi!",
+    "downloadCancelled": "Yuklash bekor qilindi",
+    "rateLimited": "Cheklovga yetildi. {seconds}s kutilmoqda...",
+    "infoTitle": "Bir marta yuklang, ko'p marta formatlang",
+    "infoDescription": "Chat tarixi mahalliy keshlanadi. Yuklagandan so'ng, qayta yuklamasdan turli xil chiqish formatlari bilan tajriba qilishingiz mumkin.",
+    "cachedExports": "Keshlan Eksportlar",
+    "noExports": "Hozircha eksportlar yo'q",
+    "noExportsHint": "Boshlash uchun chatni yuklang",
+    "exported": "Eksport qilindi",
+    "confirmDelete": "Ushbu eksportni o'chirishni xohlaysizmi?",
+    "exportDeleted": "Eksport o'chirildi",
+    "deleteError": "Eksportni o'chirish muvaffaqiyatsiz bo'ldi",
+    "selectExport": "Eksportni tanlang",
+    "selectExportDesc": "Formatini sozlash uchun ro'yxatdan keshlan eksportni tanlang",
+    "formatConfig": "Format Sozlamalari",
+    "template": "Chiqish Shablon",
+    "templates": {
+      "plain": "Oddiy Matn",
+      "custom": "Maxsus"
+    },
+    "customTemplate": "Maxsus Shablon",
+    "customTemplateHint": "{{#each messages}}...{{/each}} ichida {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} dan foydalaning",
+    "includeSenderName": "Yuboruvchi nomini kiritish",
+    "includeSenderUsername": "@foydalanuvchi nomini kiritish",
+    "useOriginalNames": "Asl ismlardan foydalanish",
+    "useOriginalNamesHint": "Kontakt nomingiz o'rniga odamning Telegram ko'rsatilgan ismidan foydalaning",
+    "includeReplyContext": "Javob kontekstini kiritish",
+    "includeDate": "Sanalarni kiritish",
+    "includeMessageIds": "Xabar IDlarini kiritish",
+    "reverseOrder": "Eskilar oldin (LLMlar uchun tavsiya etiladi)",
+    "dateFormat": "Sana formati",
+    "dateFormats": {
+      "short": "Qisqa (10 Yan)",
+      "long": "Uzun (Shan, 10 Yan 2024)",
+      "timeOnly": "Faqat vaqt (10:30 TO)",
+      "none": "Sanalarni yashirish"
+    },
+    "dateGrouping": "Sana guruhlash",
+    "dateGroupingHint": "Kuniga bir marta sanani ko'rsatish orqali tokenlarni tejaydi",
+    "dateGroupings": {
+      "perMessage": "Har bir xabar uchun",
+      "perDay": "Kuniga (tokenlarni tejaydi)"
+    },
+    "mediaPlaceholder": "Media xabarlari",
+    "mediaOptions": {
+      "bracket": "[rasm], [video] va h.k. sifatida ko'rsatish",
+      "emoji": "Emoji sifatida ko'rsatish (📷, 🎬 va h.k.)",
+      "skip": "Media xabarlarini o'tkazib yuborish"
+    },
+    "outputLimit": "Chiqish xabar limiti",
+    "outputLimitHint": "0 = barcha xabarlarni kiritish",
+    "chars": "belgilar",
+    "lines": "qatorlar",
+    "tokens": "tokenlar (tahminan)",
+    "copy": "Nusxalash",
+    "download": "Yuklash",
+    "copiedToClipboard": "Buferga nusxalandi!",
+    "copyError": "Buferga nusxalash muvaffaqiyatsiz bo'ldi",
+    "preview": "Jonli Ko'rish",
+    "noPreview": "Ko'rish uchun eksportni sozlang",
+    "previewNote": "Birinchi 15 ta xabar ko'rsatilmoqda. To'liq chiqish barcha xabarlarni o'z ichiga oladi."
   }
 }

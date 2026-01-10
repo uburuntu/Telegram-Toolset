@@ -126,7 +126,7 @@
     },
     "scheduled": {
       "name": "Mensagens Agendadas",
-      "description": "Veja e gerencie suas mensagens agendadas em todos os chats"
+      "description": "Gerencie suas mensagens agendadas"
     },
     "llmExport": {
       "name": "Exportar Contexto LLM",
@@ -367,5 +367,85 @@
     "deleteSuccess": "Mensagens agendadas excluídas com sucesso",
     "exportSuccess": "Mensagens agendadas exportadas para JSON",
     "cancelled": "Operação cancelada"
+  },
+  "llmExport": {
+    "title": "Exportação de Contexto LLM",
+    "description": "Exporte o histórico de chat formatado para assistentes de IA como Claude",
+    "newExport": "Nova Exportação",
+    "myExports": "Minhas Exportações",
+    "selectChat": "Selecione um chat para exportar",
+    "searchChats": "Pesquisar chats...",
+    "loadingChats": "Carregando chats...",
+    "noChatsFound": "Nenhum chat corresponde à sua pesquisa",
+    "noChats": "Nenhum chat encontrado",
+    "downloadOptions": "Opções de Download",
+    "messageLimit": "Limite de mensagens",
+    "noLimit": "Sem limite (todas as mensagens)",
+    "fromDate": "Da data",
+    "toDate": "Até a data",
+    "startDownload": "Baixar Histórico do Chat",
+    "downloading": "Baixando...",
+    "messages": "mensagens",
+    "downloadComplete": "Histórico do chat baixado com sucesso!",
+    "cancelled": "Download cancelado",
+    "rateLimited": "Limite de requisições. Aguardando {seconds}s...",
+    "infoTitle": "Baixe uma vez, formate muitas vezes",
+    "infoDescription": "O histórico do chat é armazenado em cache localmente. Após o download, você pode experimentar diferentes formatos de saída instantaneamente sem baixar novamente.",
+    "cachedExports": "Exportações em Cache",
+    "noExports": "Nenhuma exportação ainda",
+    "noExportsHint": "Baixe um chat para começar",
+    "exported": "Exportado",
+    "confirmDelete": "Tem certeza de que deseja excluir esta exportação?",
+    "exportDeleted": "Exportação excluída",
+    "deleteError": "Falha ao excluir exportação",
+    "selectExport": "Selecione uma exportação",
+    "selectExportDesc": "Escolha uma exportação em cache da lista para configurar seu formato",
+    "formatConfig": "Configuração de Formato",
+    "template": "Modelo de Saída",
+    "templates": {
+      "plain": "Texto Simples",
+      "custom": "Personalizado"
+    },
+    "customTemplate": "Modelo Personalizado",
+    "customTemplateHint": "Use {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} dentro de {{#each messages}}...{{/each}}",
+    "includeSenderName": "Incluir nome do remetente",
+    "includeSenderUsername": "Incluir @nomedeusuário",
+    "useOriginalNames": "Usar nomes originais",
+    "useOriginalNamesHint": "Usar o nome de exibição do Telegram da pessoa em vez do nome do contato",
+    "includeReplyContext": "Incluir contexto de resposta",
+    "includeDate": "Incluir datas",
+    "includeMessageIds": "Incluir IDs de mensagem",
+    "reverseOrder": "Mais antigos primeiro (recomendado para LLMs)",
+    "dateFormat": "Formato de data",
+    "dateFormats": {
+      "short": "Curto (10 Jan)",
+      "long": "Longo (Sáb, 10 Jan 2024)",
+      "timeOnly": "Apenas hora (10:30 AM)",
+      "none": "Ocultar datas"
+    },
+    "dateGrouping": "Agrupamento de datas",
+    "dateGroupingHint": "Por dia economiza tokens mostrando a data uma vez por dia",
+    "dateGroupings": {
+      "perMessage": "Por mensagem",
+      "perDay": "Por dia (economiza tokens)"
+    },
+    "mediaPlaceholder": "Mensagens de mídia",
+    "mediaOptions": {
+      "bracket": "Mostrar como [foto], [vídeo], etc.",
+      "emoji": "Mostrar como emoji (📷, 🎬, etc.)",
+      "skip": "Pular mensagens de mídia"
+    },
+    "outputLimit": "Limite de mensagens de saída",
+    "outputLimitHint": "0 = incluir todas as mensagens",
+    "chars": "caracteres",
+    "lines": "linhas",
+    "tokens": "tokens (est.)",
+    "copy": "Copiar",
+    "download": "Baixar",
+    "copiedToClipboard": "Copiado para a área de transferência!",
+    "copyError": "Falha ao copiar para a área de transferência",
+    "preview": "Prévia ao Vivo",
+    "noPreview": "Configure uma exportação para ver a prévia",
+    "previewNote": "Mostrando as primeiras 15 mensagens. A saída completa incluirá todas as mensagens."
   }
 }

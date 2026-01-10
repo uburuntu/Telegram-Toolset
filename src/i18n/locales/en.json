@@ -127,7 +127,7 @@
     },
     "scheduled": {
       "name": "Scheduled Messages",
-      "description": "View and manage your scheduled messages across all chats"
+      "description": "Manage your scheduled messages"
     },
     "llmExport": {
       "name": "LLM Context Export",
