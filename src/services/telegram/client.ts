@@ -1304,6 +1304,139 @@ class TelegramService {
   hasStoredCredentials(): boolean {
     return this.apiId !== null && this.apiHash !== null
   }
+
+  /**
+   * Get full user info for the current user (extended profile data)
+   */
+  async getFullMe(): Promise<FullUserInfo | null> {
+    const client = await this.getConnectedClient()
+
+    try {
+      const result = await client.invoke(
+        new Api.users.GetFullUser({
+          id: new Api.InputUserSelf(),
+        })
+      )
+
+      const fullUser = result.fullUser
+      const user = result.users.find(
+        (u): u is Api.User => u instanceof Api.User && u.self
+      )
+
+      if (!user) return null
+
+      return {
+        id: BigInt(user.id.toString()),
+        firstName: user.firstName || '',
+        lastName: user.lastName || undefined,
+        username: user.username || undefined,
+        phone: user.phone || undefined,
+        bio: fullUser.about || undefined,
+        isPremium: !!user.premium,
+        isVerified: !!user.verified,
+        isRestricted: !!user.restricted,
+        restrictionReason: user.restrictionReason?.map((r) => r.reason).join(', ') || undefined,
+        commonChatsCount: fullUser.commonChatsCount || 0,
+        // Profile photo metadata
+        hasProfilePhoto: !!user.photo && user.photo.className !== 'UserProfilePhotoEmpty',
+        dcId: user.photo && 'dcId' in user.photo ? user.photo.dcId : undefined,
+      }
+    } catch (error) {
+      console.error('Failed to get full user info:', error)
+      return null
+    }
+  }
+
+  /**
+   * Download profile photo for the current user
+   * @returns Blob of the profile photo or null if none
+   */
+  async downloadMyProfilePhoto(): Promise<Blob | null> {
+    const client = await this.getConnectedClient()
+
+    try {
+      // Download profile photo using GramJS helper
+      const buffer = await client.downloadProfilePhoto('me', {
+        isBig: true, // Get the high-resolution version
+      })
+
+      if (!buffer || buffer.length === 0) {
+        return null
+      }
+
+      // Convert Buffer to Blob
+      return new Blob([buffer], { type: 'image/jpeg' })
+    } catch (error) {
+      console.error('Failed to download profile photo:', error)
+      return null
+    }
+  }
+
+  /**
+   * Get account statistics - number of dialogs, contacts, etc.
+   */
+  async getAccountStats(): Promise<AccountStats> {
+    const client = await this.getConnectedClient()
+
+    try {
+      // Get dialogs count
+      const dialogs = await client.getDialogs({ limit: 1 })
+      const totalDialogs = dialogs.total || 0
+
+      // Get contacts count
+      const contacts = await client.invoke(new Api.contacts.GetContacts({ hash: BigInt(0) }))
+      const contactsCount =
+        contacts.className === 'contacts.Contacts' ? contacts.contacts.length : 0
+
+      // Get blocked users count
+      const blocked = await client.invoke(
+        new Api.contacts.GetBlocked({ offset: 0, limit: 1 })
+      )
+      const blockedCount =
+        'count' in blocked ? blocked.count : blocked.users?.length || 0
+
+      return {
+        dialogsCount: totalDialogs,
+        contactsCount,
+        blockedCount,
+      }
+    } catch (error) {
+      console.error('Failed to get account stats:', error)
+      return {
+        dialogsCount: 0,
+        contactsCount: 0,
+        blockedCount: 0,
+      }
+    }
+  }
+}
+
+/**
+ * Extended user info from users.GetFullUser
+ */
+export interface FullUserInfo {
+  id: bigint
+  firstName: string
+  lastName?: string
+  username?: string
+  phone?: string
+  bio?: string
+  isPremium: boolean
+  isVerified: boolean
+  isRestricted: boolean
+  restrictionReason?: string
+  commonChatsCount: number
+  hasProfilePhoto: boolean
+  dcId?: number
+}
+
+/**
+ * Account statistics
+ */
+export interface AccountStats {
+  dialogsCount: number
+  contactsCount: number
+  blockedCount: number
 }
 
 // Singleton instance (with Playwright E2E hook)
