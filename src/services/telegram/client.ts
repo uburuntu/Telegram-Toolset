@@ -1515,7 +1515,8 @@ class TelegramService {
       }
 
       // Convert Buffer to Blob - handle both string and Buffer/Uint8Array
-      const data = typeof buffer === 'string' ? new TextEncoder().encode(buffer) : new Uint8Array(buffer)
+      const data =
+        typeof buffer === 'string' ? new TextEncoder().encode(buffer) : new Uint8Array(buffer)
       return new Blob([data], { type: 'image/jpeg' })
     } catch (error) {
       console.error('Failed to download profile photo:', error)
@@ -1535,7 +1536,9 @@ class TelegramService {
       const totalDialogs = dialogs.total || 0
 
       // Get contacts count
-      const contacts = await client.invoke(new Api.contacts.GetContacts({ hash: BigInt(0) as unknown as Api.long }))
+      const contacts = await client.invoke(
+        new Api.contacts.GetContacts({ hash: BigInt(0) as unknown as Api.long })
+      )
       const contactsCount =
         contacts.className === 'contacts.Contacts' ? contacts.contacts.length : 0
 
