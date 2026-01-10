@@ -6,6 +6,7 @@ export * from './telegram'
 export * from './backup'
 export * from './module'
 export * from './account'
+export * from './llm-export'
 
 // GramJS types (for internal use)
 export type {

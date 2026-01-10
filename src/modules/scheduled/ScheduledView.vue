@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUiStore } from '@/stores'
+import { useFloodWait } from '@/composables'
 import { telegramService } from '@/services/telegram/client'
 import {
   scheduledService,
@@ -11,11 +12,16 @@ import {
 import { toUserFriendlyError } from '@/utils/error-messages'
 import type { ChatInfo } from '@/types'
 
+// Components
+import FloodWaitIndicator from '@/components/common/FloodWaitIndicator.vue'
+
 const { t } = useI18n()
 const uiStore = useUiStore()
 
 // State
-const step = ref<'select-mode' | 'select-chat' | 'configure-all' | 'loading' | 'view-messages'>('select-mode')
+const step = ref<'select-mode' | 'select-chat' | 'configure-all' | 'loading' | 'view-messages'>(
+  'select-mode'
+)
 const mode = ref<'single' | 'all'>('single')
 const chats = ref<ChatInfo[]>([])
 const searchQuery = ref('')
@@ -31,9 +37,8 @@ const chatLimitOptions = [50, 100, 200, 500]
 const scheduledData = ref<ChatWithScheduledMessages[]>([])
 const currentProgress = ref<ScheduledMessagesProgress | null>(null)
 
-// Flood wait tracking
-const floodWaitSeconds = ref(0)
-const floodWaitRemaining = ref(0)
+// Flood wait tracking (using composable)
+const floodWait = useFloodWait()
 
 // Selection for deletion
 const selectedMessages = ref<Set<string>>(new Set())
@@ -54,9 +59,7 @@ const chatsWithMessages = computed(() => {
 
 const progressPercentage = computed(() => {
   if (!currentProgress.value || currentProgress.value.totalChats === 0) return 0
-  return Math.round(
-    (currentProgress.value.processedChats / currentProgress.value.totalChats) * 100
-  )
+  return Math.round((currentProgress.value.processedChats / currentProgress.value.totalChats) * 100)
 })
 
 const allSelected = computed(() => {
@@ -107,22 +110,10 @@ async function loadChatScheduledMessages(chat: ChatInfo) {
   step.value = 'loading'
   isLoading.value = true
   error.value = ''
-  floodWaitSeconds.value = 0
-  floodWaitRemaining.value = 0
+  floodWait.reset()
 
   try {
-    const messages = await scheduledService.getScheduledMessagesForChat(chat.id, {
-      onFloodWait: (seconds) => {
-        floodWaitSeconds.value = seconds
-        floodWaitRemaining.value = seconds
-      },
-      onFloodWaitCountdown: (remaining) => {
-        floodWaitRemaining.value = remaining
-        if (remaining === 0) {
-          floodWaitSeconds.value = 0
-        }
-      },
-    })
+    const messages = await scheduledService.getScheduledMessagesForChat(chat.id, floodWait.callbacks)
     scheduledData.value = [
       {
         chat,
@@ -136,7 +127,7 @@ async function loadChatScheduledMessages(chat: ChatInfo) {
     step.value = 'select-chat'
   } finally {
     isLoading.value = false
-    floodWaitSeconds.value = 0
+    floodWait.reset()
   }
 }
 
@@ -144,8 +135,7 @@ async function loadAllScheduledMessages() {
   step.value = 'loading'
   error.value = ''
   currentProgress.value = null
-  floodWaitSeconds.value = 0
-  floodWaitRemaining.value = 0
+  floodWait.reset()
 
   try {
     const results = await scheduledService.getAllScheduledMessages(
@@ -156,16 +146,7 @@ async function loadAllScheduledMessages() {
         onError: (err, chatId) => {
           console.warn(`Failed to fetch scheduled messages for chat ${chatId}:`, err)
         },
-        onFloodWait: (seconds) => {
-          floodWaitSeconds.value = seconds
-          floodWaitRemaining.value = seconds
-        },
-        onFloodWaitCountdown: (remaining) => {
-          floodWaitRemaining.value = remaining
-          if (remaining === 0) {
-            floodWaitSeconds.value = 0
-          }
-        },
+        ...floodWait.callbacks,
       },
       { chatLimit: chatLimit.value }
     )
@@ -183,7 +164,7 @@ async function loadAllScheduledMessages() {
     }
   } finally {
     currentProgress.value = null
-    floodWaitSeconds.value = 0
+    floodWait.reset()
   }
 }
 
@@ -231,9 +212,7 @@ function toggleAllSelection() {
 async function deleteSelectedMessages() {
   if (selectedMessages.value.size === 0) return
 
-  const confirmed = confirm(
-    t('scheduled.confirmDelete', { count: selectedMessages.value.size })
-  )
+  const confirmed = confirm(t('scheduled.confirmDelete', { count: selectedMessages.value.size }))
   if (!confirmed) return
 
   isLoading.value = true
@@ -398,7 +377,15 @@ function formatScheduledDate(date: Date): string {
           <div
             class="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-xl"
           >
-            {{ chat.type === 'channel' ? '📢' : chat.type === 'supergroup' ? '👥' : chat.type === 'group' ? '💬' : '👤' }}
+            {{
+              chat.type === 'channel'
+                ? '📢'
+                : chat.type === 'supergroup'
+                  ? '👥'
+                  : chat.type === 'group'
+                    ? '💬'
+                    : '👤'
+            }}
           </div>
           <div class="flex-1 min-w-0">
             <div class="font-medium text-gray-900 dark:text-white truncate">
@@ -468,7 +455,10 @@ function formatScheduledDate(date: Date): string {
         </div>
 
         <!-- Error display -->
-        <div v-if="error" class="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+        <div
+          v-if="error"
+          class="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"
+        >
           <div class="flex gap-3">
             <span>❌</span>
             <div class="text-sm text-red-800 dark:text-red-300">
@@ -506,22 +496,12 @@ function formatScheduledDate(date: Date): string {
         ></div>
 
         <!-- Flood wait indicator -->
-        <div v-if="floodWaitSeconds > 0" class="text-amber-600 mb-4">
-          <div class="flex items-center justify-center gap-2">
-            <span class="animate-pulse">⏳</span>
-            <span>{{ t('export.rateLimited', { seconds: floodWaitRemaining }) }}</span>
-          </div>
-          <!-- Countdown progress bar -->
-          <div
-            class="w-full max-w-xs mx-auto h-1.5 bg-amber-200 dark:bg-amber-900 rounded-full overflow-hidden mt-2"
-          >
-            <div
-              class="h-full bg-amber-500 transition-all duration-1000 ease-linear"
-              :style="{
-                width: `${((floodWaitSeconds - floodWaitRemaining) / floodWaitSeconds) * 100}%`,
-              }"
-            ></div>
-          </div>
+        <div class="mb-4">
+          <FloodWaitIndicator
+            :seconds="floodWait.seconds.value"
+            :remaining="floodWait.remaining.value"
+            :progress="floodWait.progress.value"
+          />
         </div>
 
         <template v-if="currentProgress">
@@ -529,7 +509,12 @@ function formatScheduledDate(date: Date): string {
             {{ currentProgress.currentChat || t('scheduled.scanning') }}
           </p>
           <p class="text-sm text-gray-500 mb-4">
-            {{ t('scheduled.progressChats', { current: currentProgress.processedChats, total: currentProgress.totalChats }) }}
+            {{
+              t('scheduled.progressChats', {
+                current: currentProgress.processedChats,
+                total: currentProgress.totalChats,
+              })
+            }}
           </p>
 
           <!-- Progress bar -->
@@ -582,7 +567,9 @@ function formatScheduledDate(date: Date): string {
       <!-- Messages list -->
       <template v-else>
         <!-- Actions bar -->
-        <div class="flex items-center justify-between mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <div
+          class="flex items-center justify-between mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+        >
           <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
@@ -619,12 +606,22 @@ function formatScheduledDate(date: Date): string {
             class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden"
           >
             <!-- Chat header -->
-            <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <div
+              class="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+            >
               <div class="flex items-center gap-3">
                 <div
                   class="w-8 h-8 flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded-lg text-lg"
                 >
-                  {{ item.chat.type === 'channel' ? '📢' : item.chat.type === 'supergroup' ? '👥' : item.chat.type === 'group' ? '💬' : '👤' }}
+                  {{
+                    item.chat.type === 'channel'
+                      ? '📢'
+                      : item.chat.type === 'supergroup'
+                        ? '👥'
+                        : item.chat.type === 'group'
+                          ? '💬'
+                          : '👤'
+                  }}
                 </div>
                 <div>
                   <div class="font-medium text-gray-900 dark:text-white">
@@ -653,7 +650,10 @@ function formatScheduledDate(date: Date): string {
                   />
                   <div class="flex-1 min-w-0">
                     <!-- Message content -->
-                    <div v-if="msg.text" class="text-sm text-gray-900 dark:text-white mb-2 whitespace-pre-wrap">
+                    <div
+                      v-if="msg.text"
+                      class="text-sm text-gray-900 dark:text-white mb-2 whitespace-pre-wrap"
+                    >
                       {{ msg.text.length > 200 ? msg.text.slice(0, 200) + '...' : msg.text }}
                     </div>
 
@@ -664,7 +664,9 @@ function formatScheduledDate(date: Date): string {
                     >
                       <span>📎</span>
                       <span>{{ msg.mediaType || 'media' }}</span>
-                      <span v-if="msg.mediaFilename" class="truncate max-w-32">{{ msg.mediaFilename }}</span>
+                      <span v-if="msg.mediaFilename" class="truncate max-w-32">{{
+                        msg.mediaFilename
+                      }}</span>
                     </div>
 
                     <!-- Scheduled date -->
@@ -678,7 +680,7 @@ function formatScheduledDate(date: Date): string {
                           'px-2 py-0.5 rounded-full font-medium',
                           msg.scheduledDate.getTime() < Date.now()
                             ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                            : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                            : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
                         ]"
                       >
                         {{ formatScheduledDate(msg.scheduledDate) }}
@@ -694,4 +696,3 @@ function formatScheduledDate(date: Date): string {
     </template>
   </div>
 </template>
-
