@@ -63,6 +63,19 @@ export const modules: ToolModule[] = [
       meta: { requiresAuth: true, accountType: 'user' },
     },
   },
+  {
+    id: 'llm-export',
+    name: 'LLM Context Export',
+    description: 'Export chat history formatted for AI assistants like Claude',
+    icon: 'sparkles',
+    accountType: 'user',
+    route: {
+      path: '/llm-export',
+      name: 'llm-export',
+      component: () => import('./llm-export/LlmExportView.vue'),
+      meta: { requiresAuth: true, accountType: 'user' },
+    },
+  },
 ]
 
 /**

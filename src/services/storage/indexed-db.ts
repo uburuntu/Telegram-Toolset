@@ -3,7 +3,7 @@
  */
 
 import { openDB, type IDBPDatabase } from 'idb'
-import type { Backup, DeletedMessage, MediaTypeStats } from '@/types'
+import type { Backup, DeletedMessage, MediaTypeStats, ChatExport, ChatMessage } from '@/types'
 import { stripRawMessage, safeJsonStringify } from '@/utils/message-serialization'
 
 interface TelegramToolsetDB {
@@ -35,34 +35,71 @@ interface TelegramToolsetDB {
       'by-backup': string
     }
   }
+  // LLM Context Export stores
+  chatExports: {
+    key: string
+    value: ChatExport
+    indexes: {
+      'by-chat': bigint
+      'by-date': Date
+    }
+  }
+  chatMessages: {
+    key: [string, number] // [exportId, messageId]
+    value: ChatMessage & { exportId: string }
+    indexes: {
+      'by-export': string
+    }
+  }
 }
 
 const DB_NAME = 'telegram-toolset'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let dbPromise: Promise<IDBPDatabase<TelegramToolsetDB>> | null = null
 
 async function getDB(): Promise<IDBPDatabase<TelegramToolsetDB>> {
   if (!dbPromise) {
     dbPromise = openDB<TelegramToolsetDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        // Backups store
-        if (!db.objectStoreNames.contains('backups')) {
-          const backupStore = db.createObjectStore('backups', { keyPath: 'id' })
-          backupStore.createIndex('by-chat', 'chatId')
-          backupStore.createIndex('by-date', 'createdAt')
+      upgrade(db, oldVersion) {
+        // Version 1: Original schema
+        if (oldVersion < 1) {
+          // Backups store
+          if (!db.objectStoreNames.contains('backups')) {
+            const backupStore = db.createObjectStore('backups', { keyPath: 'id' })
+            backupStore.createIndex('by-chat', 'chatId')
+            backupStore.createIndex('by-date', 'createdAt')
+          }
+
+          // Messages store
+          if (!db.objectStoreNames.contains('messages')) {
+            const messageStore = db.createObjectStore('messages', { keyPath: ['backupId', 'id'] })
+            messageStore.createIndex('by-backup', 'backupId')
+          }
+
+          // Media store
+          if (!db.objectStoreNames.contains('media')) {
+            const mediaStore = db.createObjectStore('media', { keyPath: ['backupId', 'messageId'] })
+            mediaStore.createIndex('by-backup', 'backupId')
+          }
         }
 
-        // Messages store
-        if (!db.objectStoreNames.contains('messages')) {
-          const messageStore = db.createObjectStore('messages', { keyPath: ['backupId', 'id'] })
-          messageStore.createIndex('by-backup', 'backupId')
-        }
+        // Version 2: LLM Context Export stores
+        if (oldVersion < 2) {
+          // Chat exports store (metadata)
+          if (!db.objectStoreNames.contains('chatExports')) {
+            const exportsStore = db.createObjectStore('chatExports', { keyPath: 'id' })
+            exportsStore.createIndex('by-chat', 'chatId')
+            exportsStore.createIndex('by-date', 'createdAt')
+          }
 
-        // Media store
-        if (!db.objectStoreNames.contains('media')) {
-          const mediaStore = db.createObjectStore('media', { keyPath: ['backupId', 'messageId'] })
-          mediaStore.createIndex('by-backup', 'backupId')
+          // Chat messages store (for LLM export)
+          if (!db.objectStoreNames.contains('chatMessages')) {
+            const chatMsgStore = db.createObjectStore('chatMessages', {
+              keyPath: ['exportId', 'id'],
+            })
+            chatMsgStore.createIndex('by-export', 'exportId')
+          }
         }
       },
     })
@@ -232,4 +269,74 @@ export async function countMediaTypes(
   }
 
   return stats
+}
+
+// =============================================================================
+// LLM Context Export Operations
+// =============================================================================
+
+// Chat Export operations
+export async function saveChatExport(chatExport: ChatExport): Promise<void> {
+  const db = await getDB()
+  await db.put('chatExports', chatExport)
+}
+
+export async function getChatExport(id: string): Promise<ChatExport | undefined> {
+  const db = await getDB()
+  return db.get('chatExports', id)
+}
+
+export async function getAllChatExports(): Promise<ChatExport[]> {
+  const db = await getDB()
+  return db.getAll('chatExports')
+}
+
+export async function deleteChatExport(id: string): Promise<void> {
+  const db = await getDB()
+  const tx = db.transaction(['chatExports', 'chatMessages'], 'readwrite')
+
+  // Delete export metadata
+  await tx.objectStore('chatExports').delete(id)
+
+  // Delete associated messages
+  const messageIndex = tx.objectStore('chatMessages').index('by-export')
+  let cursor = await messageIndex.openCursor(id)
+  while (cursor) {
+    await cursor.delete()
+    cursor = await cursor.continue()
+  }
+
+  await tx.done
+}
+
+// Chat Message operations (for LLM export)
+export async function saveChatMessage(exportId: string, message: ChatMessage): Promise<void> {
+  const db = await getDB()
+  await db.put('chatMessages', { ...message, exportId })
+}
+
+export async function saveChatMessages(exportId: string, messages: ChatMessage[]): Promise<void> {
+  const db = await getDB()
+  const tx = db.transaction('chatMessages', 'readwrite')
+  const store = tx.objectStore('chatMessages')
+
+  for (const message of messages) {
+    await store.put({ ...message, exportId })
+  }
+
+  await tx.done
+}
+
+export async function getChatMessagesByExport(exportId: string): Promise<ChatMessage[]> {
+  const db = await getDB()
+  const messages = await db.getAllFromIndex('chatMessages', 'by-export', exportId)
+  return messages.map(({ exportId: _, ...msg }) => msg as ChatMessage)
+}
+
+export async function getChatExportSize(exportId: string): Promise<number> {
+  const db = await getDB()
+
+  // Estimate size based on message JSON
+  const messages = await db.getAllFromIndex('chatMessages', 'by-export', exportId)
+  return safeJsonStringify(messages).length
 }

@@ -268,3 +268,45 @@ export function startFloodWaitCountdown(
     { once: true }
   )
 }
+
+/**
+ * Callbacks interface for flood wait handling
+ */
+export interface FloodWaitCallbacks {
+  onFloodWait?: (seconds: number) => void
+  onFloodWaitCountdown?: (remaining: number) => void
+}
+
+/**
+ * Create a subscription to telegramService.onFloodWait() with automatic countdown handling.
+ *
+ * This is a helper to reduce boilerplate in services that need to handle flood wait events.
+ * It subscribes to the global flood wait events and starts a countdown timer when triggered.
+ *
+ * @param telegramService - The telegram service instance (to avoid circular imports)
+ * @param callbacks - Callbacks for flood wait events
+ * @param signal - AbortSignal to stop countdown on cancellation
+ * @returns Unsubscribe function to clean up the listener
+ *
+ * @example
+ * ```typescript
+ * const unsubscribe = createFloodWaitSubscription(telegramService, callbacks, signal)
+ * try {
+ *   // ... do work
+ * } finally {
+ *   unsubscribe()
+ * }
+ * ```
+ */
+export function createFloodWaitSubscription(
+  telegramService: { onFloodWait: (listener: (seconds: number, method: string) => void) => () => void },
+  callbacks: FloodWaitCallbacks,
+  signal: AbortSignal
+): () => void {
+  return telegramService.onFloodWait((seconds) => {
+    callbacks.onFloodWait?.(seconds)
+    if (callbacks.onFloodWaitCountdown) {
+      startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
+    }
+  })
+}

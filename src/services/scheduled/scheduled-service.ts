@@ -9,7 +9,7 @@
 
 import { telegramService } from '../telegram/client'
 import { safeJsonStringify } from '@/utils/message-serialization'
-import { withRetry, startFloodWaitCountdown } from '../telegram/rate-limiter'
+import { withRetry, createFloodWaitSubscription } from '../telegram/rate-limiter'
 import type { ScheduledMessage, ChatInfo } from '@/types'
 
 export interface ScheduledMessagesProgress {
@@ -65,12 +65,7 @@ class ScheduledService {
     const signal = controller.signal
 
     // Subscribe to global flood wait events from GramJS (it handles flood wait internally)
-    const unsubscribeFloodWait = telegramService.onFloodWait((seconds) => {
-      callbacks.onFloodWait?.(seconds)
-      if (callbacks.onFloodWaitCountdown) {
-        startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
-      }
-    })
+    const unsubscribeFloodWait = createFloodWaitSubscription(telegramService, callbacks, signal)
 
     try {
       return await telegramService.getScheduledMessages(chatId)
@@ -82,7 +77,7 @@ class ScheduledService {
   /**
    * Fetch scheduled messages from all user's dialogs
    * Returns messages grouped by chat
-   * 
+   *
    * @param callbacks - Progress and error callbacks
    * @param options - Options including chatLimit (default 100)
    */
@@ -96,12 +91,7 @@ class ScheduledService {
     const signal = this.abortController.signal
 
     // Subscribe to global flood wait events from GramJS (it handles flood wait internally)
-    const unsubscribeFloodWait = telegramService.onFloodWait((seconds) => {
-      callbacks.onFloodWait?.(seconds)
-      if (callbacks.onFloodWaitCountdown) {
-        startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
-      }
-    })
+    const unsubscribeFloodWait = createFloodWaitSubscription(telegramService, callbacks, signal)
 
     const progress: ScheduledMessagesProgress = {
       phase: 'loading_chats',
@@ -122,9 +112,7 @@ class ScheduledService {
 
       // Filter chats: only channels require admin rights to view scheduled messages.
       // Private chats, groups, and supergroups allow any member to schedule messages.
-      const eligibleChats = dialogs.filter(
-        (chat) => chat.type !== 'channel' || chat.isAdmin
-      )
+      const eligibleChats = dialogs.filter((chat) => chat.type !== 'channel' || chat.isAdmin)
 
       progress.phase = 'fetching_messages'
       progress.totalChats = eligibleChats.length
@@ -143,10 +131,10 @@ class ScheduledService {
         try {
           // Note: GramJS handles flood wait internally, so we use the global listener
           // instead of withRetry's onFloodWait. withRetry is still useful for other errors.
-          const messages = await withRetry(
-            () => telegramService.getScheduledMessages(chat.id),
-            { maxRetries: 3, signal }
-          )
+          const messages = await withRetry(() => telegramService.getScheduledMessages(chat.id), {
+            maxRetries: 3,
+            signal,
+          })
 
           if (messages.length > 0) {
             // Add chat title to each message
@@ -271,4 +259,3 @@ class ScheduledService {
 
 // Singleton instance
 export const scheduledService = new ScheduledService()
-

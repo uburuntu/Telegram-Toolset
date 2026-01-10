@@ -3,11 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccountsStore, useUiStore } from '@/stores'
 import { getBotInfo, type BotApiUser } from '@/services/telegram/bot-api'
-import {
-  telegramService,
-  type FullUserInfo,
-  type AccountStats,
-} from '@/services/telegram/client'
+import { telegramService, type FullUserInfo, type AccountStats } from '@/services/telegram/client'
 
 const { t } = useI18n()
 const accountsStore = useAccountsStore()
@@ -154,11 +150,7 @@ const initials = computed(() => {
               v-if="profilePhotoUrl"
               class="w-16 h-16 rounded-xl overflow-hidden ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-gray-900"
             >
-              <img
-                :src="profilePhotoUrl"
-                :alt="displayName"
-                class="w-full h-full object-cover"
-              />
+              <img :src="profilePhotoUrl" :alt="displayName" class="w-full h-full object-cover" />
             </div>
             <div
               v-else
@@ -218,10 +210,7 @@ const initials = computed(() => {
         </div>
 
         <!-- Bio -->
-        <div
-          v-if="fullUserInfo?.bio"
-          class="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-        >
+        <div v-if="fullUserInfo?.bio" class="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
           <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
             {{ fullUserInfo.bio }}
           </p>
@@ -399,7 +388,10 @@ const initials = computed(() => {
             <h4 class="font-medium text-red-800 dark:text-red-300">
               {{ t('accountInfo.accountRestricted') }}
             </h4>
-            <p v-if="fullUserInfo.restrictionReason" class="text-sm text-red-700 dark:text-red-400 mt-1">
+            <p
+              v-if="fullUserInfo.restrictionReason"
+              class="text-sm text-red-700 dark:text-red-400 mt-1"
+            >
               {{ fullUserInfo.restrictionReason }}
             </p>
           </div>

@@ -16,6 +16,8 @@ import type {
   AdminLogIterOptions,
   ChatValidationResult,
   ConnectionState,
+  ChatMessage,
+  ChatHistoryOptions,
 } from '@/types'
 
 // Reconnection settings
@@ -251,7 +253,7 @@ class TelegramService {
   /**
    * Try to restore the session from stored account data.
    * This is called when the client is null but we may have credentials in localStorage.
-   * 
+   *
    * Uses lazy import of the accounts store to avoid circular dependencies.
    */
   private async tryRestoreSession(): Promise<boolean> {
@@ -1189,8 +1191,7 @@ class TelegramService {
 
     // Handle different response types - guard against null/undefined messages
     // Some response types (like MessagesNotModified) don't have messages
-    const msgList =
-      'messages' in result && Array.isArray(result.messages) ? result.messages : []
+    const msgList = 'messages' in result && Array.isArray(result.messages) ? result.messages : []
 
     for (const msg of msgList) {
       if (!(msg instanceof Api.Message)) continue
@@ -1262,6 +1263,159 @@ class TelegramService {
     )
   }
 
+  // =============================================================================
+  // LLM Context Export - Chat History Methods
+  // =============================================================================
+
+  /**
+   * Iterate over chat message history
+   * Works for any chat the user is a member of (no admin rights required)
+   * Uses GramJS iterMessages under the hood
+   *
+   * @param chatId - Chat ID to fetch messages from
+   * @param options - Filtering options (limit, minDate, maxDate, reverse)
+   */
+  async *iterChatMessages(
+    chatId: bigint,
+    options: ChatHistoryOptions = {}
+  ): AsyncGenerator<ChatMessage> {
+    const client = await this.getConnectedClient()
+
+    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+    const entity = await client.getEntity(chatId)
+
+    // Build iteration parameters
+    const iterParams: Record<string, unknown> = {}
+
+    if (options.limit !== undefined) {
+      iterParams.limit = options.limit
+    }
+    if (options.offsetId !== undefined) {
+      iterParams.offsetId = options.offsetId
+    }
+    if (options.reverse !== undefined) {
+      iterParams.reverse = options.reverse
+    }
+    if (options.minDate !== undefined) {
+      // GramJS expects Unix timestamp in seconds
+      iterParams.minDate = Math.floor(options.minDate.getTime() / 1000)
+    }
+    if (options.maxDate !== undefined) {
+      // offsetDate is used for "messages before this date"
+      iterParams.offsetDate = Math.floor(options.maxDate.getTime() / 1000)
+    }
+
+    // Use GramJS iterMessages helper
+    for await (const msg of client.iterMessages(entity, iterParams)) {
+      // Skip non-message types
+      if (!(msg instanceof Api.Message)) continue
+
+      // Apply minDate filter (GramJS minDate may not work perfectly)
+      if (options.minDate) {
+        const msgDate = new Date(msg.date * 1000)
+        if (msgDate < options.minDate) {
+          // If we're iterating in reverse (oldest first), we can stop
+          if (options.reverse) break
+          // Otherwise skip this message
+          continue
+        }
+      }
+
+      const mediaType = this.getMediaType(msg)
+
+      // Extract sender info
+      let senderId: bigint | undefined
+      let forwardedFrom: string | undefined
+
+      if (msg.fromId && 'userId' in msg.fromId) {
+        senderId = BigInt(msg.fromId.userId.toString())
+      } else if (msg.fromId && 'channelId' in msg.fromId) {
+        senderId = BigInt(msg.fromId.channelId.toString())
+      } else if (msg.peerId && 'userId' in msg.peerId) {
+        senderId = BigInt(msg.peerId.userId.toString())
+      }
+
+      // Handle forwarded messages
+      if (msg.fwdFrom) {
+        if (msg.fwdFrom.fromName) {
+          forwardedFrom = msg.fwdFrom.fromName
+        } else if (msg.fwdFrom.fromId) {
+          try {
+            const fwdEntity = await this.getEntityCached(
+              BigInt(
+                'userId' in msg.fwdFrom.fromId
+                  ? msg.fwdFrom.fromId.userId.toString()
+                  : 'channelId' in msg.fwdFrom.fromId
+                    ? msg.fwdFrom.fromId.channelId.toString()
+                    : '0'
+              )
+            )
+            if (fwdEntity && typeof fwdEntity === 'object') {
+              if ('firstName' in fwdEntity) {
+                forwardedFrom = [
+                  (fwdEntity as { firstName?: string }).firstName,
+                  (fwdEntity as { lastName?: string }).lastName,
+                ]
+                  .filter(Boolean)
+                  .join(' ')
+              } else if ('title' in fwdEntity) {
+                forwardedFrom = (fwdEntity as { title?: string }).title
+              }
+            }
+          } catch {
+            // Ignore entity resolution errors for forwards
+          }
+        }
+      }
+
+      yield {
+        id: msg.id,
+        chatId,
+        senderId,
+        text: msg.message || undefined,
+        date: new Date(msg.date * 1000),
+        replyToMsgId:
+          msg.replyTo && 'replyToMsgId' in msg.replyTo ? msg.replyTo.replyToMsgId : undefined,
+        hasMedia: !!msg.media,
+        mediaType,
+        forwardedFrom,
+      }
+    }
+  }
+
+  /**
+   * Get total message count for a chat (approximate)
+   * Useful for progress estimation
+   */
+  async getChatMessageCount(chatId: bigint): Promise<number> {
+    const client = await this.getConnectedClient()
+
+    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+    const entity = await client.getEntity(chatId)
+    const inputPeer = await client.getInputEntity(entity)
+
+    const result = await client.invoke(
+      new Api.messages.GetHistory({
+        peer: inputPeer,
+        offsetId: 0,
+        offsetDate: 0,
+        addOffset: 0,
+        limit: 1,
+        maxId: 0,
+        minId: 0,
+        hash: BigInt(0) as unknown as Api.long,
+      })
+    )
+
+    if ('count' in result) {
+      return result.count
+    }
+    if ('messages' in result && Array.isArray(result.messages)) {
+      return result.messages.length
+    }
+    return 0
+  }
+
   /**
    * Export session data for backup/migration
    * Returns an object that can be safely stored
@@ -1319,9 +1473,7 @@ class TelegramService {
       )
 
       const fullUser = result.fullUser
-      const user = result.users.find(
-        (u): u is Api.User => u instanceof Api.User && u.self
-      )
+      const user = result.users.find((u): u is Api.User => u instanceof Api.User && u.self)
 
       if (!user) return null
 
@@ -1389,11 +1541,8 @@ class TelegramService {
         contacts.className === 'contacts.Contacts' ? contacts.contacts.length : 0
 
       // Get blocked users count
-      const blocked = await client.invoke(
-        new Api.contacts.GetBlocked({ offset: 0, limit: 1 })
-      )
-      const blockedCount =
-        'count' in blocked ? blocked.count : blocked.users?.length || 0
+      const blocked = await client.invoke(new Api.contacts.GetBlocked({ offset: 0, limit: 1 }))
+      const blockedCount = 'count' in blocked ? blocked.count : blocked.users?.length || 0
 
       return {
         dialogsCount: totalDialogs,
