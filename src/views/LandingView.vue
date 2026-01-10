@@ -39,6 +39,7 @@ function getModuleName(moduleId: string): string {
     'export-deleted': 'modules.exportDeleted.name',
     resend: 'modules.resend.name',
     scheduled: 'modules.scheduled.name',
+    'llm-export': 'modules.llmExport.name',
   }
   return t(keyMap[moduleId] || moduleId)
 }
@@ -49,6 +50,7 @@ function getModuleDescription(moduleId: string): string {
     'export-deleted': 'modules.exportDeleted.description',
     resend: 'modules.resend.description',
     scheduled: 'modules.scheduled.description',
+    'llm-export': 'modules.llmExport.description',
   }
   return t(keyMap[moduleId] || moduleId)
 }
@@ -175,6 +177,7 @@ const sortedModules = computed(() => {
             <span v-else-if="module.icon === 'clock'">⏰</span>
             <span v-else-if="module.icon === 'user'">👤</span>
             <span v-else-if="module.icon === 'bot'">🤖</span>
+            <span v-else-if="module.icon === 'sparkles'">✨</span>
             <span v-else>🔧</span>
           </div>
           <div class="flex-1 min-w-0">
