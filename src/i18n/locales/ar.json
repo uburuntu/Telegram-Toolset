@@ -343,6 +343,7 @@
     "foundTotal": "تم العثور على {count} رسالة مجدولة",
     "noMessages": "لا توجد رسائل مجدولة",
     "noMessagesDesc": "ليس لديك أي رسائل مجدولة في هذه المحادثة",
+    "noMessagesDescAll": "لم يتم العثور على رسائل مجدولة في أي من محادثاتك",
     "selectAll": "تحديد الكل",
     "exportJson": "تصدير JSON",
     "deleteSelected": "حذف ({count})",

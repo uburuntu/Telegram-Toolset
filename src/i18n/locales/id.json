@@ -343,6 +343,7 @@
     "foundTotal": "Ditemukan {count} pesan terjadwal",
     "noMessages": "Tidak Ada Pesan Terjadwal",
     "noMessagesDesc": "Anda tidak memiliki pesan terjadwal di obrolan ini",
+    "noMessagesDescAll": "Tidak ditemukan pesan terjadwal di semua obrolan Anda",
     "selectAll": "Pilih semua",
     "exportJson": "Ekspor JSON",
     "deleteSelected": "Hapus ({count})",

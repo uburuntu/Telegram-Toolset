@@ -343,6 +343,7 @@
     "foundTotal": "Найдено {count} отложенных сообщений",
     "noMessages": "Нет отложенных сообщений",
     "noMessagesDesc": "В этом чате нет отложенных сообщений",
+    "noMessagesDescAll": "Отложенные сообщения не найдены ни в одном из ваших чатов",
     "selectAll": "Выбрать все",
     "exportJson": "Экспорт JSON",
     "deleteSelected": "Удалить ({count})",

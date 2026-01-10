@@ -31,6 +31,10 @@ const chatLimitOptions = [50, 100, 200, 500]
 const scheduledData = ref<ChatWithScheduledMessages[]>([])
 const currentProgress = ref<ScheduledMessagesProgress | null>(null)
 
+// Flood wait tracking
+const floodWaitSeconds = ref(0)
+const floodWaitRemaining = ref(0)
+
 // Selection for deletion
 const selectedMessages = ref<Set<string>>(new Set())
 
@@ -103,9 +107,22 @@ async function loadChatScheduledMessages(chat: ChatInfo) {
   step.value = 'loading'
   isLoading.value = true
   error.value = ''
+  floodWaitSeconds.value = 0
+  floodWaitRemaining.value = 0
 
   try {
-    const messages = await scheduledService.getScheduledMessagesForChat(chat.id)
+    const messages = await scheduledService.getScheduledMessagesForChat(chat.id, {
+      onFloodWait: (seconds) => {
+        floodWaitSeconds.value = seconds
+        floodWaitRemaining.value = seconds
+      },
+      onFloodWaitCountdown: (remaining) => {
+        floodWaitRemaining.value = remaining
+        if (remaining === 0) {
+          floodWaitSeconds.value = 0
+        }
+      },
+    })
     scheduledData.value = [
       {
         chat,
@@ -119,6 +136,7 @@ async function loadChatScheduledMessages(chat: ChatInfo) {
     step.value = 'select-chat'
   } finally {
     isLoading.value = false
+    floodWaitSeconds.value = 0
   }
 }
 
@@ -126,6 +144,8 @@ async function loadAllScheduledMessages() {
   step.value = 'loading'
   error.value = ''
   currentProgress.value = null
+  floodWaitSeconds.value = 0
+  floodWaitRemaining.value = 0
 
   try {
     const results = await scheduledService.getAllScheduledMessages(
@@ -135,6 +155,16 @@ async function loadAllScheduledMessages() {
         },
         onError: (err, chatId) => {
           console.warn(`Failed to fetch scheduled messages for chat ${chatId}:`, err)
+        },
+        onFloodWait: (seconds) => {
+          floodWaitSeconds.value = seconds
+          floodWaitRemaining.value = seconds
+        },
+        onFloodWaitCountdown: (remaining) => {
+          floodWaitRemaining.value = remaining
+          if (remaining === 0) {
+            floodWaitSeconds.value = 0
+          }
         },
       },
       { chatLimit: chatLimit.value }
@@ -153,6 +183,7 @@ async function loadAllScheduledMessages() {
     }
   } finally {
     currentProgress.value = null
+    floodWaitSeconds.value = 0
   }
 }
 
@@ -474,6 +505,25 @@ function formatScheduledDate(date: Date): string {
           class="animate-spin w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"
         ></div>
 
+        <!-- Flood wait indicator -->
+        <div v-if="floodWaitSeconds > 0" class="text-amber-600 mb-4">
+          <div class="flex items-center justify-center gap-2">
+            <span class="animate-pulse">⏳</span>
+            <span>{{ t('export.rateLimited', { seconds: floodWaitRemaining }) }}</span>
+          </div>
+          <!-- Countdown progress bar -->
+          <div
+            class="w-full max-w-xs mx-auto h-1.5 bg-amber-200 dark:bg-amber-900 rounded-full overflow-hidden mt-2"
+          >
+            <div
+              class="h-full bg-amber-500 transition-all duration-1000 ease-linear"
+              :style="{
+                width: `${((floodWaitSeconds - floodWaitRemaining) / floodWaitSeconds) * 100}%`,
+              }"
+            ></div>
+          </div>
+        </div>
+
         <template v-if="currentProgress">
           <p class="text-gray-900 dark:text-white font-medium mb-2">
             {{ currentProgress.currentChat || t('scheduled.scanning') }}
@@ -525,7 +575,7 @@ function formatScheduledDate(date: Date): string {
           {{ t('scheduled.noMessages') }}
         </h2>
         <p class="text-sm text-gray-600 dark:text-gray-400">
-          {{ t('scheduled.noMessagesDesc') }}
+          {{ mode === 'all' ? t('scheduled.noMessagesDescAll') : t('scheduled.noMessagesDesc') }}
         </p>
       </div>
 

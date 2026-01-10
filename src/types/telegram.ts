@@ -10,6 +10,8 @@ export interface ChatInfo {
   participantCount?: number
   canExport: boolean
   canSend: boolean
+  /** Whether the current user is admin/creator in this chat */
+  isAdmin: boolean
   lastMessageDate?: Date
 }
 

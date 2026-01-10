@@ -343,6 +343,7 @@
     "foundTotal": "Encontrados {count} mensajes programados",
     "noMessages": "No hay mensajes programados",
     "noMessagesDesc": "No tiene ningún mensaje programado en este chat",
+    "noMessagesDescAll": "No se encontraron mensajes programados en ninguno de sus chats",
     "selectAll": "Seleccionar todo",
     "exportJson": "Exportar JSON",
     "deleteSelected": "Eliminar ({count})",

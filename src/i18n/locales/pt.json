@@ -343,6 +343,7 @@
     "foundTotal": "Encontradas {count} mensagens agendadas",
     "noMessages": "Nenhuma Mensagem Agendada",
     "noMessagesDesc": "Você não tem nenhuma mensagem agendada neste chat",
+    "noMessagesDescAll": "Nenhuma mensagem agendada encontrada em nenhum dos seus chats",
     "selectAll": "Selecionar tudo",
     "exportJson": "Exportar JSON",
     "deleteSelected": "Excluir ({count})",

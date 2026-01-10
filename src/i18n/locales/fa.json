@@ -343,6 +343,7 @@
     "foundTotal": "{count} پیام زمان‌بندی شده پیدا شد",
     "noMessages": "هیچ پیام زمان‌بندی شده‌ای وجود ندارد",
     "noMessagesDesc": "شما هیچ پیام زمان‌بندی شده‌ای در این چت ندارید",
+    "noMessagesDescAll": "هیچ پیام زمان‌بندی شده‌ای در هیچ‌کدام از چت‌های شما یافت نشد",
     "selectAll": "انتخاب همه",
     "exportJson": "خروجی JSON",
     "deleteSelected": "حذف ({count})",

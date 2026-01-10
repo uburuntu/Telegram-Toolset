@@ -9,6 +9,7 @@
 
 import { telegramService } from '../telegram/client'
 import { safeJsonStringify } from '@/utils/message-serialization'
+import { withRetry, startFloodWaitCountdown } from '../telegram/rate-limiter'
 import type { ScheduledMessage, ChatInfo } from '@/types'
 
 export interface ScheduledMessagesProgress {
@@ -23,6 +24,10 @@ export interface ScheduledMessagesProgress {
 export interface ScheduledMessagesCallbacks {
   onProgress?: (progress: ScheduledMessagesProgress) => void
   onError?: (error: Error, chatId?: bigint) => void
+  /** Called when a FloodWait error occurs with the wait time in seconds */
+  onFloodWait?: (seconds: number) => void
+  /** Called every second during flood wait with remaining seconds */
+  onFloodWaitCountdown?: (remainingSeconds: number) => void
 }
 
 export interface ScheduledMessagesOptions {
@@ -52,8 +57,26 @@ class ScheduledService {
   /**
    * Fetch scheduled messages from a single chat
    */
-  async getScheduledMessagesForChat(chatId: bigint): Promise<ScheduledMessage[]> {
-    return telegramService.getScheduledMessages(chatId)
+  async getScheduledMessagesForChat(
+    chatId: bigint,
+    callbacks: Pick<ScheduledMessagesCallbacks, 'onFloodWait' | 'onFloodWaitCountdown'> = {}
+  ): Promise<ScheduledMessage[]> {
+    const controller = new AbortController()
+    const signal = controller.signal
+
+    // Subscribe to global flood wait events from GramJS (it handles flood wait internally)
+    const unsubscribeFloodWait = telegramService.onFloodWait((seconds) => {
+      callbacks.onFloodWait?.(seconds)
+      if (callbacks.onFloodWaitCountdown) {
+        startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
+      }
+    })
+
+    try {
+      return await telegramService.getScheduledMessages(chatId)
+    } finally {
+      unsubscribeFloodWait()
+    }
   }
 
   /**
@@ -72,6 +95,14 @@ class ScheduledService {
     this.abortController = new AbortController()
     const signal = this.abortController.signal
 
+    // Subscribe to global flood wait events from GramJS (it handles flood wait internally)
+    const unsubscribeFloodWait = telegramService.onFloodWait((seconds) => {
+      callbacks.onFloodWait?.(seconds)
+      if (callbacks.onFloodWaitCountdown) {
+        startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
+      }
+    })
+
     const progress: ScheduledMessagesProgress = {
       phase: 'loading_chats',
       totalChats: 0,
@@ -89,13 +120,19 @@ class ScheduledService {
         throw new Error('Operation cancelled')
       }
 
+      // Filter chats: only channels require admin rights to view scheduled messages.
+      // Private chats, groups, and supergroups allow any member to schedule messages.
+      const eligibleChats = dialogs.filter(
+        (chat) => chat.type !== 'channel' || chat.isAdmin
+      )
+
       progress.phase = 'fetching_messages'
-      progress.totalChats = dialogs.length
+      progress.totalChats = eligibleChats.length
       callbacks.onProgress?.({ ...progress })
 
       const results: ChatWithScheduledMessages[] = []
 
-      for (const chat of dialogs) {
+      for (const chat of eligibleChats) {
         if (signal.aborted) {
           throw new Error('Operation cancelled')
         }
@@ -104,7 +141,12 @@ class ScheduledService {
         callbacks.onProgress?.({ ...progress })
 
         try {
-          const messages = await telegramService.getScheduledMessages(chat.id)
+          // Note: GramJS handles flood wait internally, so we use the global listener
+          // instead of withRetry's onFloodWait. withRetry is still useful for other errors.
+          const messages = await withRetry(
+            () => telegramService.getScheduledMessages(chat.id),
+            { maxRetries: 3, signal }
+          )
 
           if (messages.length > 0) {
             // Add chat title to each message
@@ -121,7 +163,10 @@ class ScheduledService {
             progress.totalMessages += messages.length
           }
         } catch (error) {
-          // Log but continue with other chats
+          // Log but continue with other chats (unless cancelled)
+          if ((error as Error).name === 'AbortError') {
+            throw error
+          }
           console.warn(`Failed to fetch scheduled messages for chat ${chat.title}:`, error)
           callbacks.onError?.(error as Error, chat.id)
         }
@@ -141,6 +186,7 @@ class ScheduledService {
       callbacks.onProgress?.({ ...progress })
       throw error
     } finally {
+      unsubscribeFloodWait()
       this.abortController = null
     }
   }
