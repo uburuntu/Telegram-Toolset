@@ -123,6 +123,10 @@
     "resend": {
       "name": "Reenviar Mensajes",
       "description": "Reenvíe mensajes previamente exportados a cualquier chat"
+    },
+    "scheduled": {
+      "name": "Mensajes Programados",
+      "description": "Ver y gestionar sus mensajes programados en todos los chats"
     }
   },
   "accountInfo": {
@@ -314,5 +318,38 @@
     "failedMessage": "{count} mensaje(s) fallaron al enviar",
     "backToHome": "Volver al Inicio",
     "resendAnother": "Reenviar Otro"
+  },
+  "scheduled": {
+    "title": "Mensajes Programados",
+    "description": "Ver y gestionar sus mensajes programados",
+    "singleChat": "Chat Único",
+    "singleChatDesc": "Ver mensajes programados de un chat específico",
+    "allChats": "Todos los Chats",
+    "allChatsDesc": "Escanear sus chats más recientes en busca de mensajes programados",
+    "selectChat": "Seleccionar Chat",
+    "selectChatDesc": "Elija un chat para ver los mensajes programados",
+    "configureScan": "Configurar Escaneo",
+    "configureScanDesc": "Elija cuántos chats escanear en busca de mensajes programados",
+    "chatLimit": "Número de chats a escanear",
+    "chatLimitHint": "Escanea sus chats más recientes (ordenados por fecha del último mensaje). Más chats = mayor tiempo de escaneo.",
+    "scanInfo": "El escaneo verificará cada uno de sus chats más recientes en busca de mensajes programados. Esto puede tardar un tiempo dependiendo de cuántos chats seleccione.",
+    "startScan": "Iniciar Escaneo",
+    "loading": "Cargando Mensajes Programados",
+    "loadingMessages": "Cargando mensajes programados...",
+    "scanning": "Escaneando chats...",
+    "progressChats": "Escaneado {current} de {total} chats",
+    "foundMessages": "Encontrados {count} mensajes programados",
+    "results": "Mensajes Programados",
+    "foundTotal": "Encontrados {count} mensajes programados",
+    "noMessages": "No hay mensajes programados",
+    "noMessagesDesc": "No tiene ningún mensaje programado en este chat",
+    "selectAll": "Seleccionar todo",
+    "exportJson": "Exportar JSON",
+    "deleteSelected": "Eliminar ({count})",
+    "messageCount": "{count} mensaje | {count} mensajes",
+    "confirmDelete": "¿Está seguro de que desea eliminar {count} mensaje(s) programado(s)? Esta acción no se puede deshacer.",
+    "deleteSuccess": "Mensajes programados eliminados exitosamente",
+    "exportSuccess": "Mensajes programados exportados a JSON",
+    "cancelled": "Operación cancelada"
   }
 }

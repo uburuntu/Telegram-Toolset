@@ -123,6 +123,10 @@
     "resend": {
       "name": "Resend Messages",
       "description": "Re-send previously exported messages to any chat"
+    },
+    "scheduled": {
+      "name": "Scheduled Messages",
+      "description": "View and manage your scheduled messages across all chats"
     }
   },
   "accountInfo": {
@@ -314,5 +318,38 @@
     "failedMessage": "{count} message(s) failed to send",
     "backToHome": "Back to Home",
     "resendAnother": "Resend Another"
+  },
+  "scheduled": {
+    "title": "Scheduled Messages",
+    "description": "View and manage your scheduled messages",
+    "singleChat": "Single Chat",
+    "singleChatDesc": "View scheduled messages from a specific chat",
+    "allChats": "All Chats",
+    "allChatsDesc": "Scan your most recent chats for scheduled messages",
+    "selectChat": "Select Chat",
+    "selectChatDesc": "Choose a chat to view scheduled messages",
+    "configureScan": "Configure Scan",
+    "configureScanDesc": "Choose how many chats to scan for scheduled messages",
+    "chatLimit": "Number of chats to scan",
+    "chatLimitHint": "Scans your most recent chats (sorted by last message date). More chats = longer scan time.",
+    "scanInfo": "The scan will check each of your most recent chats for scheduled messages. This may take a while depending on how many chats you select.",
+    "startScan": "Start Scan",
+    "loading": "Loading Scheduled Messages",
+    "loadingMessages": "Loading scheduled messages...",
+    "scanning": "Scanning chats...",
+    "progressChats": "Scanned {current} of {total} chats",
+    "foundMessages": "Found {count} scheduled messages",
+    "results": "Scheduled Messages",
+    "foundTotal": "Found {count} scheduled messages",
+    "noMessages": "No Scheduled Messages",
+    "noMessagesDesc": "You don't have any scheduled messages in this chat",
+    "selectAll": "Select all",
+    "exportJson": "Export JSON",
+    "deleteSelected": "Delete ({count})",
+    "messageCount": "{count} message | {count} messages",
+    "confirmDelete": "Are you sure you want to delete {count} scheduled message(s)? This cannot be undone.",
+    "deleteSuccess": "Scheduled messages deleted successfully",
+    "exportSuccess": "Scheduled messages exported to JSON",
+    "cancelled": "Operation cancelled"
   }
 }

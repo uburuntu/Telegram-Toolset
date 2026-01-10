@@ -65,6 +65,27 @@ export interface DeletedMessage {
 }
 
 /**
+ * A scheduled message waiting to be sent
+ */
+export interface ScheduledMessage {
+  id: number
+  chatId: bigint
+  chatTitle?: string
+  text?: string
+  /** Date when the message was created/edited */
+  date: Date
+  /** Date when the message is scheduled to be sent */
+  scheduledDate: Date
+  hasMedia: boolean
+  mediaType?: MediaType
+  mediaFilename?: string
+  mediaSize?: number
+  replyToMsgId?: number
+  /** Raw GramJS message object for media download - not serialized */
+  _rawMessage?: unknown
+}
+
+/**
  * Options for iterating deleted messages from admin log
  */
 export interface AdminLogIterOptions {

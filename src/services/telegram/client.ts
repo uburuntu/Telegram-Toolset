@@ -11,6 +11,7 @@ import type {
   UserInfo,
   ChatInfo,
   DeletedMessage,
+  ScheduledMessage,
   MediaType,
   AdminLogIterOptions,
   ChatValidationResult,
@@ -164,9 +165,14 @@ class TelegramService {
     // Wait for any in-flight account initialization to complete first (race-free orchestration).
     await this.waitForActiveAccountInit()
 
+    // Try to restore session if client is null but we have stored credentials
     if (!this.client) {
-      throw new Error('Client not initialized. Please log in again.')
+      const restored = await this.tryRestoreSession()
+      if (!restored || !this.client) {
+        throw new Error('Client not initialized. Please log in again.')
+      }
     }
+
     if (!this.client.connected) {
       await this.connect()
     }
@@ -174,6 +180,58 @@ class TelegramService {
       throw new Error('Client not initialized. Please log in again.')
     }
     return this.client
+  }
+
+  /**
+   * Try to restore the session from stored account data.
+   * This is called when the client is null but we may have credentials in localStorage.
+   * 
+   * Uses lazy import of the accounts store to avoid circular dependencies.
+   */
+  private async tryRestoreSession(): Promise<boolean> {
+    try {
+      // Lazy import to avoid circular dependency (telegramService is created before Pinia stores)
+      const { useAccountsStore } = await import('@/stores/accounts')
+      const accountsStore = useAccountsStore()
+
+      const activeAccount = accountsStore.activeAccount
+      if (!activeAccount) {
+        console.log('[TelegramService] No active account to restore')
+        return false
+      }
+
+      // Only user accounts have session data we can restore
+      if (activeAccount.type !== 'user') {
+        console.log('[TelegramService] Active account is not a user account, cannot restore')
+        return false
+      }
+
+      // Check we have the required credentials
+      if (!activeAccount.sessionString || !activeAccount.apiId || !activeAccount.apiHash) {
+        console.log('[TelegramService] Missing credentials for session restoration')
+        return false
+      }
+
+      console.log('[TelegramService] Attempting to restore session for:', activeAccount.label)
+
+      // Use the existing method to restore the session
+      const success = await this.useUserAccountSession({
+        sessionString: activeAccount.sessionString,
+        apiId: activeAccount.apiId,
+        apiHash: activeAccount.apiHash,
+      })
+
+      if (success) {
+        console.log('[TelegramService] Session restored successfully')
+      } else {
+        console.log('[TelegramService] Session restoration failed')
+      }
+
+      return success
+    } catch (error) {
+      console.error('[TelegramService] Error restoring session:', error)
+      return false
+    }
   }
 
   /**
@@ -1040,6 +1098,99 @@ class TelegramService {
       fromPeer: fromChatId,
       messages: [messageId],
     })
+  }
+
+  /**
+   * Get all scheduled messages for a chat
+   * Uses messages.GetScheduledHistory API
+   */
+  async getScheduledMessages(chatId: bigint): Promise<ScheduledMessage[]> {
+    const client = await this.getConnectedClient()
+
+    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+    const entity = await client.getEntity(chatId)
+    const inputPeer = await client.getInputEntity(entity)
+
+    const result = await client.invoke(
+      new Api.messages.GetScheduledHistory({
+        peer: inputPeer,
+        hash: BigInt(0) as unknown as Api.long,
+      })
+    )
+
+    const messages: ScheduledMessage[] = []
+
+    // Handle different response types
+    const msgList = 'messages' in result ? result.messages : []
+
+    for (const msg of msgList) {
+      if (!(msg instanceof Api.Message)) continue
+
+      // Scheduled messages have a special date field
+      // The `date` field contains the scheduled send time
+      const scheduledDate = new Date(msg.date * 1000)
+
+      // editDate is when it was last edited, or creation time
+      const date = msg.editDate ? new Date(msg.editDate * 1000) : scheduledDate
+
+      const mediaType = this.getMediaType(msg)
+
+      // Extract media info
+      let mediaFilename: string | undefined
+      let mediaSize: number | undefined
+
+      if (msg.media && 'document' in msg.media && msg.media.document) {
+        const doc = msg.media.document as Api.Document
+        mediaSize = Number(doc.size)
+        const filenameAttr = doc.attributes?.find(
+          (a): a is Api.DocumentAttributeFilename => a instanceof Api.DocumentAttributeFilename
+        )
+        if (filenameAttr) {
+          mediaFilename = filenameAttr.fileName
+        }
+      } else if (msg.media && 'photo' in msg.media && msg.media.photo) {
+        mediaFilename = `photo_${msg.id}.jpg`
+      }
+
+      messages.push({
+        id: msg.id,
+        chatId,
+        text: msg.message || undefined,
+        date,
+        scheduledDate,
+        hasMedia: !!msg.media,
+        mediaType,
+        mediaFilename,
+        mediaSize,
+        replyToMsgId:
+          msg.replyTo && 'replyToMsgId' in msg.replyTo ? msg.replyTo.replyToMsgId : undefined,
+        _rawMessage: msg.media ? msg : undefined,
+      })
+    }
+
+    // Sort by scheduled date (soonest first)
+    return messages.sort((a, b) => a.scheduledDate.getTime() - b.scheduledDate.getTime())
+  }
+
+  /**
+   * Delete scheduled messages from a chat
+   * Uses messages.DeleteScheduledMessages API
+   */
+  async deleteScheduledMessages(chatId: bigint, messageIds: number[]): Promise<void> {
+    if (messageIds.length === 0) return
+
+    const client = await this.getConnectedClient()
+
+    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+    const entity = await client.getEntity(chatId)
+    const inputPeer = await client.getInputEntity(entity)
+
+    await client.invoke(
+      new Api.messages.DeleteScheduledMessages({
+        peer: inputPeer,
+        id: messageIds,
+      })
+    )
   }
 
   /**
