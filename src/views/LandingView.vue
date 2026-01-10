@@ -172,6 +172,8 @@ const sortedModules = computed(() => {
           >
             <span v-if="module.icon === 'download'">📥</span>
             <span v-else-if="module.icon === 'send'">📤</span>
+            <span v-else-if="module.icon === 'clock'">⏰</span>
+            <span v-else-if="module.icon === 'user'">👤</span>
             <span v-else-if="module.icon === 'bot'">🤖</span>
             <span v-else>🔧</span>
           </div>
