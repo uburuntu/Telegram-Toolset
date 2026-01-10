@@ -1471,7 +1471,7 @@ class TelegramService {
       )
 
       const fullUser = result.fullUser
-      const user = result.users.find((u): u is Api.User => u instanceof Api.User && u.self)
+      const user = result.users.find((u): u is Api.User => u instanceof Api.User && u.self === true)
 
       if (!user) return null
 
@@ -1514,8 +1514,9 @@ class TelegramService {
         return null
       }
 
-      // Convert Buffer to Blob
-      return new Blob([buffer], { type: 'image/jpeg' })
+      // Convert Buffer to Blob - handle both string and Buffer/Uint8Array
+      const data = typeof buffer === 'string' ? new TextEncoder().encode(buffer) : new Uint8Array(buffer)
+      return new Blob([data], { type: 'image/jpeg' })
     } catch (error) {
       console.error('Failed to download profile photo:', error)
       return null
@@ -1534,7 +1535,7 @@ class TelegramService {
       const totalDialogs = dialogs.total || 0
 
       // Get contacts count
-      const contacts = await client.invoke(new Api.contacts.GetContacts({ hash: BigInt(0) }))
+      const contacts = await client.invoke(new Api.contacts.GetContacts({ hash: BigInt(0) as unknown as Api.long }))
       const contactsCount =
         contacts.className === 'contacts.Contacts' ? contacts.contacts.length : 0
 
