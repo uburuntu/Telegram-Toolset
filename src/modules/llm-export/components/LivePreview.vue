@@ -39,7 +39,8 @@ const lineCount = computed(() => props.content.split('\n').length)
       <pre
         v-else
         class="p-4 text-sm font-mono text-gray-800 dark:text-gray-200 overflow-x-auto max-h-96 overflow-y-auto whitespace-pre-wrap break-words"
-      >{{ content }}</pre>
+        >{{ content }}</pre
+      >
 
       <!-- Fade overlay at bottom -->
       <div

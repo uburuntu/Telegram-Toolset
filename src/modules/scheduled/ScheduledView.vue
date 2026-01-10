@@ -113,7 +113,10 @@ async function loadChatScheduledMessages(chat: ChatInfo) {
   floodWait.reset()
 
   try {
-    const messages = await scheduledService.getScheduledMessagesForChat(chat.id, floodWait.callbacks)
+    const messages = await scheduledService.getScheduledMessagesForChat(
+      chat.id,
+      floodWait.callbacks
+    )
     scheduledData.value = [
       {
         chat,

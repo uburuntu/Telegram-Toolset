@@ -30,4 +30,3 @@ const { t } = useI18n()
     </div>
   </div>
 </template>
-
