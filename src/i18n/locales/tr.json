@@ -127,6 +127,10 @@
     "scheduled": {
       "name": "Zamanlanmış Mesajlar",
       "description": "Tüm sohbetlerdeki zamanlanmış mesajlarınızı görüntüleyin ve yönetin"
+    },
+    "llmExport": {
+      "name": "LLM İçerik Dışa Aktarımı",
+      "description": "Yapay zeka asistanları için biçimlendirilmiş sohbet geçmişini dışa aktarın"
     }
   },
   "accountInfo": {

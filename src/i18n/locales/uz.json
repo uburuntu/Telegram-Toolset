@@ -127,6 +127,10 @@
     "scheduled": {
       "name": "Rejalashtirilgan xabarlar",
       "description": "Barcha chatlardagi rejalashtirilgan xabarlaringizni ko'rish va boshqarish"
+    },
+    "llmExport": {
+      "name": "LLM kontekstini eksport",
+      "description": "AI yordamchilari uchun formatlangan chat tarixini eksport qilish"
     }
   },
   "accountInfo": {

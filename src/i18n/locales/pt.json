@@ -127,6 +127,10 @@
     "scheduled": {
       "name": "Mensagens Agendadas",
       "description": "Veja e gerencie suas mensagens agendadas em todos os chats"
+    },
+    "llmExport": {
+      "name": "Exportar Contexto LLM",
+      "description": "Exportar histórico do chat formatado para assistentes de IA"
     }
   },
   "accountInfo": {

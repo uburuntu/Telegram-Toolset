@@ -127,6 +127,10 @@
     "scheduled": {
       "name": "Pesan Terjadwal",
       "description": "Lihat dan kelola pesan terjadwal Anda di semua obrolan"
+    },
+    "llmExport": {
+      "name": "Ekspor Konteks LLM",
+      "description": "Ekspor riwayat obrolan yang diformat untuk asisten AI"
     }
   },
   "accountInfo": {
