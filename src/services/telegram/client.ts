@@ -120,15 +120,13 @@ class TelegramService {
    * GramJS expects a logger with info/warn/error/debug methods
    */
   private createCustomLogger() {
-    const self = this
-
     const processMessage = (message: string) => {
       // Check for flood wait messages: "Sleeping for Xs on flood wait (Caused by ...)"
       const floodMatch = message.match(/Sleeping for (\d+)s on flood wait \(Caused by ([^)]+)\)/)
       if (floodMatch) {
         const seconds = parseInt(floodMatch[1]!, 10)
         const method = floodMatch[2] || 'unknown'
-        self.emitFloodWait(seconds, method)
+        this.emitFloodWait(seconds, method)
       }
     }
 

@@ -299,7 +299,9 @@ export interface FloodWaitCallbacks {
  * ```
  */
 export function createFloodWaitSubscription(
-  telegramService: { onFloodWait: (listener: (seconds: number, method: string) => void) => () => void },
+  telegramService: {
+    onFloodWait: (listener: (seconds: number, method: string) => void) => () => void
+  },
   callbacks: FloodWaitCallbacks,
   signal: AbortSignal
 ): () => void {

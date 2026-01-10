@@ -242,7 +242,9 @@ function formatSingleMessageXml(
   if (showDate && config.includeDate && config.dateFormat !== 'none') {
     // For per-day grouping, use time-only format
     const dateFormat =
-      config.dateGrouping === 'per-day' && config.dateFormat !== 'iso' ? 'time-only' : config.dateFormat
+      config.dateGrouping === 'per-day' && config.dateFormat !== 'iso'
+        ? 'time-only'
+        : config.dateFormat
     msgAttrs.push(`date="${escapeXml(formatDate(msg.date, dateFormat))}"`)
   }
 
@@ -359,7 +361,9 @@ function formatSingleMessagePlain(
   if (showDate && config.includeDate && config.dateFormat !== 'none') {
     // For per-day grouping, use time-only format
     const dateFormat =
-      config.dateGrouping === 'per-day' && config.dateFormat !== 'iso' ? 'time-only' : config.dateFormat
+      config.dateGrouping === 'per-day' && config.dateFormat !== 'iso'
+        ? 'time-only'
+        : config.dateFormat
     headerParts.push(`(${formatDate(msg.date, dateFormat)})`)
   }
 
@@ -465,7 +469,9 @@ function formatSingleMessageJson(
   if (showDate && config.includeDate && config.dateFormat !== 'none') {
     // For per-day grouping, use time-only format
     const dateFormat =
-      config.dateGrouping === 'per-day' && config.dateFormat !== 'iso' ? 'time-only' : config.dateFormat
+      config.dateGrouping === 'per-day' && config.dateFormat !== 'iso'
+        ? 'time-only'
+        : config.dateFormat
     obj.time = formatDate(msg.date, dateFormat)
   }
 
@@ -608,7 +614,9 @@ function formatSingleMessageMarkdown(
   if (showDate && config.includeDate && config.dateFormat !== 'none') {
     // For per-day grouping, use time-only format
     const dateFormat =
-      config.dateGrouping === 'per-day' && config.dateFormat !== 'iso' ? 'time-only' : config.dateFormat
+      config.dateGrouping === 'per-day' && config.dateFormat !== 'iso'
+        ? 'time-only'
+        : config.dateFormat
     headerParts.push(`*${formatDate(msg.date, dateFormat)}*`)
   }
 

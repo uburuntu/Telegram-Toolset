@@ -269,7 +269,9 @@ const initials = computed(() => {
             <span class="text-sm text-gray-600 dark:text-gray-400">{{
               t('accountInfo.phone')
             }}</span>
-            <span class="text-sm text-gray-900 dark:text-white">{{ displayPhone?.startsWith('+') ? displayPhone : `+${displayPhone}` }}</span>
+            <span class="text-sm text-gray-900 dark:text-white">{{
+              displayPhone?.startsWith('+') ? displayPhone : `+${displayPhone}`
+            }}</span>
           </div>
 
           <!-- DC ID -->
