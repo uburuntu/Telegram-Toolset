@@ -40,25 +40,29 @@ jobs:
 
       - name: Comment PR
         uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          REPO: ${{ github.repository }}
         with:
           script: |
-            const url = `https://pr-${{ github.event.pull_request.number }}-telegram-toolset.surge.sh`;
-            const sha = `${{ github.event.pull_request.head.sha }}`.substring(0, 7);
-            const fullSha = `${{ github.event.pull_request.head.sha }}`;
-            const title = `${{ github.event.pull_request.title }}`.replace(/`/g, '\\`');
-            const repoUrl = `https://github.com/${{ github.repository }}`;
+            const url = `https://pr-${process.env.PR_NUMBER}-telegram-toolset.surge.sh`;
+            const sha = process.env.HEAD_SHA.substring(0, 7);
+            const fullSha = process.env.HEAD_SHA;
+            const title = process.env.PR_TITLE;
+            const repoUrl = `https://github.com/${process.env.REPO}`;
             
-            const body = `### Preview Deployment
-
-| | |
-|---|---|
-| **URL** | ${url} |
-| **Commit** | [\`${sha}\`](${repoUrl}/commit/${fullSha}) |
-| **Title** | ${title} |
-
-Built from the latest commit on this PR. Updates automatically on each push.`;
+            const body = [
+              '### Preview Deployment',
+              '',
+              `**URL:** ${url}`,
+              `**Commit:** [\`${sha}\`](${repoUrl}/commit/${fullSha})`,
+              `**Title:** ${title}`,
+              '',
+              '_Built from the latest commit. Updates on each push._'
+            ].join('\n');
             
-            // Find existing comment
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
