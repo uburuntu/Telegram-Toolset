@@ -2,13 +2,12 @@ name: PR Preview
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
 
 jobs:
   preview:
     name: Deploy Preview
     runs-on: ubuntu-latest
-    if: github.event.action != 'closed'
     permissions:
       pull-requests: write
     steps:
@@ -54,13 +53,22 @@ jobs:
             const repoUrl = `https://github.com/${process.env.REPO}`;
             
             const body = [
-              '### Preview Deployment',
+              '### 🚀 Preview Deployment',
               '',
-              `**URL:** ${url}`,
+              'A preview of this PR has been deployed for testing.',
+              '',
+              `**Preview URL:** ${url}`,
               `**Commit:** [\`${sha}\`](${repoUrl}/commit/${fullSha})`,
-              `**Title:** ${title}`,
+              `**PR Title:** ${title}`,
               '',
-              '_Built from the latest commit. Updates on each push._'
+              '---',
+              '',
+              '**How to use:**',
+              '- Click the preview URL above to test your changes in a live environment',
+              '- This preview updates automatically with each new commit to this PR',
+              '- The preview is hosted on [Surge.sh](https://surge.sh) and may take a few seconds to reflect the latest changes',
+              '',
+              '_This comment is automatically updated by the PR Preview workflow._'
             ].join('\n');
             
             const { data: comments } = await github.rest.issues.listComments({
@@ -85,15 +93,4 @@ jobs:
                 body
               });
             }
-
-  teardown:
-    name: Teardown Preview
-    runs-on: ubuntu-latest
-    if: github.event.action == 'closed'
-    steps:
-      - name: Install Surge
-        run: npm install -g surge
-
-      - name: Teardown
-        run: surge teardown pr-${{ github.event.pull_request.number }}-telegram-toolset.surge.sh --token ${{ secrets.SURGE_TOKEN }}
 
