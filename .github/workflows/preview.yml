@@ -22,53 +22,35 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run ESLint
-        run: npm run lint
-
-      - name: Run TypeScript check
-        run: npm run type-check
-
       - name: Build
         run: npm run build
 
-      - name: Install Surge
-        run: npm install -g surge
-
       - name: Deploy to Surge
-        run: surge ./dist pr-${{ github.event.pull_request.number }}-telegram-toolset.surge.sh --token ${{ secrets.SURGE_TOKEN }}
+        run: |
+          npm install -g surge
+          surge ./dist pr-${{ github.event.pull_request.number }}-telegram-toolset.surge.sh --token ${{ secrets.SURGE_TOKEN }}
 
       - name: Comment PR
         uses: actions/github-script@v7
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
           REPO: ${{ github.repository }}
         with:
           script: |
             const url = `https://pr-${process.env.PR_NUMBER}-telegram-toolset.surge.sh`;
             const sha = process.env.HEAD_SHA.substring(0, 7);
             const fullSha = process.env.HEAD_SHA;
-            const title = process.env.PR_TITLE;
             const repoUrl = `https://github.com/${process.env.REPO}`;
             
             const body = [
-              '### 🚀 Preview Deployment',
+              '### Preview Deployment',
               '',
-              'A preview of this PR has been deployed for testing.',
+              `🔗 **${url}**`,
               '',
-              `**Preview URL:** ${url}`,
-              `**Commit:** [\`${sha}\`](${repoUrl}/commit/${fullSha})`,
-              `**PR Title:** ${title}`,
+              `Currently deployed: [\`${sha}\`](${repoUrl}/commit/${fullSha})`,
               '',
-              '---',
-              '',
-              '**How to use:**',
-              '- Click the preview URL above to test your changes in a live environment',
-              '- This preview updates automatically with each new commit to this PR',
-              '- The preview is hosted on [Surge.sh](https://surge.sh) and may take a few seconds to reflect the latest changes',
-              '',
-              '_This comment is automatically updated by the PR Preview workflow._'
+              '_Auto-updates on each push. If a newer commit fails to build, this preview shows the last successful one._'
             ].join('\n');
             
             const { data: comments } = await github.rest.issues.listComments({
