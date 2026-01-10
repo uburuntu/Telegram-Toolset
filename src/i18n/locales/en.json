@@ -128,6 +128,10 @@
     "scheduled": {
       "name": "Scheduled Messages",
       "description": "View and manage your scheduled messages across all chats"
+    },
+    "llmExport": {
+      "name": "LLM Context Export",
+      "description": "Export chat history formatted for AI assistants"
     }
   },
   "accountInfo": {
