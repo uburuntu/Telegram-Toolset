@@ -31,7 +31,7 @@
     "switchAccountHint": "Kullanmak için {type} hesabına geçin",
     "addAccountHint": "Kullanmak için bir {type} ekleyin",
     "userAccountType": "kullanıcı hesabı",
-    "botTokenType": "bot jetonu",
+    "botTokenType": "bot tokeni",
     "contributeCard": {
       "name": "Aracınızı Ekleyin",
       "description": "Bir fikriniz mi var? Bu projeye yeni bir modül ekleyerek katkıda bulunun"
@@ -54,10 +54,10 @@
   "accounts": {
     "notLoggedIn": "Giriş yapılmadı",
     "userAccount": "Kullanıcı Hesabı",
-    "botToken": "Bot Jetonu",
+    "botToken": "Bot Tokeni",
     "anyAccount": "Herhangi Bir Hesap",
     "addUserAccount": "Kullanıcı Hesabı Ekle",
-    "addBotToken": "Bot Jetonu Ekle",
+    "addBotToken": "Bot Tokeni Ekle",
     "switchAccount": "Kullanılacak hesabı değiştir",
     "addAccount": "Kullanmak için bir {type} ekleyin",
     "active": "Aktif",
@@ -98,8 +98,8 @@
       "signingIn": "Giriş yapılıyor..."
     },
     "bot": {
-      "title": "Bot Jetonu",
-      "description": "Bot jetonunuzu şuradan alın:",
+      "title": "Bot Tokeni",
+      "description": "Bot tokeninizi şuradan alın:",
       "placeholder": "123456789:ABCdefGHIjklMNOpqrSTUvwxYZ",
       "addBot": "Bot Ekle",
       "validating": "Doğrulanıyor...",
@@ -126,7 +126,7 @@
     },
     "scheduled": {
       "name": "Zamanlanmış Mesajlar",
-      "description": "Tüm sohbetlerdeki zamanlanmış mesajlarınızı görüntüleyin ve yönetin"
+      "description": "Zamanlanmış mesajlarınızı yönetin"
     },
     "llmExport": {
       "name": "LLM İçerik Dışa Aktarımı",
@@ -367,5 +367,85 @@
     "deleteSuccess": "Zamanlanmış mesajlar başarıyla silindi",
     "exportSuccess": "Zamanlanmış mesajlar JSON'a dışa aktarıldı",
     "cancelled": "İşlem iptal edildi"
+  },
+  "llmExport": {
+    "title": "LLM İçerik Dışa Aktarımı",
+    "description": "Yapay zeka asistanları (Claude gibi) için biçimlendirilmiş sohbet geçmişini dışa aktarın",
+    "newExport": "Yeni Dışa Aktarma",
+    "myExports": "Dışa Aktarmalarım",
+    "selectChat": "Dışa aktarmak için bir sohbet seçin",
+    "searchChats": "Sohbetlerde ara...",
+    "loadingChats": "Sohbetler yükleniyor...",
+    "noChatsFound": "Aramanızla eşleşen sohbet bulunamadı",
+    "noChats": "Sohbet bulunamadı",
+    "downloadOptions": "İndirme Seçenekleri",
+    "messageLimit": "Mesaj sınırı",
+    "noLimit": "Sınırsız (tüm mesajlar)",
+    "fromDate": "Başlangıç tarihi",
+    "toDate": "Bitiş tarihi",
+    "startDownload": "Sohbet Geçmişini İndir",
+    "downloading": "İndiriliyor...",
+    "messages": "mesaj",
+    "downloadComplete": "Sohbet geçmişi başarıyla indirildi!",
+    "downloadCancelled": "İndirme iptal edildi",
+    "rateLimited": "Hız sınırı. {seconds} sn bekleniyor...",
+    "infoTitle": "Bir kez indir, birçok kez biçimlendir",
+    "infoDescription": "Sohbet geçmişi yerel olarak önbelleğe alınır. İndirdikten sonra, tekrar indirmeden farklı çıktı biçimlerini anında deneyebilirsiniz.",
+    "cachedExports": "Önbelleğe Alınmış Dışa Aktarmalar",
+    "noExports": "Henüz dışa aktarma yok",
+    "noExportsHint": "Başlamak için bir sohbet indirin",
+    "exported": "Dışa aktarıldı",
+    "confirmDelete": "Bu dışa aktarmayı silmek istediğinizden emin misiniz?",
+    "exportDeleted": "Dışa aktarma silindi",
+    "deleteError": "Dışa aktarma silinemedi",
+    "selectExport": "Bir dışa aktarma seçin",
+    "selectExportDesc": "Biçimini yapılandırmak için listeden önbelleğe alınmış bir dışa aktarma seçin",
+    "formatConfig": "Biçim Yapılandırması",
+    "template": "Çıktı Şablonu",
+    "templates": {
+      "plain": "Düz Metin",
+      "custom": "Özel"
+    },
+    "customTemplate": "Özel Şablon",
+    "customTemplateHint": "{{#each messages}}...{{/each}} içinde {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} kullanın",
+    "includeSenderName": "Gönderen adını dahil et",
+    "includeSenderUsername": "@kullanıcıadını dahil et",
+    "useOriginalNames": "Orijinal isimleri kullan",
+    "useOriginalNamesHint": "Kişi listenizdeki ad yerine kişinin Telegram görünen adını kullanın",
+    "includeReplyContext": "Yanıt bağlamını dahil et",
+    "includeDate": "Tarihleri dahil et",
+    "includeMessageIds": "Mesaj kimliklerini dahil et",
+    "reverseOrder": "En eskiler önce (LLM'ler için önerilir)",
+    "dateFormat": "Tarih biçimi",
+    "dateFormats": {
+      "short": "Kısa (10 Oca)",
+      "long": "Uzun (Cmt, 10 Oca 2024)",
+      "timeOnly": "Sadece saat (10:30 ÖÖ)",
+      "none": "Tarihleri gizle"
+    },
+    "dateGrouping": "Tarih gruplaması",
+    "dateGroupingHint": "Günlük (tarihi günde bir kez göstererek jeton tasarrufu sağlar)",
+    "dateGroupings": {
+      "perMessage": "Mesaj başına",
+      "perDay": "Gün başına (jeton tasarrufu)"
+    },
+    "mediaPlaceholder": "Medya mesajları",
+    "mediaOptions": {
+      "bracket": "[fotoğraf], [video] vb. olarak göster",
+      "emoji": "Emoji olarak göster (📷, 🎬 vb.)",
+      "skip": "Medya mesajlarını atla"
+    },
+    "outputLimit": "Çıktı mesaj sınırı",
+    "outputLimitHint": "0 = tüm mesajları dahil et",
+    "chars": "karakter",
+    "lines": "satır",
+    "tokens": "jeton (tahmini)",
+    "copy": "Kopyala",
+    "download": "İndir",
+    "copiedToClipboard": "Panoya kopyalandı!",
+    "copyError": "Panoya kopyalanamadı",
+    "preview": "Canlı Önizleme",
+    "noPreview": "Önizlemeyi görmek için bir dışa aktarma yapılandırın",
+    "previewNote": "İlk 15 mesaj gösteriliyor. Tam çıktı tüm mesajları içerecektir."
   }
 }

@@ -126,7 +126,7 @@
     },
     "scheduled": {
       "name": "الرسائل المجدولة",
-      "description": "عرض وإدارة رسائلك المجدولة عبر جميع المحادثات"
+      "description": "إدارة رسائلك المجدولة"
     },
     "llmExport": {
       "name": "تصدير سياق LLM",
@@ -367,5 +367,85 @@
     "deleteSuccess": "تم حذف الرسائل المجدولة بنجاح",
     "exportSuccess": "تم تصدير الرسائل المجدولة إلى JSON",
     "cancelled": "تم إلغاء العملية"
+  },
+  "llmExport": {
+    "title": "تصدير سياق LLM",
+    "description": "تصدير سجل المحادثات بتنسيق مناسب لمساعدي الذكاء الاصطناعي مثل Claude",
+    "newExport": "تصدير جديد",
+    "myExports": "تصديراتي",
+    "selectChat": "اختر محادثة للتصدير",
+    "searchChats": "بحث في المحادثات...",
+    "loadingChats": "جاري تحميل المحادثات...",
+    "noChatsFound": "لا توجد محادثات تطابق بحثك",
+    "noChats": "لم يتم العثور على محادثات",
+    "downloadOptions": "خيارات التنزيل",
+    "messageLimit": "حد الرسائل",
+    "noLimit": "بلا حد (جميع الرسائل)",
+    "fromDate": "من تاريخ",
+    "toDate": "إلى تاريخ",
+    "startDownload": "تنزيل سجل المحادثة",
+    "downloading": "جاري التنزيل...",
+    "messages": "رسائل",
+    "downloadComplete": "تم تنزيل سجل المحادثة بنجاح!",
+    "downloadCancelled": "تم إلغاء التنزيل",
+    "rateLimited": "تم تجاوز حد المعدل. الانتظار {seconds} ثانية...",
+    "infoTitle": "نزل مرة واحدة، ونسق عدة مرات",
+    "infoDescription": "يتم تخزين سجل المحادثة محليًا. بعد التنزيل، يمكنك تجربة تنسيقات إخراج مختلفة فورًا دون إعادة التنزيل.",
+    "cachedExports": "التصديرات المخزنة مؤقتًا",
+    "noExports": "لا توجد تصديرات بعد",
+    "noExportsHint": "نزل محادثة للبدء",
+    "exported": "تم التصدير",
+    "confirmDelete": "هل أنت متأكد أنك تريد حذف هذا التصدير؟",
+    "exportDeleted": "تم حذف التصدير",
+    "deleteError": "فشل حذف التصدير",
+    "selectExport": "اختر تصديرًا",
+    "selectExportDesc": "اختر تصديرًا مخزنًا من القائمة لتكوين تنسيقه",
+    "formatConfig": "تكوين التنسيق",
+    "template": "قالب الإخراج",
+    "templates": {
+      "plain": "نص عادي",
+      "custom": "مخصص"
+    },
+    "customTemplate": "قالب مخصص",
+    "customTemplateHint": "استخدم {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} داخل {{#each messages}}...{{/each}}",
+    "includeSenderName": "تضمين اسم المرسل",
+    "includeSenderUsername": "تضمين اسم المستخدم @",
+    "useOriginalNames": "استخدام الأسماء الأصلية",
+    "useOriginalNamesHint": "استخدام اسم عرض الشخص في تيليجرام بدلاً من اسمه في جهات اتصالك",
+    "includeReplyContext": "تضمين سياق الرد",
+    "includeDate": "تضمين التواريخ",
+    "includeMessageIds": "تضمين معرفات الرسائل",
+    "reverseOrder": "الأقدم أولاً (موصى به لـ LLMs)",
+    "dateFormat": "تنسيق التاريخ",
+    "dateFormats": {
+      "short": "قصير (10 يناير)",
+      "long": "طويل (السبت، 10 يناير 2024)",
+      "timeOnly": "وقت فقط (10:30 ص)",
+      "none": "إخفاء التواريخ"
+    },
+    "dateGrouping": "تجميع التاريخ",
+    "dateGroupingHint": "لكل يوم يوفر الرموز (Tokens) بإظهار التاريخ مرة واحدة يوميًا",
+    "dateGroupings": {
+      "perMessage": "لكل رسالة",
+      "perDay": "لكل يوم (يوفر الرموز)"
+    },
+    "mediaPlaceholder": "رسائل الوسائط",
+    "mediaOptions": {
+      "bracket": "إظهار كـ [صورة]، [فيديو]، إلخ.",
+      "emoji": "إظهار كرموز تعبيرية (📷، 🎬، إلخ.)",
+      "skip": "تخطي رسائل الوسائط"
+    },
+    "outputLimit": "حد رسائل الإخراج",
+    "outputLimitHint": "0 = تضمين جميع الرسائل",
+    "chars": "حرف",
+    "lines": "سطر",
+    "tokens": "رموز (تقريبي)",
+    "copy": "نسخ",
+    "download": "تنزيل",
+    "copiedToClipboard": "تم النسخ إلى الحافظة!",
+    "copyError": "فشل النسخ إلى الحافظة",
+    "preview": "معاينة حية",
+    "noPreview": "قم بتكوين تصدير لرؤية المعاينة",
+    "previewNote": "يتم عرض أول 15 رسالة. سيتضمن الإخراج الكامل جميع الرسائل."
   }
 }

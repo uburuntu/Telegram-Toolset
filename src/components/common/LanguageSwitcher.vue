@@ -6,7 +6,7 @@ const isOpen = ref(false)
 
 const languages: { code: SupportedLocale; flag: string; name: string }[] = [
   { code: 'id', flag: '🇮🇩', name: 'Bahasa Indonesia' },
-  { code: 'en', flag: '🇺🇸', name: 'English' },
+  { code: 'en', flag: '🇬🇧', name: 'English' },
   { code: 'es', flag: '🇪🇸', name: 'Español' },
   { code: 'uz', flag: '🇺🇿', name: 'Oʻzbek' },
   { code: 'pt', flag: '🇵🇹', name: 'Português' },

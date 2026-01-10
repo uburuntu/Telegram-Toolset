@@ -126,7 +126,7 @@
     },
     "scheduled": {
       "name": "Pesan Terjadwal",
-      "description": "Lihat dan kelola pesan terjadwal Anda di semua obrolan"
+      "description": "Kelola pesan terjadwal Anda"
     },
     "llmExport": {
       "name": "Ekspor Konteks LLM",
@@ -225,7 +225,7 @@
     "complete": "Selesai!",
     "errorOccurred": "Terjadi kesalahan",
     "cancelled": "Dibatalkan",
-    "rateLimited": "Batas laju tercapai. Melanjutkan dalam {seconds} detik...",
+    "rateLimited": "Batas kecepatan tercapai. Melanjutkan dalam {seconds} detik...",
     "messages": "{count} pesan",
     "textMessages": "{count} pesan teks",
     "mediaFiles": "{count} file media",
@@ -367,5 +367,85 @@
     "deleteSuccess": "Pesan terjadwal berhasil dihapus",
     "exportSuccess": "Pesan terjadwal diekspor ke JSON",
     "cancelled": "Operasi dibatalkan"
+  },
+  "llmExport": {
+    "title": "Ekspor Konteks LLM",
+    "description": "Ekspor riwayat obrolan yang diformat untuk asisten AI seperti Claude",
+    "newExport": "Ekspor Baru",
+    "myExports": "Ekspor Saya",
+    "selectChat": "Pilih obrolan untuk diekspor",
+    "searchChats": "Cari obrolan...",
+    "loadingChats": "Memuat obrolan...",
+    "noChatsFound": "Tidak ada obrolan yang cocok dengan pencarian Anda",
+    "noChats": "Tidak ada obrolan ditemukan",
+    "downloadOptions": "Opsi Unduhan",
+    "messageLimit": "Batas pesan",
+    "noLimit": "Tanpa batas (semua pesan)",
+    "fromDate": "Dari tanggal",
+    "toDate": "Sampai tanggal",
+    "startDownload": "Unduh Riwayat Obrolan",
+    "downloading": "Mengunduh...",
+    "messages": "pesan",
+    "downloadComplete": "Riwayat obrolan berhasil diunduh!",
+    "downloadCancelled": "Unduhan dibatalkan",
+    "rateLimited": "Batas laju tercapai. Menunggu {seconds} detik...",
+    "infoTitle": "Unduh sekali, format berkali-kali",
+    "infoDescription": "Riwayat obrolan di-cache secara lokal. Setelah mengunduh, Anda dapat bereksperimen dengan berbagai format output secara instan tanpa mengunduh ulang.",
+    "cachedExports": "Ekspor Tersimpan",
+    "noExports": "Belum ada ekspor",
+    "noExportsHint": "Unduh obrolan untuk memulai",
+    "exported": "Diekspor",
+    "confirmDelete": "Apakah Anda yakin ingin menghapus ekspor ini?",
+    "exportDeleted": "Ekspor dihapus",
+    "deleteError": "Gagal menghapus ekspor",
+    "selectExport": "Pilih ekspor",
+    "selectExportDesc": "Pilih ekspor tersimpan dari daftar untuk mengonfigurasi formatnya",
+    "formatConfig": "Konfigurasi Format",
+    "template": "Templat Output",
+    "templates": {
+      "plain": "Teks Biasa",
+      "custom": "Kustom"
+    },
+    "customTemplate": "Templat Kustom",
+    "customTemplateHint": "Gunakan {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} di dalam {{#each messages}}...{{/each}}",
+    "includeSenderName": "Sertakan nama pengirim",
+    "includeSenderUsername": "Sertakan @username",
+    "useOriginalNames": "Gunakan nama asli",
+    "useOriginalNamesHint": "Gunakan nama tampilan Telegram orang tersebut alih-alih nama kontak Anda untuk mereka",
+    "includeReplyContext": "Sertakan konteks balasan",
+    "includeDate": "Sertakan tanggal",
+    "includeMessageIds": "Sertakan ID pesan",
+    "reverseOrder": "Terlama dulu (disarankan untuk LLM)",
+    "dateFormat": "Format tanggal",
+    "dateFormats": {
+      "short": "Pendek (10 Jan)",
+      "long": "Panjang (Sab, 10 Jan 2024)",
+      "timeOnly": "Hanya waktu (10:30 AM)",
+      "none": "Sembunyikan tanggal"
+    },
+    "dateGrouping": "Pengelompokan tanggal",
+    "dateGroupingHint": "Per hari menghemat token dengan menampilkan tanggal sekali per hari",
+    "dateGroupings": {
+      "perMessage": "Per pesan",
+      "perDay": "Per hari (hemat token)"
+    },
+    "mediaPlaceholder": "Pesan media",
+    "mediaOptions": {
+      "bracket": "Tampilkan sebagai [foto], [video], dll.",
+      "emoji": "Tampilkan sebagai emoji (📷, 🎬, dll.)",
+      "skip": "Lewati pesan media"
+    },
+    "outputLimit": "Batas pesan output",
+    "outputLimitHint": "0 = sertakan semua pesan",
+    "chars": "karakter",
+    "lines": "baris",
+    "tokens": "token (perkiraan)",
+    "copy": "Salin",
+    "download": "Unduh",
+    "copiedToClipboard": "Disalin ke papan klip!",
+    "copyError": "Gagal menyalin ke papan klip",
+    "preview": "Pratinjau Langsung",
+    "noPreview": "Konfigurasikan ekspor untuk melihat pratinjau",
+    "previewNote": "Menampilkan 15 pesan pertama. Output penuh akan menyertakan semua pesan."
   }
 }
