@@ -343,6 +343,7 @@
     "foundTotal": "Found {count} scheduled messages",
     "noMessages": "No Scheduled Messages",
     "noMessagesDesc": "You don't have any scheduled messages in this chat",
+    "noMessagesDescAll": "No scheduled messages found in any of your chats",
     "selectAll": "Select all",
     "exportJson": "Export JSON",
     "deleteSelected": "Delete ({count})",

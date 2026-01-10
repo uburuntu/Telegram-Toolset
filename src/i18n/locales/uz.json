@@ -343,6 +343,7 @@
     "foundTotal": "{count} ta rejalashtirilgan xabar topildi",
     "noMessages": "Rejalashtirilgan xabarlar yo'q",
     "noMessagesDesc": "Ushbu chatda rejalashtirilgan xabarlaringiz yo'q",
+    "noMessagesDescAll": "Hech qaysi chatlaringizda rejalashtirilgan xabarlar topilmadi",
     "selectAll": "Hammasini tanlash",
     "exportJson": "JSON eksport qilish",
     "deleteSelected": "O'chirish ({count})",

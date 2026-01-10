@@ -60,6 +60,9 @@ class TelegramService {
   private reconnectAttempts = 0
   private connectionStateListeners: Set<(state: ConnectionState) => void> = new Set()
 
+  // Flood wait event listeners
+  private floodWaitListeners: Set<(seconds: number, method: string) => void> = new Set()
+
   // Race-free initialization orchestrator: if an account switch/init is in-flight, callers can await this.
   private _activeAccountInitPromise: Promise<boolean> | null = null
 
@@ -98,6 +101,67 @@ class TelegramService {
   }
 
   /**
+   * Subscribe to flood wait events from GramJS
+   * Callback receives wait time in seconds and the API method that triggered it
+   */
+  onFloodWait(listener: (seconds: number, method: string) => void): () => void {
+    this.floodWaitListeners.add(listener)
+    return () => this.floodWaitListeners.delete(listener)
+  }
+
+  private emitFloodWait(seconds: number, method: string): void {
+    this.floodWaitListeners.forEach((listener) => listener(seconds, method))
+  }
+
+  /**
+   * Custom logger that intercepts GramJS flood wait messages
+   * GramJS expects a logger with info/warn/error/debug methods
+   */
+  private createCustomLogger() {
+    const self = this
+
+    const processMessage = (message: string) => {
+      // Check for flood wait messages: "Sleeping for Xs on flood wait (Caused by ...)"
+      const floodMatch = message.match(/Sleeping for (\d+)s on flood wait \(Caused by ([^)]+)\)/)
+      if (floodMatch) {
+        const seconds = parseInt(floodMatch[1]!, 10)
+        const method = floodMatch[2] || 'unknown'
+        self.emitFloodWait(seconds, method)
+      }
+    }
+
+    return {
+      info: (message: string) => {
+        processMessage(message)
+        console.log(`[GramJS] ${message}`)
+      },
+      warn: (message: string) => {
+        processMessage(message)
+        console.warn(`[GramJS] ${message}`)
+      },
+      error: (message: string) => {
+        processMessage(message)
+        console.error(`[GramJS] ${message}`)
+      },
+      debug: (message: string) => {
+        processMessage(message)
+        // Only log debug in development
+        if (import.meta.env.DEV) {
+          console.debug(`[GramJS] ${message}`)
+        }
+      },
+      // Some GramJS versions also use these
+      log: (message: string) => {
+        processMessage(message)
+        console.log(`[GramJS] ${message}`)
+      },
+      setLevel: () => {
+        // No-op, we handle all levels
+      },
+    }
+  }
+
+  /**
    * Initialize client with API credentials
    */
   async initClient(apiId: number, apiHash: string): Promise<void> {
@@ -121,6 +185,8 @@ class TelegramService {
       appVersion: '1.0',
       langCode: lang,
       systemLangCode: lang,
+      // @ts-expect-error - GramJS accepts a custom logger but types are incomplete
+      baseLogger: this.createCustomLogger(),
     })
   }
 
@@ -583,6 +649,7 @@ class TelegramService {
         username: 'username' in entity ? entity.username || undefined : undefined,
         canExport,
         canSend,
+        isAdmin: hasAdminRights || isCreator,
         lastMessageDate: dialog.message?.date ? new Date(dialog.message.date * 1000) : undefined,
       })
     }
@@ -1120,8 +1187,10 @@ class TelegramService {
 
     const messages: ScheduledMessage[] = []
 
-    // Handle different response types
-    const msgList = 'messages' in result ? result.messages : []
+    // Handle different response types - guard against null/undefined messages
+    // Some response types (like MessagesNotModified) don't have messages
+    const msgList =
+      'messages' in result && Array.isArray(result.messages) ? result.messages : []
 
     for (const msg of msgList) {
       if (!(msg instanceof Api.Message)) continue

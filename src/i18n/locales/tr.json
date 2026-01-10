@@ -343,6 +343,7 @@
     "foundTotal": "{count} zamanlanmış mesaj bulundu",
     "noMessages": "Zamanlanmış Mesaj Yok",
     "noMessagesDesc": "Bu sohbette hiç zamanlanmış mesajınız yok",
+    "noMessagesDescAll": "Hiçbir sohbetinizde zamanlanmış mesaj bulunamadı",
     "selectAll": "Tümünü seç",
     "exportJson": "JSON Dışa Aktar",
     "deleteSelected": "Sil ({count})",
