@@ -50,6 +50,19 @@ export const modules: ToolModule[] = [
     },
     requiredPermissions: ['send_messages'],
   },
+  {
+    id: 'scheduled',
+    name: 'Scheduled Messages',
+    description: 'View and manage your scheduled messages across all chats',
+    icon: 'clock',
+    accountType: 'user',
+    route: {
+      path: '/scheduled',
+      name: 'scheduled',
+      component: () => import('./scheduled/ScheduledView.vue'),
+      meta: { requiresAuth: true, accountType: 'user' },
+    },
+  },
 ]
 
 /**

@@ -123,6 +123,10 @@
     "resend": {
       "name": "Xabarlarni qayta yuborish",
       "description": "Oldin eksport qilingan xabarlarni istalgan chatga qayta yuborish"
+    },
+    "scheduled": {
+      "name": "Rejalashtirilgan xabarlar",
+      "description": "Barcha chatlardagi rejalashtirilgan xabarlaringizni ko'rish va boshqarish"
     }
   },
   "accountInfo": {
@@ -314,5 +318,38 @@
     "failedMessage": "{count} xabarni yuborib bo'lmadi",
     "backToHome": "Bosh sahifaga qaytish",
     "resendAnother": "Boshqasini qayta yuborish"
+  },
+  "scheduled": {
+    "title": "Rejalashtirilgan xabarlar",
+    "description": "Rejalashtirilgan xabarlaringizni ko'rish va boshqarish",
+    "singleChat": "Bitta Chat",
+    "singleChatDesc": "Muayyan chatdan rejalashtirilgan xabarlarni ko'rish",
+    "allChats": "Barcha Chatlar",
+    "allChatsDesc": "Rejalashtirilgan xabarlar uchun eng so'nggi chatlaringizni tekshirish",
+    "selectChat": "Chatni tanlang",
+    "selectChatDesc": "Rejalashtirilgan xabarlarni ko'rish uchun chatni tanlang",
+    "configureScan": "Tekshiruvni sozlash",
+    "configureScanDesc": "Rejalashtirilgan xabarlar uchun qancha chatni tekshirishni tanlang",
+    "chatLimit": "Tekshiriladigan chatlar soni",
+    "chatLimitHint": "Eng so'nggi chatlaringizni tekshiradi (so'nggi xabar sanasi bo'yicha tartiblangan). Ko'proq chatlar = uzoqroq tekshirish vaqti.",
+    "scanInfo": "Tekshiruv rejalashtirilgan xabarlar uchun eng so'nggi chatlaringizning har birini tekshiradi. Bu siz tanlagan chatlar soniga qarab biroz vaqt olishi mumkin.",
+    "startScan": "Tekshiruvni boshlash",
+    "loading": "Rejalashtirilgan xabarlar yuklanmoqda",
+    "loadingMessages": "Rejalashtirilgan xabarlar yuklanmoqda...",
+    "scanning": "Chatlar tekshirilmoqda...",
+    "progressChats": "{total} ta chatdan {current} tasi tekshirildi",
+    "foundMessages": "{count} ta rejalashtirilgan xabar topildi",
+    "results": "Rejalashtirilgan xabarlar",
+    "foundTotal": "{count} ta rejalashtirilgan xabar topildi",
+    "noMessages": "Rejalashtirilgan xabarlar yo'q",
+    "noMessagesDesc": "Ushbu chatda rejalashtirilgan xabarlaringiz yo'q",
+    "selectAll": "Hammasini tanlash",
+    "exportJson": "JSON eksport qilish",
+    "deleteSelected": "O'chirish ({count})",
+    "messageCount": "{count} xabar",
+    "confirmDelete": "Siz {count} ta rejalashtirilgan xabarni o'chirmoqchimisiz? Bu amalni bekor qilib bo'lmaydi.",
+    "deleteSuccess": "Rejalashtirilgan xabarlar muvaffaqiyatli o'chirildi",
+    "exportSuccess": "Rejalashtirilgan xabarlar JSON formatida eksport qilindi",
+    "cancelled": "Amal bekor qilindi"
   }
 }

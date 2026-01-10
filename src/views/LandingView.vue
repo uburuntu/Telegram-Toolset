@@ -38,6 +38,7 @@ function getModuleName(moduleId: string): string {
     'account-info': 'modules.accountInfo.name',
     'export-deleted': 'modules.exportDeleted.name',
     resend: 'modules.resend.name',
+    scheduled: 'modules.scheduled.name',
   }
   return t(keyMap[moduleId] || moduleId)
 }
@@ -47,6 +48,7 @@ function getModuleDescription(moduleId: string): string {
     'account-info': 'modules.accountInfo.description',
     'export-deleted': 'modules.exportDeleted.description',
     resend: 'modules.resend.description',
+    scheduled: 'modules.scheduled.description',
   }
   return t(keyMap[moduleId] || moduleId)
 }

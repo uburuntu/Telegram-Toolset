@@ -123,6 +123,10 @@
     "resend": {
       "name": "Reenviar Mensagens",
       "description": "Reenvie mensagens exportadas anteriormente para qualquer chat"
+    },
+    "scheduled": {
+      "name": "Mensagens Agendadas",
+      "description": "Veja e gerencie suas mensagens agendadas em todos os chats"
     }
   },
   "accountInfo": {
@@ -314,5 +318,38 @@
     "failedMessage": "{count} mensagem(ns) falharam ao enviar",
     "backToHome": "Voltar ao Início",
     "resendAnother": "Reenviar Outro"
+  },
+  "scheduled": {
+    "title": "Mensagens Agendadas",
+    "description": "Veja e gerencie suas mensagens agendadas",
+    "singleChat": "Chat Único",
+    "singleChatDesc": "Ver mensagens agendadas de um chat específico",
+    "allChats": "Todos os Chats",
+    "allChatsDesc": "Verificar seus chats mais recentes em busca de mensagens agendadas",
+    "selectChat": "Selecionar Chat",
+    "selectChatDesc": "Escolha um chat para ver as mensagens agendadas",
+    "configureScan": "Configurar Verificação",
+    "configureScanDesc": "Escolha quantos chats verificar em busca de mensagens agendadas",
+    "chatLimit": "Número de chats para verificar",
+    "chatLimitHint": "Verifica seus chats mais recentes (ordenados pela data da última mensagem). Mais chats = maior tempo de verificação.",
+    "scanInfo": "A verificação checará cada um dos seus chats mais recentes em busca de mensagens agendadas. Isso pode levar algum tempo dependendo de quantos chats você selecionar.",
+    "startScan": "Iniciar Verificação",
+    "loading": "Carregando Mensagens Agendadas",
+    "loadingMessages": "Carregando mensagens agendadas...",
+    "scanning": "Verificando chats...",
+    "progressChats": "Verificado {current} de {total} chats",
+    "foundMessages": "Encontradas {count} mensagens agendadas",
+    "results": "Mensagens Agendadas",
+    "foundTotal": "Encontradas {count} mensagens agendadas",
+    "noMessages": "Nenhuma Mensagem Agendada",
+    "noMessagesDesc": "Você não tem nenhuma mensagem agendada neste chat",
+    "selectAll": "Selecionar tudo",
+    "exportJson": "Exportar JSON",
+    "deleteSelected": "Excluir ({count})",
+    "messageCount": "{count} mensagem | {count} mensagens",
+    "confirmDelete": "Tem certeza de que deseja excluir {count} mensagem(ns) agendada(s)? Esta ação não pode ser desfeita.",
+    "deleteSuccess": "Mensagens agendadas excluídas com sucesso",
+    "exportSuccess": "Mensagens agendadas exportadas para JSON",
+    "cancelled": "Operação cancelada"
   }
 }

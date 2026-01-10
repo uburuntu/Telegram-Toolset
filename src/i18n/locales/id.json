@@ -123,6 +123,10 @@
     "resend": {
       "name": "Kirim Ulang Pesan",
       "description": "Kirim ulang pesan yang diekspor sebelumnya ke obrolan mana pun"
+    },
+    "scheduled": {
+      "name": "Pesan Terjadwal",
+      "description": "Lihat dan kelola pesan terjadwal Anda di semua obrolan"
     }
   },
   "accountInfo": {
@@ -314,5 +318,38 @@
     "failedMessage": "{count} pesan gagal dikirim",
     "backToHome": "Kembali ke Beranda",
     "resendAnother": "Kirim Ulang Lainnya"
+  },
+  "scheduled": {
+    "title": "Pesan Terjadwal",
+    "description": "Lihat dan kelola pesan terjadwal Anda",
+    "singleChat": "Satu Obrolan",
+    "singleChatDesc": "Lihat pesan terjadwal dari obrolan tertentu",
+    "allChats": "Semua Obrolan",
+    "allChatsDesc": "Pindai obrolan terbaru Anda untuk pesan terjadwal",
+    "selectChat": "Pilih Obrolan",
+    "selectChatDesc": "Pilih obrolan untuk melihat pesan terjadwal",
+    "configureScan": "Konfigurasi Pemindaian",
+    "configureScanDesc": "Pilih berapa banyak obrolan yang akan dipindai untuk pesan terjadwal",
+    "chatLimit": "Jumlah obrolan yang akan dipindai",
+    "chatLimitHint": "Memindai obrolan terbaru Anda (diurutkan berdasarkan tanggal pesan terakhir). Lebih banyak obrolan = waktu pemindaian lebih lama.",
+    "scanInfo": "Pemindaian akan memeriksa setiap obrolan terbaru Anda untuk pesan terjadwal. Ini mungkin memakan waktu tergantung pada berapa banyak obrolan yang Anda pilih.",
+    "startScan": "Mulai Pemindaian",
+    "loading": "Memuat Pesan Terjadwal",
+    "loadingMessages": "Memuat pesan terjadwal...",
+    "scanning": "Memindai obrolan...",
+    "progressChats": "Memindai {current} dari {total} obrolan",
+    "foundMessages": "Ditemukan {count} pesan terjadwal",
+    "results": "Pesan Terjadwal",
+    "foundTotal": "Ditemukan {count} pesan terjadwal",
+    "noMessages": "Tidak Ada Pesan Terjadwal",
+    "noMessagesDesc": "Anda tidak memiliki pesan terjadwal di obrolan ini",
+    "selectAll": "Pilih semua",
+    "exportJson": "Ekspor JSON",
+    "deleteSelected": "Hapus ({count})",
+    "messageCount": "{count} pesan",
+    "confirmDelete": "Apakah Anda yakin ingin menghapus {count} pesan terjadwal? Tindakan ini tidak dapat dibatalkan.",
+    "deleteSuccess": "Pesan terjadwal berhasil dihapus",
+    "exportSuccess": "Pesan terjadwal diekspor ke JSON",
+    "cancelled": "Operasi dibatalkan"
   }
 }

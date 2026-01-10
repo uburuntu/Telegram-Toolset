@@ -123,6 +123,10 @@
     "resend": {
       "name": "Mesajları Yeniden Gönder",
       "description": "Daha önce dışa aktarılan mesajları herhangi bir sohbete yeniden gönderin"
+    },
+    "scheduled": {
+      "name": "Zamanlanmış Mesajlar",
+      "description": "Tüm sohbetlerdeki zamanlanmış mesajlarınızı görüntüleyin ve yönetin"
     }
   },
   "accountInfo": {
@@ -314,5 +318,38 @@
     "failedMessage": "{count} mesaj gönderilemedi",
     "backToHome": "Ana Sayfaya Dön",
     "resendAnother": "Başka Bir Yeniden Gönder"
+  },
+  "scheduled": {
+    "title": "Zamanlanmış Mesajlar",
+    "description": "Zamanlanmış mesajlarınızı görüntüleyin ve yönetin",
+    "singleChat": "Tek Sohbet",
+    "singleChatDesc": "Belirli bir sohbetten zamanlanmış mesajları görüntüle",
+    "allChats": "Tüm Sohbetler",
+    "allChatsDesc": "Zamanlanmış mesajlar için en son sohbetlerinizi tarayın",
+    "selectChat": "Sohbet Seç",
+    "selectChatDesc": "Zamanlanmış mesajları görüntülemek için bir sohbet seçin",
+    "configureScan": "Tarama Ayarları",
+    "configureScanDesc": "Zamanlanmış mesajlar için kaç sohbet taranacağını seçin",
+    "chatLimit": "Taranacak sohbet sayısı",
+    "chatLimitHint": "En son sohbetlerinizi tarar (son mesaj tarihine göre sıralı). Daha fazla sohbet = daha uzun tarama süresi.",
+    "scanInfo": "Tarama, zamanlanmış mesajlar için en son sohbetlerinizin her birini kontrol edecektir. Bu işlem seçtiğiniz sohbet sayısına bağlı olarak biraz zaman alabilir.",
+    "startScan": "Taramayı Başlat",
+    "loading": "Zamanlanmış Mesajlar Yükleniyor",
+    "loadingMessages": "Zamanlanmış mesajlar yükleniyor...",
+    "scanning": "Sohbetler taranıyor...",
+    "progressChats": "{total} sohbetten {current} tanesi tarandı",
+    "foundMessages": "{count} zamanlanmış mesaj bulundu",
+    "results": "Zamanlanmış Mesajlar",
+    "foundTotal": "{count} zamanlanmış mesaj bulundu",
+    "noMessages": "Zamanlanmış Mesaj Yok",
+    "noMessagesDesc": "Bu sohbette hiç zamanlanmış mesajınız yok",
+    "selectAll": "Tümünü seç",
+    "exportJson": "JSON Dışa Aktar",
+    "deleteSelected": "Sil ({count})",
+    "messageCount": "{count} mesaj",
+    "confirmDelete": "{count} zamanlanmış mesajı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+    "deleteSuccess": "Zamanlanmış mesajlar başarıyla silindi",
+    "exportSuccess": "Zamanlanmış mesajlar JSON'a dışa aktarıldı",
+    "cancelled": "İşlem iptal edildi"
   }
 }
