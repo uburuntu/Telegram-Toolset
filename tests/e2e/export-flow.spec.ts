@@ -19,14 +19,16 @@ async function setupMockedAuth(page: Page) {
       username: 'testuser',
       phone: '+1234567890',
       sessionString: 'mock_session_string',
-      apiId: 12345,
-      apiHash: 'mock_api_hash',
       createdAt: new Date().toISOString(),
       lastUsedAt: new Date().toISOString(),
     }
 
     localStorage.setItem('telegram_accounts', JSON.stringify([mockAccount]))
     localStorage.setItem('telegram_active_account', '123456789')
+    localStorage.setItem(
+      'telegram_api_credentials',
+      JSON.stringify({ apiId: 12345, apiHash: 'mock_api_hash' }),
+    )
 
     // Prevent the privacy notice modal from blocking clicks in E2E.
     localStorage.setItem('privacy_notice_seen', 'true')

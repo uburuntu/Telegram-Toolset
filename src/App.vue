@@ -78,7 +78,8 @@ watch(
     }
 
     if (!account || account.type !== 'user') return
-    if (!account.apiId || !account.apiHash) return
+    const creds = accountsStore.apiCredentials
+    if (!creds) return
 
     // Check for useUserAccountSession method (may be missing in E2E mocks)
     if (!('useUserAccountSession' in telegramService)) return
@@ -93,8 +94,8 @@ watch(
     try {
       await useSession({
         sessionString: account.sessionString,
-        apiId: account.apiId,
-        apiHash: account.apiHash,
+        apiId: creds.apiId,
+        apiHash: creds.apiHash,
       })
     } catch {
       // Don't spam on startup; module UIs will show their own errors/reconnect UI if needed.

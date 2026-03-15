@@ -4,6 +4,15 @@
 
 export type AccountType = 'user' | 'bot'
 
+/**
+ * Telegram API credentials (app-level, shared across all user accounts).
+ * Obtained from https://my.telegram.org/auth
+ */
+export interface ApiCredentials {
+  apiId: number
+  apiHash: string
+}
+
 export interface SavedAccount {
   id: string
   type: AccountType
@@ -13,8 +22,6 @@ export interface SavedAccount {
 
   // User account specific
   phone?: string
-  apiId?: number
-  apiHash?: string
 
   // Bot account specific
   botToken?: string
@@ -30,21 +37,6 @@ export interface SavedAccount {
   // Metadata
   createdAt: Date
   lastUsedAt: Date
-}
-
-export interface AccountsState {
-  accounts: SavedAccount[]
-  activeAccountId: string | null
-}
-
-export interface AddUserAccountParams {
-  phone: string
-  apiId: number
-  apiHash: string
-}
-
-export interface AddBotAccountParams {
-  botToken: string
 }
 
 export interface AuthFlowState {

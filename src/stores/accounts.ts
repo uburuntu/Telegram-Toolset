@@ -5,15 +5,17 @@
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, ref } from 'vue'
-import type { AccountType, AuthFlowState, SavedAccount } from '@/types/account'
+import type { AccountType, ApiCredentials, AuthFlowState, SavedAccount } from '@/types/account'
 
 const ACCOUNTS_STORAGE_KEY = 'telegram_accounts'
 const ACTIVE_ACCOUNT_KEY = 'telegram_active_account'
+const API_CREDENTIALS_KEY = 'telegram_api_credentials'
 
 export const useAccountsStore = defineStore('accounts', () => {
   // State
   const accounts = ref<SavedAccount[]>([])
   const activeAccountId = ref<string | null>(null)
+  const apiCredentials = ref<ApiCredentials | null>(null)
   const authFlow = ref<AuthFlowState>({
     step: 'idle',
     accountType: 'user',
@@ -34,12 +36,6 @@ export const useAccountsStore = defineStore('accounts', () => {
 
   const hasBotAccount = computed(() => botAccounts.value.length > 0)
 
-  // Get stored API credentials from any existing user account
-  const storedApiCredentials = computed(() => {
-    const userWithCreds = userAccounts.value.find((a) => a.apiId && a.apiHash)
-    return userWithCreds ? { apiId: userWithCreds.apiId!, apiHash: userWithCreds.apiHash! } : null
-  })
-
   const isActiveAccountUser = computed(() => activeAccount.value?.type === 'user')
 
   const isActiveAccountBot = computed(() => activeAccount.value?.type === 'bot')
@@ -50,16 +46,30 @@ export const useAccountsStore = defineStore('accounts', () => {
       const storedAccounts = localStorage.getItem(ACCOUNTS_STORAGE_KEY)
       if (storedAccounts) {
         const parsed = JSON.parse(storedAccounts)
-        accounts.value = parsed.map((a: SavedAccount) => ({
-          ...a,
-          createdAt: new Date(a.createdAt),
-          lastUsedAt: new Date(a.lastUsedAt),
-        }))
+        accounts.value = parsed.map((a: SavedAccount & { apiId?: number; apiHash?: string }) => {
+          // Migrate: if account has apiId/apiHash from old format, extract them
+          if (a.apiId && a.apiHash && !apiCredentials.value) {
+            apiCredentials.value = { apiId: a.apiId, apiHash: a.apiHash }
+            saveApiCredentials()
+          }
+          const { apiId: _, apiHash: __, ...rest } = a
+          return {
+            ...rest,
+            createdAt: new Date(a.createdAt),
+            lastUsedAt: new Date(a.lastUsedAt),
+          }
+        })
       }
 
       const storedActive = localStorage.getItem(ACTIVE_ACCOUNT_KEY)
       if (storedActive && accounts.value.some((a) => a.id === storedActive)) {
         activeAccountId.value = storedActive
+      }
+
+      // Load API credentials from dedicated storage
+      const storedCreds = localStorage.getItem(API_CREDENTIALS_KEY)
+      if (storedCreds) {
+        apiCredentials.value = JSON.parse(storedCreds)
       }
     } catch (e) {
       console.error('Failed to load accounts from storage:', e)
@@ -77,6 +87,23 @@ export const useAccountsStore = defineStore('accounts', () => {
     } catch (e) {
       console.error('Failed to save accounts to storage:', e)
     }
+  }
+
+  function saveApiCredentials(): void {
+    try {
+      if (apiCredentials.value) {
+        localStorage.setItem(API_CREDENTIALS_KEY, JSON.stringify(apiCredentials.value))
+      } else {
+        localStorage.removeItem(API_CREDENTIALS_KEY)
+      }
+    } catch (e) {
+      console.error('Failed to save API credentials to storage:', e)
+    }
+  }
+
+  function setApiCredentials(creds: ApiCredentials): void {
+    apiCredentials.value = creds
+    saveApiCredentials()
   }
 
   function addAccount(
@@ -183,6 +210,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     // State
     accounts,
     activeAccountId,
+    apiCredentials,
     authFlow,
     // Getters
     activeAccount,
@@ -191,7 +219,6 @@ export const useAccountsStore = defineStore('accounts', () => {
     hasAnyAccount,
     hasUserAccount,
     hasBotAccount,
-    storedApiCredentials,
     isActiveAccountUser,
     isActiveAccountBot,
     // Actions
@@ -201,6 +228,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     updateAccount,
     removeAccount,
     setActiveAccount,
+    setApiCredentials,
     getCompatibleAccounts,
     hasCompatibleAccount,
     isActiveAccountCompatible,

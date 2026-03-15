@@ -38,7 +38,7 @@ const getInitialStep = ():
   | 'success' => {
   if (props.requiredType === 'bot') return 'token'
   // If we have stored API credentials, show choice screen
-  if (accountsStore.storedApiCredentials) return 'credentials-choice'
+  if (accountsStore.apiCredentials) return 'credentials-choice'
   return 'credentials'
 }
 const step = ref<
@@ -74,7 +74,7 @@ watch(activeTab, () => {
 
 function resetForm(): void {
   if (activeTab.value === 'user') {
-    step.value = accountsStore.storedApiCredentials ? 'credentials-choice' : 'credentials'
+    step.value = accountsStore.apiCredentials ? 'credentials-choice' : 'credentials'
   } else {
     step.value = 'token'
   }
@@ -151,11 +151,13 @@ async function validateBotToken(token: string): Promise<void> {
 }
 
 function useSavedCredentials(): void {
-  const creds = accountsStore.storedApiCredentials
-  if (creds) {
-    apiId.value = String(creds.apiId)
-    apiHash.value = creds.apiHash
-    accountsStore.setAuthFlowApiCredentials(creds.apiId, creds.apiHash)
+  if (accountsStore.apiCredentials) {
+    apiId.value = String(accountsStore.apiCredentials.apiId)
+    apiHash.value = accountsStore.apiCredentials.apiHash
+    accountsStore.setAuthFlowApiCredentials(
+      accountsStore.apiCredentials.apiId,
+      accountsStore.apiCredentials.apiHash,
+    )
     step.value = 'phone'
   }
 }
@@ -174,6 +176,7 @@ async function handleCredentialsSubmit(): Promise<void> {
     return
   }
 
+  accountsStore.setApiCredentials({ apiId: id, apiHash: apiHash.value })
   accountsStore.setAuthFlowApiCredentials(id, apiHash.value)
   step.value = 'phone'
 }
@@ -222,8 +225,6 @@ async function handlePhoneSubmit(): Promise<void> {
           type: 'user',
           label: user.firstName || `User ${phone.value.slice(-4)}`,
           phone: phone.value,
-          apiId: id,
-          apiHash: apiHash.value,
           sessionString: telegramService.getSessionString(),
         })
         accountsStore.setActiveAccount(newAccount.id)
@@ -370,14 +371,15 @@ function handleClose(): void {
   // If user cancels mid-flow, restore previous active user session (best-effort).
   // This prevents leaving the app in a "disconnected" state after attempting to add another account.
   const prev = accountsStore.accounts.find((a) => a.id === previousActiveAccountId)
-  if (prev?.type === 'user' && prev.apiId && prev.apiHash) {
+  const creds = accountsStore.apiCredentials
+  if (prev?.type === 'user' && creds) {
     const svc: any = telegramService as any
     if (typeof svc.useUserAccountSession === 'function') {
       svc
         .useUserAccountSession({
           sessionString: prev.sessionString,
-          apiId: prev.apiId,
-          apiHash: prev.apiHash,
+          apiId: creds.apiId,
+          apiHash: creds.apiHash,
         })
         .catch(() => {
           // ignore
@@ -390,12 +392,12 @@ function goBack(): void {
   error.value = ''
   if (step.value === 'credentials') {
     // If we have stored creds, go back to choice screen
-    if (accountsStore.storedApiCredentials) {
+    if (accountsStore.apiCredentials) {
       step.value = 'credentials-choice'
     }
   } else if (step.value === 'phone') {
     // Go back to credentials or credentials-choice
-    if (accountsStore.storedApiCredentials) {
+    if (accountsStore.apiCredentials) {
       step.value = 'credentials-choice'
     } else {
       step.value = 'credentials'
@@ -491,7 +493,7 @@ function goBack(): void {
                     Use saved credentials
                   </p>
                   <p class="text-xs text-gray-500 dark:text-gray-400">
-                    API ID: {{ accountsStore.storedApiCredentials?.apiId }}
+                    API ID: {{ accountsStore.apiCredentials?.apiId }}
                   </p>
                 </div>
               </div>
@@ -524,7 +526,7 @@ function goBack(): void {
         <!-- Step 1: API Credentials -->
         <template v-else-if="step === 'credentials'">
           <button
-            v-if="accountsStore.storedApiCredentials"
+            v-if="accountsStore.apiCredentials"
             @click="goBack"
             class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-100"
           >
