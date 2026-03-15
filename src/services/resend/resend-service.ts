@@ -14,7 +14,7 @@
 import type { DeletedMessage, ExportProgress, ResendConfig } from '@/types'
 import { getBrowserTimezone } from '@/types/backup'
 import { telegramService } from '../telegram/client'
-import { formatDuration, startFloodWaitCountdown, withRetry } from '../telegram/rate-limiter'
+import { formatDuration, sleep, startFloodWaitCountdown, withRetry } from '../telegram/rate-limiter'
 
 // Constants matching Python implementation
 const TELEGRAM_CAPTION_LIMIT = 1024
@@ -57,29 +57,6 @@ function escapeHtml(text: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-}
-
-/**
- * Sleep for specified milliseconds with abort support
- */
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new DOMException('Aborted', 'AbortError'))
-      return
-    }
-
-    const timeout = setTimeout(resolve, ms)
-
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timeout)
-        reject(new DOMException('Aborted', 'AbortError'))
-      },
-      { once: true },
-    )
-  })
 }
 
 class ResendService {

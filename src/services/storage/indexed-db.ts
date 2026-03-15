@@ -237,6 +237,9 @@ export async function countMediaTypes(
     videoNotes: 0,
     audio: 0,
     gifs: 0,
+    polls: 0,
+    locations: 0,
+    contacts: 0,
   }
 
   for (const msg of messages) {
@@ -264,6 +267,15 @@ export async function countMediaTypes(
         break
       case 'animation':
         stats.gifs++
+        break
+      case 'poll':
+        stats.polls++
+        break
+      case 'location':
+        stats.locations++
+        break
+      case 'contact':
+        stats.contacts++
         break
     }
   }

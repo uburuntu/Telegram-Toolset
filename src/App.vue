@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { telegramService } from '@/services/telegram/client'
@@ -10,6 +10,10 @@ const { t } = useI18n()
 const route = useRoute()
 const accountsStore = useAccountsStore()
 const uiStore = useUiStore()
+
+const updateMobile = () => {
+  uiStore.setMobile(window.innerWidth < 1024)
+}
 
 // Check if login modal is open
 const showLoginModal = computed(() => uiStore.currentModal?.component === 'LoginModal')
@@ -26,9 +30,6 @@ onMounted(() => {
   uiStore.loadPrivacyNoticeState()
 
   // Detect mobile
-  const updateMobile = () => {
-    uiStore.setMobile(window.innerWidth < 1024)
-  }
   updateMobile()
   window.addEventListener('resize', updateMobile)
 
@@ -41,6 +42,10 @@ onMounted(() => {
       targetRoute: route.query.redirect as string,
     })
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateMobile)
 })
 
 // Watch for auth query params
@@ -73,7 +78,6 @@ watch(
 
     // Check for useUserAccountSession method (may be missing in E2E mocks)
     if (!('useUserAccountSession' in telegramService)) return
-    // eslint-disable-next-line no-unused-vars
     type SessionFn = (o: {
       sessionString?: string
       apiId: number
