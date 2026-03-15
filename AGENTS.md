@@ -372,18 +372,20 @@ vue-i18n v9 has a message compiler that interprets certain characters as syntax.
 
 ### Characters that MUST be escaped in i18n JSON values:
 
+Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#literal-interpolation), these characters are special in vue-i18n v9 message format:
+
 | Character | Meaning in vue-i18n | Escape syntax | Example |
 |-----------|---------------------|---------------|---------|
 | `@` | Linked message (`@:key`) | `{'@'}` | `"Include {'@'}username"` |
 | `{` | Named interpolation start | `{'{'}` | — |
 | `}` | Named interpolation end | `{'}'}` | — |
-| `{{` | — (parsed as nested `{`) | Avoid entirely | Rewrite the text |
-| `|` | Plural separator | `{'|'}` | — |
+| `$` | Implicit message reference | `{'$'}` | — |
+| `|` | Plural separator | `{'|'}` (unless intentional pluralization) | — |
 
 ### Rules:
 1. **Never put `@` directly in i18n values** unless it's intentional linked message syntax. Always use `{'@'}`.
 2. **Never put `{{...}}` in i18n values.** Rewrite the description to avoid template syntax characters (e.g., "Variables: sender, text, date — wrap in double curly braces").
-3. **Test i18n values** by calling `t('key')` in a try/catch if unsure — a `SyntaxError` means the value has unescaped special characters.
+3. **`|` is OK for pluralization** (e.g., `"{count} message | {count} messages"`). Escape with `{'|'}` only if you need a literal pipe character.
 4. **The error is silent in production** — the component simply won't render, with no user-visible error message. The only clue is a `SyntaxError: 10` in the browser console.
 
 ## Migration Status (Python → TypeScript)
