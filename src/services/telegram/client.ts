@@ -277,7 +277,8 @@ class TelegramService {
       }
 
       // Check we have the required credentials
-      if (!activeAccount.sessionString || !activeAccount.apiId || !activeAccount.apiHash) {
+      const creds = accountsStore.apiCredentials
+      if (!activeAccount.sessionString || !creds) {
         console.log('[TelegramService] Missing credentials for session restoration')
         return false
       }
@@ -287,8 +288,8 @@ class TelegramService {
       // Use the existing method to restore the session
       const success = await this.useUserAccountSession({
         sessionString: activeAccount.sessionString,
-        apiId: activeAccount.apiId,
-        apiHash: activeAccount.apiHash,
+        apiId: creds.apiId,
+        apiHash: creds.apiHash,
       })
 
       if (success) {
