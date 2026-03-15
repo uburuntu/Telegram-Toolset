@@ -448,7 +448,6 @@
     "noPreview": "Ko'rish uchun eksportni sozlang",
     "previewNote": "Birinchi 15 ta xabar ko'rsatilmoqda. To'liq chiqish barcha xabarlarni o'z ichiga oladi.",
     "stopAndSave": "To'xtatish va saqlash",
-    "advancedOptions": "Qo'shimcha sozlamalar",
     "templateDescriptions": {
       "xml": "Claude va boshqa sun'iy intellektlar uchun optimallashtirilgan XML formati",
       "plain": "Oddiy matn formati, o'qish oson va universal mos keladi",

@@ -366,6 +366,26 @@ When using `parseMode: 'html'` for resend, escape user text to prevent injection
 textParts.push(escapeHtml(message.text))
 ```
 
+## vue-i18n Special Characters (Critical)
+
+vue-i18n v9 has a message compiler that interprets certain characters as syntax. Using them literally in translation values causes `SyntaxError` at runtime, which **silently crashes the entire component** (no visible error in the UI — the component just disappears).
+
+### Characters that MUST be escaped in i18n JSON values:
+
+| Character | Meaning in vue-i18n | Escape syntax | Example |
+|-----------|---------------------|---------------|---------|
+| `@` | Linked message (`@:key`) | `{'@'}` | `"Include {'@'}username"` |
+| `{` | Named interpolation start | `{'{'}` | — |
+| `}` | Named interpolation end | `{'}'}` | — |
+| `{{` | — (parsed as nested `{`) | Avoid entirely | Rewrite the text |
+| `|` | Plural separator | `{'|'}` | — |
+
+### Rules:
+1. **Never put `@` directly in i18n values** unless it's intentional linked message syntax. Always use `{'@'}`.
+2. **Never put `{{...}}` in i18n values.** Rewrite the description to avoid template syntax characters (e.g., "Variables: sender, text, date — wrap in double curly braces").
+3. **Test i18n values** by calling `t('key')` in a try/catch if unsure — a `SyntaxError` means the value has unescaped special characters.
+4. **The error is silent in production** — the component simply won't render, with no user-visible error message. The only clue is a `SyntaxError: 10` in the browser console.
+
 ## Migration Status (Python → TypeScript)
 
 ### Completed

@@ -448,7 +448,6 @@
     "noPreview": "Önizlemeyi görmek için bir dışa aktarma yapılandırın",
     "previewNote": "İlk 15 mesaj gösteriliyor. Tam çıktı tüm mesajları içerecektir.",
     "stopAndSave": "Durdur ve kaydet",
-    "advancedOptions": "Gelişmiş seçenekler",
     "templateDescriptions": {
       "xml": "Claude ve yapılandırılmış işaretlemeyi tercih eden diğer LLM'ler için optimize edilmiş XML formatı",
       "plain": "Basit düz metin formatı, okunması kolay ve evrensel olarak uyumlu",

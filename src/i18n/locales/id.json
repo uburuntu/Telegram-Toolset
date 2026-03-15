@@ -448,7 +448,6 @@
     "noPreview": "Konfigurasikan ekspor untuk melihat pratinjau",
     "previewNote": "Menampilkan 15 pesan pertama. Output penuh akan menyertakan semua pesan.",
     "stopAndSave": "Hentikan & Simpan",
-    "advancedOptions": "Opsi lanjutan",
     "templateDescriptions": {
       "xml": "Format XML yang dioptimalkan untuk Claude dan LLM lain yang lebih menyukai markup terstruktur",
       "plain": "Format teks sederhana, mudah dibaca dan kompatibel secara universal",

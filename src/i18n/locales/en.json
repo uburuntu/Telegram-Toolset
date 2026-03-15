@@ -449,7 +449,6 @@
     "noPreview": "Configure an export to see preview",
     "previewNote": "Showing first 15 messages. Full output will include all messages.",
     "stopAndSave": "Stop & Save",
-    "advancedOptions": "Advanced options",
     "templateDescriptions": {
       "xml": "XML format optimized for Claude and other LLMs that prefer structured markup",
       "plain": "Simple plain text format, easy to read and universally compatible",

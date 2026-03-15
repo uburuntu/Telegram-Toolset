@@ -448,7 +448,6 @@
     "noPreview": "Configure una exportación para ver la vista previa",
     "previewNote": "Mostrando los primeros 15 mensajes. La salida completa incluirá todos los mensajes.",
     "stopAndSave": "Detener y guardar",
-    "advancedOptions": "Opciones avanzadas",
     "templateDescriptions": {
       "xml": "Formato XML optimizado para Claude y otros LLMs que prefieren marcado estructurado",
       "plain": "Formato de texto simple, fácil de leer y universalmente compatible",
