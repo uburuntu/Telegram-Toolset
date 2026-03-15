@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getTemplateExample } from '@/services/llm-export/format-service'
 import type {
@@ -19,8 +19,6 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-
-const showAdvanced = ref(true)
 
 const templates: FormatTemplate[] = ['plain', 'xml', 'json', 'markdown', 'custom']
 const dateFormats: DateFormatOption[] = ['short', 'long', 'iso', 'time-only', 'none']
@@ -145,30 +143,7 @@ function getDateGroupingLabel(option: DateGroupingOption): string {
       </p>
     </div>
 
-    <!-- Advanced toggle -->
-    <button
-      @click="showAdvanced = !showAdvanced"
-      class="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-100"
-    >
-      <svg
-        :class="['w-3.5 h-3.5 transition-transform duration-150', showAdvanced && 'rotate-90']"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M9 5l7 7-7 7"
-        />
-      </svg>
-      {{ t('llmExport.advancedOptions') }}
-    </button>
-
-    <!-- Advanced options (collapsible) -->
-    <template v-if="showAdvanced">
-      <!-- Data inclusion options -->
+    <!-- Data inclusion options -->
       <div class="grid grid-cols-2 gap-4">
         <div class="space-y-3">
           <label
@@ -362,6 +337,5 @@ function getDateGroupingLabel(option: DateGroupingOption): string {
           </span>
         </div>
       </div>
-    </template>
   </div>
 </template>
