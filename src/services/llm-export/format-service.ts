@@ -544,9 +544,7 @@ function formatAsJson(
   }
 
   // Original per-message behavior
-  const jsonMessages = prepared.map((msg) =>
-    formatSingleMessageJson(msg, config, messageMap, true),
-  )
+  const jsonMessages = prepared.map((msg) => formatSingleMessageJson(msg, config, messageMap, true))
 
   const output = {
     chat: chatExport.chatTitle,
