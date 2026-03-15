@@ -454,7 +454,7 @@
       "plain": "Oddiy matn formati, o'qish oson va universal mos keladi",
       "json": "Dasturiy qayta ishlash yoki API integratsiyasi uchun JSON formati",
       "markdown": "Sarlavhalar va formatlash bilan Markdown formati, hujjatlashtirish uchun yaxshi",
-      "custom": "{{sender}}, {{text}}, {{date}} kabi o'zgaruvchilar bilan o'z shablonningizni yarating"
+      "custom": "{'{{'}sender{'}}'}, {'{{'}text{'}}'}, {'{{'}date{'}}'} kabi o'zgaruvchilar bilan o'z shablonningizni yarating"
     }
   }
 }

@@ -455,7 +455,7 @@
       "plain": "Simple plain text format, easy to read and universally compatible",
       "json": "JSON format for programmatic processing or API integration",
       "markdown": "Markdown format with headers and formatting, good for documentation",
-      "custom": "Define your own template with variables like {{sender}}, {{text}}, {{date}}"
+      "custom": "Define your own template with variables like {'{{'}sender{'}}'}, {'{{'}text{'}}'}, {'{{'}date{'}}'}"
     }
   }
 }

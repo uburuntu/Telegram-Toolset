@@ -454,7 +454,7 @@
       "plain": "Format teks sederhana, mudah dibaca dan kompatibel secara universal",
       "json": "Format JSON untuk pemrosesan programatis atau integrasi API",
       "markdown": "Format Markdown dengan header dan pemformatan, cocok untuk dokumentasi",
-      "custom": "Tentukan template Anda sendiri dengan variabel seperti {{sender}}, {{text}}, {{date}}"
+      "custom": "Tentukan template Anda sendiri dengan variabel seperti {'{{'}sender{'}}'}, {'{{'}text{'}}'}, {'{{'}date{'}}'}"
     }
   }
 }

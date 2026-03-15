@@ -454,7 +454,7 @@
       "plain": "Basit düz metin formatı, okunması kolay ve evrensel olarak uyumlu",
       "json": "Programatik işleme veya API entegrasyonu için JSON formatı",
       "markdown": "Başlıklar ve biçimlendirme ile Markdown formatı, dokümantasyon için uygun",
-      "custom": "{{sender}}, {{text}}, {{date}} gibi değişkenlerle kendi şablonunuzu tanımlayın"
+      "custom": "{'{{'}sender{'}}'}, {'{{'}text{'}}'}, {'{{'}date{'}}'} gibi değişkenlerle kendi şablonunuzu tanımlayın"
     }
   }
 }
