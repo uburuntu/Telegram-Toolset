@@ -12,8 +12,7 @@ import type { DeletedMessage } from '@/types'
  * Returns a shallow copy without `_rawMessage`.
  */
 export function stripRawMessage<T extends DeletedMessage>(message: T): Omit<T, '_rawMessage'> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { _rawMessage, ...rest } = message
+  const { _rawMessage: _, ...rest } = message
   return rest as Omit<T, '_rawMessage'>
 }
 

@@ -13,6 +13,9 @@ export interface MediaTypeStats {
   videoNotes: number
   audio: number
   gifs: number
+  polls: number
+  locations: number
+  contacts: number
 }
 
 export interface Backup {
