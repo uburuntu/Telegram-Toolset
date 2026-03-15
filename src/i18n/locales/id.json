@@ -407,7 +407,7 @@
       "custom": "Kustom"
     },
     "customTemplate": "Templat Kustom",
-    "customTemplateHint": "Gunakan {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} di dalam {{#each messages}}...{{/each}}",
+    "customTemplateHint": "Gunakan {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} di dalam {'{{'}#each messages{'}}'}...{'{{'}/each{'}}'}",
     "includeSenderName": "Sertakan nama pengirim",
     "includeSenderUsername": "Sertakan @username",
     "useOriginalNames": "Gunakan nama asli",

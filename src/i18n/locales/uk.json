@@ -407,7 +407,7 @@
       "custom": "Власний шаблон"
     },
     "customTemplate": "Власний шаблон",
-    "customTemplateHint": "Використовуйте {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} всередині {{#each messages}}...{{/each}}",
+    "customTemplateHint": "Використовуйте {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} всередині {'{{'}#each messages{'}}'}...{'{{'}/each{'}}'}",
     "includeSenderName": "Включити ім'я відправника",
     "includeSenderUsername": "Включити @username",
     "useOriginalNames": "Використовувати оригінальні імена",

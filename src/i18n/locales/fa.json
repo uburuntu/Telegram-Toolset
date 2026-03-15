@@ -407,7 +407,7 @@
       "custom": "سفارشی"
     },
     "customTemplate": "قالب سفارشی",
-    "customTemplateHint": "از {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} در داخل {{#each messages}}...{{/each}} استفاده کنید",
+    "customTemplateHint": "از {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} در داخل {'{{'}#each messages{'}}'}...{'{{'}/each{'}}'} استفاده کنید",
     "includeSenderName": "شامل نام فرستنده",
     "includeSenderUsername": "شامل نام کاربری @",
     "useOriginalNames": "استفاده از نام‌های اصلی",

@@ -407,7 +407,7 @@
       "custom": "Maxsus"
     },
     "customTemplate": "Maxsus Shablon",
-    "customTemplateHint": "{{#each messages}}...{{/each}} ichida {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} dan foydalaning",
+    "customTemplateHint": "{'{{'}#each messages{'}}'}...{'{{'}/each{'}}'} ichida {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} dan foydalaning",
     "includeSenderName": "Yuboruvchi nomini kiritish",
     "includeSenderUsername": "@foydalanuvchi nomini kiritish",
     "useOriginalNames": "Asl ismlardan foydalanish",

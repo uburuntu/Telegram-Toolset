@@ -407,7 +407,7 @@
       "custom": "Personalizado"
     },
     "customTemplate": "Modelo Personalizado",
-    "customTemplateHint": "Use {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} dentro de {{#each messages}}...{{/each}}",
+    "customTemplateHint": "Use {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} dentro de {'{{'}#each messages{'}}'}...{'{{'}/each{'}}'}",
     "includeSenderName": "Incluir nome do remetente",
     "includeSenderUsername": "Incluir @nomedeusuário",
     "useOriginalNames": "Usar nomes originais",

@@ -408,7 +408,7 @@
       "custom": "Custom"
     },
     "customTemplate": "Custom Template",
-    "customTemplateHint": "Use {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} inside {{#each messages}}...{{/each}}",
+    "customTemplateHint": "Use {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} inside {'{{'}#each messages{'}}'}...{'{{'}/each{'}}'}",
     "includeSenderName": "Include sender name",
     "includeSenderUsername": "Include @username",
     "useOriginalNames": "Use original names",

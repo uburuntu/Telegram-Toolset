@@ -407,7 +407,7 @@
       "custom": "Özel"
     },
     "customTemplate": "Özel Şablon",
-    "customTemplateHint": "{{#each messages}}...{{/each}} içinde {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} kullanın",
+    "customTemplateHint": "{'{{'}#each messages{'}}'}...{'{{'}/each{'}}'} içinde {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} kullanın",
     "includeSenderName": "Gönderen adını dahil et",
     "includeSenderUsername": "@kullanıcıadını dahil et",
     "useOriginalNames": "Orijinal isimleri kullan",

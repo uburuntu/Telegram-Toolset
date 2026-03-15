@@ -407,7 +407,7 @@
       "custom": "مخصص"
     },
     "customTemplate": "قالب مخصص",
-    "customTemplateHint": "استخدم {{sender}}, {{date}}, {{text}}, {{media}}, {{reply}}, {{forward}} داخل {{#each messages}}...{{/each}}",
+    "customTemplateHint": "استخدم {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} داخل {'{{'}#each messages{'}}'}...{'{{'}/each{'}}'}",
     "includeSenderName": "تضمين اسم المرسل",
     "includeSenderUsername": "تضمين اسم المستخدم @",
     "useOriginalNames": "استخدام الأسماء الأصلية",
