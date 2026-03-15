@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getTemplateDescription, getTemplateExample } from '@/services/llm-export/format-service'
 import type {
@@ -20,7 +20,9 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const templates: FormatTemplate[] = ['xml', 'plain', 'json', 'markdown', 'custom']
+const showAdvanced = ref(false)
+
+const templates: FormatTemplate[] = ['plain', 'xml', 'json', 'markdown', 'custom']
 const dateFormats: DateFormatOption[] = ['short', 'long', 'iso', 'time-only', 'none']
 const dateGroupings: DateGroupingOption[] = ['per-message', 'per-day']
 const mediaOptions: MediaPlaceholderOption[] = ['bracket', 'emoji', 'skip']
@@ -93,13 +95,13 @@ function getDateGroupingLabel(option: DateGroupingOption): string {
 
 <template>
   <div
-    class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 space-y-5"
+    class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 space-y-4"
   >
     <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
       {{ t('llmExport.formatConfig') }}
     </h3>
 
-    <!-- Template selector -->
+    <!-- Template selector (always visible) -->
     <div>
       <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
         {{ t('llmExport.template') }}
@@ -141,197 +143,223 @@ function getDateGroupingLabel(option: DateGroupingOption): string {
       </p>
     </div>
 
-    <!-- Data inclusion options -->
-    <div class="grid grid-cols-2 gap-4">
-      <div class="space-y-3">
-        <label
-          class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
-        >
-          <input
-            type="checkbox"
-            :checked="config.includeSenderName"
-            @change="
-              updateConfig({ includeSenderName: ($event.target as HTMLInputElement).checked })
-            "
-            class="rounded text-blue-600 focus:ring-blue-500"
-          />
-          {{ t('llmExport.includeSenderName') }}
-        </label>
+    <!-- Advanced toggle -->
+    <button
+      @click="showAdvanced = !showAdvanced"
+      class="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-100"
+    >
+      <svg
+        :class="['w-3.5 h-3.5 transition-transform duration-150', showAdvanced && 'rotate-90']"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M9 5l7 7-7 7"
+        />
+      </svg>
+      {{ t('llmExport.advancedOptions') }}
+    </button>
 
-        <label
-          class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
-        >
-          <input
-            type="checkbox"
-            :checked="config.includeSenderUsername"
-            @change="
-              updateConfig({ includeSenderUsername: ($event.target as HTMLInputElement).checked })
-            "
-            class="rounded text-blue-600 focus:ring-blue-500"
-          />
-          {{ t('llmExport.includeSenderUsername') }}
-        </label>
+    <!-- Advanced options (collapsible) -->
+    <template v-if="showAdvanced">
+      <!-- Data inclusion options -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-3">
+          <label
+            class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+          >
+            <input
+              type="checkbox"
+              :checked="config.includeSenderName"
+              @change="
+                updateConfig({ includeSenderName: ($event.target as HTMLInputElement).checked })
+              "
+              class="rounded text-blue-600 focus:ring-blue-500"
+            />
+            {{ t('llmExport.includeSenderName') }}
+          </label>
 
-        <label
-          class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
-          :title="t('llmExport.useOriginalNamesHint')"
-        >
-          <input
-            type="checkbox"
-            :checked="config.useOriginalSenderNames"
+          <label
+            class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+          >
+            <input
+              type="checkbox"
+              :checked="config.includeSenderUsername"
+              @change="
+                updateConfig({ includeSenderUsername: ($event.target as HTMLInputElement).checked })
+              "
+              class="rounded text-blue-600 focus:ring-blue-500"
+            />
+            {{ t('llmExport.includeSenderUsername') }}
+          </label>
+
+          <label
+            class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+            :title="t('llmExport.useOriginalNamesHint')"
+          >
+            <input
+              type="checkbox"
+              :checked="config.useOriginalSenderNames"
+              @change="
+                updateConfig({
+                  useOriginalSenderNames: ($event.target as HTMLInputElement).checked,
+                })
+              "
+              :disabled="!config.includeSenderName"
+              class="rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+            />
+            {{ t('llmExport.useOriginalNames') }}
+          </label>
+
+          <label
+            class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+          >
+            <input
+              type="checkbox"
+              :checked="config.includeReplyContext"
+              @change="
+                updateConfig({ includeReplyContext: ($event.target as HTMLInputElement).checked })
+              "
+              class="rounded text-blue-600 focus:ring-blue-500"
+            />
+            {{ t('llmExport.includeReplyContext') }}
+          </label>
+        </div>
+
+        <div class="space-y-3">
+          <label
+            class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+          >
+            <input
+              type="checkbox"
+              :checked="config.includeDate"
+              @change="updateConfig({ includeDate: ($event.target as HTMLInputElement).checked })"
+              class="rounded text-blue-600 focus:ring-blue-500"
+            />
+            {{ t('llmExport.includeDate') }}
+          </label>
+
+          <label
+            class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+          >
+            <input
+              type="checkbox"
+              :checked="config.includeMessageIds"
+              @change="
+                updateConfig({ includeMessageIds: ($event.target as HTMLInputElement).checked })
+              "
+              class="rounded text-blue-600 focus:ring-blue-500"
+            />
+            {{ t('llmExport.includeMessageIds') }}
+          </label>
+
+          <label
+            class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+          >
+            <input
+              type="checkbox"
+              :checked="config.reverseOrder"
+              @change="updateConfig({ reverseOrder: ($event.target as HTMLInputElement).checked })"
+              class="rounded text-blue-600 focus:ring-blue-500"
+            />
+            {{ t('llmExport.reverseOrder') }}
+          </label>
+        </div>
+      </div>
+
+      <!-- Date format, grouping, and media options -->
+      <div class="grid grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+            {{ t('llmExport.dateFormat') }}
+          </label>
+          <select
+            :value="config.dateFormat"
             @change="
               updateConfig({
-                useOriginalSenderNames: ($event.target as HTMLInputElement).checked,
+                dateFormat: ($event.target as HTMLSelectElement).value as DateFormatOption,
               })
             "
-            :disabled="!config.includeSenderName"
-            class="rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-          />
-          {{ t('llmExport.useOriginalNames') }}
-        </label>
+            :disabled="!config.includeDate"
+            class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100 disabled:opacity-50"
+          >
+            <option v-for="format in dateFormats" :key="format" :value="format">
+              {{ getDateFormatLabel(format) }}
+            </option>
+          </select>
+        </div>
 
-        <label
-          class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
-        >
-          <input
-            type="checkbox"
-            :checked="config.includeReplyContext"
+        <div>
+          <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+            {{ t('llmExport.dateGrouping') }}
+          </label>
+          <select
+            :value="config.dateGrouping"
             @change="
-              updateConfig({ includeReplyContext: ($event.target as HTMLInputElement).checked })
+              updateConfig({
+                dateGrouping: ($event.target as HTMLSelectElement).value as DateGroupingOption,
+              })
             "
-            class="rounded text-blue-600 focus:ring-blue-500"
-          />
-          {{ t('llmExport.includeReplyContext') }}
-        </label>
-      </div>
+            :disabled="!config.includeDate"
+            class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100 disabled:opacity-50"
+          >
+            <option v-for="grouping in dateGroupings" :key="grouping" :value="grouping">
+              {{ getDateGroupingLabel(grouping) }}
+            </option>
+          </select>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {{ t('llmExport.dateGroupingHint') }}
+          </p>
+        </div>
 
-      <div class="space-y-3">
-        <label
-          class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
-        >
-          <input
-            type="checkbox"
-            :checked="config.includeDate"
-            @change="updateConfig({ includeDate: ($event.target as HTMLInputElement).checked })"
-            class="rounded text-blue-600 focus:ring-blue-500"
-          />
-          {{ t('llmExport.includeDate') }}
-        </label>
-
-        <label
-          class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
-        >
-          <input
-            type="checkbox"
-            :checked="config.includeMessageIds"
+        <div>
+          <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+            {{ t('llmExport.mediaPlaceholder') }}
+          </label>
+          <select
+            :value="config.mediaPlaceholder"
             @change="
-              updateConfig({ includeMessageIds: ($event.target as HTMLInputElement).checked })
+              updateConfig({
+                mediaPlaceholder: ($event.target as HTMLSelectElement)
+                  .value as MediaPlaceholderOption,
+              })
             "
-            class="rounded text-blue-600 focus:ring-blue-500"
-          />
-          {{ t('llmExport.includeMessageIds') }}
-        </label>
+            class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
+          >
+            <option v-for="option in mediaOptions" :key="option" :value="option">
+              {{ getMediaLabel(option) }}
+            </option>
+          </select>
+        </div>
+      </div>
 
-        <label
-          class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
-        >
+      <!-- Message limit -->
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+          {{ t('llmExport.outputLimit') }}
+        </label>
+        <div class="flex items-center gap-3">
           <input
-            type="checkbox"
-            :checked="config.reverseOrder"
-            @change="updateConfig({ reverseOrder: ($event.target as HTMLInputElement).checked })"
-            class="rounded text-blue-600 focus:ring-blue-500"
+            type="number"
+            :value="config.messageLimit"
+            @input="
+              updateConfig({
+                messageLimit: parseInt(($event.target as HTMLInputElement).value) || 0,
+              })
+            "
+            min="0"
+            :placeholder="t('llmExport.noLimit')"
+            class="w-32 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
           />
-          {{ t('llmExport.reverseOrder') }}
-        </label>
+          <span class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('llmExport.outputLimitHint') }}
+          </span>
+        </div>
       </div>
-    </div>
-
-    <!-- Date format, grouping, and media options -->
-    <div class="grid grid-cols-3 gap-4">
-      <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-          {{ t('llmExport.dateFormat') }}
-        </label>
-        <select
-          :value="config.dateFormat"
-          @change="
-            updateConfig({
-              dateFormat: ($event.target as HTMLSelectElement).value as DateFormatOption,
-            })
-          "
-          :disabled="!config.includeDate"
-          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100 disabled:opacity-50"
-        >
-          <option v-for="format in dateFormats" :key="format" :value="format">
-            {{ getDateFormatLabel(format) }}
-          </option>
-        </select>
-      </div>
-
-      <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-          {{ t('llmExport.dateGrouping') }}
-        </label>
-        <select
-          :value="config.dateGrouping"
-          @change="
-            updateConfig({
-              dateGrouping: ($event.target as HTMLSelectElement).value as DateGroupingOption,
-            })
-          "
-          :disabled="!config.includeDate"
-          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100 disabled:opacity-50"
-        >
-          <option v-for="grouping in dateGroupings" :key="grouping" :value="grouping">
-            {{ getDateGroupingLabel(grouping) }}
-          </option>
-        </select>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-          {{ t('llmExport.dateGroupingHint') }}
-        </p>
-      </div>
-
-      <div>
-        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-          {{ t('llmExport.mediaPlaceholder') }}
-        </label>
-        <select
-          :value="config.mediaPlaceholder"
-          @change="
-            updateConfig({
-              mediaPlaceholder: ($event.target as HTMLSelectElement)
-                .value as MediaPlaceholderOption,
-            })
-          "
-          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
-        >
-          <option v-for="option in mediaOptions" :key="option" :value="option">
-            {{ getMediaLabel(option) }}
-          </option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Message limit -->
-    <div>
-      <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-        {{ t('llmExport.outputLimit') }}
-      </label>
-      <div class="flex items-center gap-3">
-        <input
-          type="number"
-          :value="config.messageLimit"
-          @input="
-            updateConfig({ messageLimit: parseInt(($event.target as HTMLInputElement).value) || 0 })
-          "
-          min="0"
-          :placeholder="t('llmExport.noLimit')"
-          class="w-32 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
-        />
-        <span class="text-xs text-gray-500 dark:text-gray-400">
-          {{ t('llmExport.outputLimitHint') }}
-        </span>
-      </div>
-    </div>
+    </template>
   </div>
 </template>

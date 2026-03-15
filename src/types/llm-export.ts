@@ -114,7 +114,7 @@ export interface FormatConfig {
  * Default format configuration
  */
 export const DEFAULT_FORMAT_CONFIG: FormatConfig = {
-  template: 'xml',
+  template: 'plain',
   includeDate: true,
   dateFormat: 'short',
   dateGrouping: 'per-message',

@@ -348,6 +348,10 @@ function formatSingleMessagePlain(
   messageMap: Map<number, ChatMessage>,
   showDate: boolean,
 ): string[] {
+  // Skip media-only messages when media placeholder is 'skip'
+  const mediaPlaceholder = getMediaPlaceholder(msg, config)
+  if (!msg.text && !mediaPlaceholder) return []
+
   const lines: string[] = []
   const headerParts: string[] = []
 
@@ -389,7 +393,6 @@ function formatSingleMessagePlain(
   }
 
   // Content
-  const mediaPlaceholder = getMediaPlaceholder(msg, config)
   if (mediaPlaceholder) {
     lines.push(mediaPlaceholder)
   }
@@ -467,12 +470,12 @@ function formatSingleMessageJson(
   }
 
   if (showDate && config.includeDate && config.dateFormat !== 'none') {
-    // For per-day grouping, use time-only format
+    // For per-day grouping, use time-only format since the day is shown in the group header
     const dateFormat =
       config.dateGrouping === 'per-day' && config.dateFormat !== 'iso'
         ? 'time-only'
         : config.dateFormat
-    obj.time = formatDate(msg.date, dateFormat)
+    obj.date = formatDate(msg.date, dateFormat)
   }
 
   const replyContext = getReplyContext(msg, messageMap, config)
@@ -541,42 +544,9 @@ function formatAsJson(
   }
 
   // Original per-message behavior
-  const jsonMessages = prepared.map((msg) => {
-    const obj: Record<string, unknown> = {}
-
-    if (config.includeMessageIds) {
-      obj.id = msg.id
-    }
-
-    const sender = buildSenderString(msg, config)
-    if (sender) {
-      obj.from = sender
-    }
-
-    if (config.includeDate && config.dateFormat !== 'none') {
-      obj.date = formatDate(msg.date, config.dateFormat)
-    }
-
-    const replyContext = getReplyContext(msg, messageMap, config)
-    if (replyContext) {
-      obj.reply_to = replyContext
-    }
-
-    if (msg.forwardedFrom) {
-      obj.forwarded_from = msg.forwardedFrom
-    }
-
-    if (msg.text) {
-      obj.text = msg.text
-    }
-
-    const mediaPlaceholder = getMediaPlaceholder(msg, config)
-    if (mediaPlaceholder && config.mediaPlaceholder !== 'skip') {
-      obj.media = msg.mediaType || 'unknown'
-    }
-
-    return obj
-  })
+  const jsonMessages = prepared.map((msg) =>
+    formatSingleMessageJson(msg, config, messageMap, true),
+  )
 
   const output = {
     chat: chatExport.chatTitle,
@@ -601,6 +571,10 @@ function formatSingleMessageMarkdown(
   messageMap: Map<number, ChatMessage>,
   showDate: boolean,
 ): string[] {
+  // Skip media-only messages when media placeholder is 'skip'
+  const mediaPlaceholder = getMediaPlaceholder(msg, config)
+  if (!msg.text && !mediaPlaceholder) return []
+
   const lines: string[] = []
   const headerParts: string[] = []
 
@@ -642,7 +616,6 @@ function formatSingleMessageMarkdown(
   }
 
   // Content
-  const mediaPlaceholder = getMediaPlaceholder(msg, config)
   if (mediaPlaceholder) {
     lines.push(mediaPlaceholder)
   }

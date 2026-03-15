@@ -446,6 +446,8 @@
     "copyError": "Buferga nusxalash muvaffaqiyatsiz bo'ldi",
     "preview": "Jonli Ko'rish",
     "noPreview": "Ko'rish uchun eksportni sozlang",
-    "previewNote": "Birinchi 15 ta xabar ko'rsatilmoqda. To'liq chiqish barcha xabarlarni o'z ichiga oladi."
+    "previewNote": "Birinchi 15 ta xabar ko'rsatilmoqda. To'liq chiqish barcha xabarlarni o'z ichiga oladi.",
+    "stopAndSave": "To'xtatish va saqlash",
+    "advancedOptions": "Qo'shimcha sozlamalar"
   }
 }

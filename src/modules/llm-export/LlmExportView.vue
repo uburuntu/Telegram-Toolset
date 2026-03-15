@@ -37,7 +37,7 @@ const isLoadingExport = ref(false)
 
 // Format configuration
 const formatConfig = ref<FormatConfig>({
-  template: 'xml',
+  template: 'plain',
   includeDate: true,
   dateFormat: 'short',
   dateGrouping: 'per-message',
@@ -178,6 +178,10 @@ function cancelDownload() {
   chatHistoryService.cancel()
 }
 
+function stopAndSaveDownload() {
+  chatHistoryService.stopAndSave()
+}
+
 async function handleExportSelect(chatExport: ChatExport) {
   isLoadingExport.value = true
   error.value = ''
@@ -224,12 +228,42 @@ async function copyToClipboard() {
   }
 }
 
+function getFileExtension(): string {
+  switch (formatConfig.value.template) {
+    case 'xml':
+      return 'xml'
+    case 'json':
+      return 'json'
+    case 'markdown':
+      return 'md'
+    default:
+      return 'txt'
+  }
+}
+
+function getMimeType(): string {
+  switch (formatConfig.value.template) {
+    case 'xml':
+      return 'application/xml;charset=utf-8'
+    case 'json':
+      return 'application/json;charset=utf-8'
+    default:
+      return 'text/plain;charset=utf-8'
+  }
+}
+
+function sanitizeFilename(name: string): string {
+  return name.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_')
+}
+
 function downloadAsFile() {
-  const blob = new Blob([formattedOutput.value], { type: 'text/plain;charset=utf-8' })
+  const chatTitle = sanitizeFilename(selectedExport.value?.chatTitle || 'chat')
+  const ext = getFileExtension()
+  const blob = new Blob([formattedOutput.value], { type: getMimeType() })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${selectedExport.value?.chatTitle || 'chat'}_export.txt`
+  a.download = `${chatTitle}.${ext}`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
@@ -324,12 +358,21 @@ function downloadAsFile() {
             :progress="floodWait.progress.value"
           />
 
-          <button
-            @click="cancelDownload"
-            class="mt-4 px-4 py-2 rounded-md font-medium text-sm bg-red-600 text-white hover:bg-red-700 transition-colors duration-100"
-          >
-            {{ t('common.cancel') }}
-          </button>
+          <div class="mt-4 flex items-center justify-center gap-3">
+            <button
+              v-if="downloadProgress && downloadProgress.fetchedMessages > 0"
+              @click="stopAndSaveDownload"
+              class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
+            >
+              {{ t('llmExport.stopAndSave') }}
+            </button>
+            <button
+              @click="cancelDownload"
+              class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-100"
+            >
+              {{ t('common.cancel') }}
+            </button>
+          </div>
         </div>
       </div>
 

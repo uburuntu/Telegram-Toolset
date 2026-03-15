@@ -447,6 +447,8 @@
     "copyError": "Failed to copy to clipboard",
     "preview": "Live Preview",
     "noPreview": "Configure an export to see preview",
-    "previewNote": "Showing first 15 messages. Full output will include all messages."
+    "previewNote": "Showing first 15 messages. Full output will include all messages.",
+    "stopAndSave": "Stop & Save",
+    "advancedOptions": "Advanced options"
   }
 }

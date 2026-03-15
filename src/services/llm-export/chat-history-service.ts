@@ -20,6 +20,7 @@ import { createFloodWaitSubscription } from '../telegram/rate-limiter'
 
 class ChatHistoryService {
   private abortController: AbortController | null = null
+  private _stopAndSave = false
 
   /**
    * Check if a download is currently in progress
@@ -29,13 +30,21 @@ class ChatHistoryService {
   }
 
   /**
-   * Cancel the current download operation
+   * Cancel the current download operation (discards all fetched messages)
    */
   cancel(): void {
     if (this.abortController) {
       this.abortController.abort()
       this.abortController = null
     }
+  }
+
+  /**
+   * Stop fetching and save whatever has been downloaded so far.
+   * Unlike cancel(), this preserves the partial result.
+   */
+  stopAndSave(): void {
+    this._stopAndSave = true
   }
 
   /**
@@ -66,6 +75,7 @@ class ChatHistoryService {
     const messages: ChatMessage[] = []
     let minDate: Date | undefined
     let maxDate: Date | undefined
+    this._stopAndSave = false
 
     try {
       // Get estimated message count for progress
@@ -85,9 +95,6 @@ class ChatHistoryService {
       progress.phase = 'fetching'
       callbacks.onProgress?.(progress)
 
-      // Batch for saving to IndexedDB
-      const batch: ChatMessage[] = []
-
       for await (const msg of telegramService.iterChatMessages(chatInfo.id, options)) {
         // Check for cancellation
         if (signal.aborted) {
@@ -96,10 +103,14 @@ class ChatHistoryService {
           throw new DOMException('Download cancelled', 'AbortError')
         }
 
+        // Check for stop-and-save
+        if (this._stopAndSave) {
+          break
+        }
+
         // Resolve sender info
         const enrichedMsg = await this.enrichMessageWithSender(msg)
         messages.push(enrichedMsg)
-        batch.push(enrichedMsg)
 
         // Track date range
         if (!minDate || enrichedMsg.date < minDate) {
@@ -114,9 +125,6 @@ class ChatHistoryService {
         progress.currentMessageId = enrichedMsg.id
         callbacks.onProgress?.(progress)
         callbacks.onMessage?.(enrichedMsg)
-
-        // Save batch to IndexedDB periodically
-        // We'll save all at once at the end to ensure atomic operation
       }
 
       // Check for empty result
