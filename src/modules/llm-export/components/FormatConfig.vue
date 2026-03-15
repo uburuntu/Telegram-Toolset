@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getTemplateDescription, getTemplateExample } from '@/services/llm-export/format-service'
+import { getTemplateExample } from '@/services/llm-export/format-service'
 import type {
   DateFormatOption,
   DateGroupingOption,
@@ -20,14 +20,16 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const showAdvanced = ref(false)
+const showAdvanced = ref(true)
 
 const templates: FormatTemplate[] = ['plain', 'xml', 'json', 'markdown', 'custom']
 const dateFormats: DateFormatOption[] = ['short', 'long', 'iso', 'time-only', 'none']
 const dateGroupings: DateGroupingOption[] = ['per-message', 'per-day']
 const mediaOptions: MediaPlaceholderOption[] = ['bracket', 'emoji', 'skip']
 
-const templateDescription = computed(() => getTemplateDescription(props.config.template))
+const templateDescription = computed(() =>
+  t(`llmExport.templateDescriptions.${props.config.template}`),
+)
 const templateExample = computed(() => getTemplateExample(props.config.template))
 
 function updateConfig(updates: Partial<FormatConfig>) {

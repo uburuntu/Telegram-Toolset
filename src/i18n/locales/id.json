@@ -448,6 +448,13 @@
     "noPreview": "Konfigurasikan ekspor untuk melihat pratinjau",
     "previewNote": "Menampilkan 15 pesan pertama. Output penuh akan menyertakan semua pesan.",
     "stopAndSave": "Hentikan & Simpan",
-    "advancedOptions": "Opsi lanjutan"
+    "advancedOptions": "Opsi lanjutan",
+    "templateDescriptions": {
+      "xml": "Format XML yang dioptimalkan untuk Claude dan LLM lain yang lebih menyukai markup terstruktur",
+      "plain": "Format teks sederhana, mudah dibaca dan kompatibel secara universal",
+      "json": "Format JSON untuk pemrosesan programatis atau integrasi API",
+      "markdown": "Format Markdown dengan header dan pemformatan, cocok untuk dokumentasi",
+      "custom": "Tentukan template Anda sendiri dengan variabel seperti {{sender}}, {{text}}, {{date}}"
+    }
   }
 }
