@@ -2,6 +2,10 @@
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
+import AccountSwitcher from '@/components/auth/AccountSwitcher.vue'
+import LoginModal from '@/components/auth/LoginModal.vue'
+import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
+import PrivacyFooter from '@/components/layout/PrivacyFooter.vue'
 import { telegramService } from '@/services/telegram/client'
 import { useAccountsStore, useUiStore } from '@/stores'
 
