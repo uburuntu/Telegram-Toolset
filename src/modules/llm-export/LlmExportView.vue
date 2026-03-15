@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import FloodWaitIndicator from '@/components/common/FloodWaitIndicator.vue'
 import { useFloodWait } from '@/composables'
 import { chatHistoryService } from '@/services/llm-export/chat-history-service'
 import { formatMessages, formatPreview } from '@/services/llm-export/format-service'
@@ -8,6 +9,10 @@ import { telegramService } from '@/services/telegram/client'
 import { useUiStore } from '@/stores'
 import type { ChatExport, ChatHistoryProgress, ChatInfo, ChatMessage, FormatConfig } from '@/types'
 import { toUserFriendlyError } from '@/utils/error-messages'
+import ChatSelector from './components/ChatSelector.vue'
+import ExportsList from './components/ExportsList.vue'
+import FormatConfigPanel from './components/FormatConfig.vue'
+import LivePreview from './components/LivePreview.vue'
 
 const { t } = useI18n()
 const uiStore = useUiStore()
