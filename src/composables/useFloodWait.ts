@@ -5,7 +5,7 @@
  * Reusable across all views that perform Telegram API operations.
  */
 
-import { ref, computed, type Ref, type ComputedRef } from 'vue'
+import { type ComputedRef, computed, type Ref, ref } from 'vue'
 
 export interface FloodWaitState {
   /** Total wait time in seconds when flood wait started */
@@ -56,7 +56,7 @@ export function useFloodWait(): FloodWaitState {
   const isWaiting = computed(() => seconds.value > 0)
 
   const progress = computed(() =>
-    seconds.value > 0 ? ((seconds.value - remaining.value) / seconds.value) * 100 : 0
+    seconds.value > 0 ? ((seconds.value - remaining.value) / seconds.value) * 100 : 0,
   )
 
   function onFloodWait(waitSeconds: number) {

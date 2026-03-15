@@ -1,20 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useUiStore } from '@/stores'
 import { useFloodWait } from '@/composables'
-import { telegramService } from '@/services/telegram/client'
 import { chatHistoryService } from '@/services/llm-export/chat-history-service'
 import { formatMessages, formatPreview } from '@/services/llm-export/format-service'
+import { telegramService } from '@/services/telegram/client'
+import { useUiStore } from '@/stores'
+import type { ChatExport, ChatHistoryProgress, ChatInfo, ChatMessage, FormatConfig } from '@/types'
 import { toUserFriendlyError } from '@/utils/error-messages'
-import type { ChatInfo, ChatExport, ChatMessage, FormatConfig, ChatHistoryProgress } from '@/types'
-
-// Components
-import ChatSelector from './components/ChatSelector.vue'
-import ExportsList from './components/ExportsList.vue'
-import FormatConfigPanel from './components/FormatConfig.vue'
-import LivePreview from './components/LivePreview.vue'
-import FloodWaitIndicator from '@/components/common/FloodWaitIndicator.vue'
 
 const { t } = useI18n()
 const uiStore = useUiStore()
@@ -138,7 +131,7 @@ async function startDownload() {
     options.minDate = new Date(downloadMinDate.value)
   }
   if (downloadMaxDate.value) {
-    options.maxDate = new Date(downloadMaxDate.value + 'T23:59:59')
+    options.maxDate = new Date(`${downloadMaxDate.value}T23:59:59`)
   }
 
   try {

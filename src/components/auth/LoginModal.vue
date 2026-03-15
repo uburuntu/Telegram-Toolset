@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAccountsStore, useUiStore } from '@/stores'
+import type { BotApiUser } from '@/services/telegram/bot-api'
 import { getBotInfo, isValidTokenFormat, maskBotToken } from '@/services/telegram/bot-api'
 import { telegramService } from '@/services/telegram/client'
+import { useAccountsStore, useUiStore } from '@/stores'
 import type { AccountType, SavedAccount } from '@/types'
-import type { BotApiUser } from '@/services/telegram/bot-api'
 
 // Auth flow promise - resolves when full auth completes
 let authPromise: Promise<void> | null = null
@@ -164,7 +164,7 @@ async function handleCredentialsSubmit(): Promise<void> {
   error.value = ''
 
   const id = parseInt(apiId.value, 10)
-  if (isNaN(id) || id <= 0) {
+  if (Number.isNaN(id) || id <= 0) {
     error.value = 'API ID must be a positive number'
     return
   }
@@ -220,7 +220,7 @@ async function handlePhoneSubmit(): Promise<void> {
         // Auth completed successfully
         const newAccount = accountsStore.addAccount({
           type: 'user',
-          label: user.firstName || 'User ' + phone.value.slice(-4),
+          label: user.firstName || `User ${phone.value.slice(-4)}`,
           phone: phone.value,
           apiId: id,
           apiHash: apiHash.value,
@@ -340,7 +340,7 @@ async function handleBotTokenSubmit(): Promise<void> {
         canReadAllGroupMessages: botInfo.value.can_read_all_group_messages,
         supportsInlineQueries: botInfo.value.supports_inline_queries,
         hasMainWebApp: botInfo.value.has_main_web_app,
-        sessionString: 'bot_session_' + Date.now(),
+        sessionString: `bot_session_${Date.now()}`,
       })
       accountId = newAccount.id
       uiStore.showToast('success', `${botInfo.value.first_name} added successfully!`)

@@ -11,7 +11,7 @@
 export class PromisedNetSockets {
   constructor() {
     throw new Error(
-      'PromisedNetSockets is not available in the browser. Ensure GramJS is configured to use WebSockets (useWSS).'
+      'PromisedNetSockets is not available in the browser. Ensure GramJS is configured to use WebSockets (useWSS).',
     )
   }
 }

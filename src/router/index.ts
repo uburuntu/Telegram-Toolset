@@ -2,10 +2,10 @@
  * Vue Router configuration
  */
 
-import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
-import { useAccountsStore } from '@/stores'
+import { createRouter, createWebHistory } from 'vue-router'
 import { modules } from '@/modules'
+import { useAccountsStore } from '@/stores'
 
 // Lazy-loaded views
 const LandingView = () => import('@/views/LandingView.vue')

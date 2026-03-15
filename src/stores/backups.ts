@@ -3,7 +3,7 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Backup, ExportProgress, StorageEstimate } from '@/types'
 
 export const useBackupsStore = defineStore('backups', () => {
@@ -18,12 +18,12 @@ export const useBackupsStore = defineStore('backups', () => {
   const backupCount = computed(() => backups.value.length)
   const totalStorageUsed = computed(() => backups.value.reduce((sum, b) => sum + b.storageSize, 0))
   const selectedBackups = computed(() =>
-    backups.value.filter((b) => selectedBackupIds.value.has(b.id))
+    backups.value.filter((b) => selectedBackupIds.value.has(b.id)),
   )
   const isExporting = computed(
     () =>
       currentExport.value !== null &&
-      !['complete', 'error', 'cancelled'].includes(currentExport.value.phase)
+      !['complete', 'error', 'cancelled'].includes(currentExport.value.phase),
   )
   const exportProgress = computed(() => {
     if (!currentExport.value || currentExport.value.totalMessages === 0) return 0

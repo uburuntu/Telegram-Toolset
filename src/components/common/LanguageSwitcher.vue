@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { i18n, setLocale, type SupportedLocale } from '@/i18n'
+import { computed, ref } from 'vue'
+import { i18n, type SupportedLocale, setLocale } from '@/i18n'
 
 const isOpen = ref(false)
 

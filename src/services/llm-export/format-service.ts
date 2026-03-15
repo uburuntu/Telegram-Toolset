@@ -6,11 +6,11 @@
  */
 
 import type {
-  ChatMessage,
   ChatExport,
+  ChatMessage,
+  DateFormatOption,
   FormatConfig,
   FormatTemplate,
-  DateFormatOption,
 } from '@/types'
 
 /**
@@ -203,7 +203,7 @@ function buildMessageMap(messages: ChatMessage[]): Map<number, ChatMessage> {
 function getReplyContext(
   message: ChatMessage,
   messageMap: Map<number, ChatMessage>,
-  config: FormatConfig
+  config: FormatConfig,
 ): string | null {
   if (!config.includeReplyContext || !message.replyToMsgId) return null
 
@@ -228,7 +228,7 @@ function formatSingleMessageXml(
   config: FormatConfig,
   messageMap: Map<number, ChatMessage>,
   indent: string,
-  showDate: boolean
+  showDate: boolean,
 ): string {
   const msgAttrs: string[] = []
 
@@ -286,7 +286,7 @@ function formatSingleMessageXml(
 function formatAsXml(
   messages: ChatMessage[],
   chatExport: ChatExport,
-  config: FormatConfig
+  config: FormatConfig,
 ): string {
   const prepared = prepareMessages(messages, config)
   const messageMap = buildMessageMap(messages)
@@ -315,7 +315,7 @@ function formatAsXml(
 
     for (const [dateKey, dayMessages] of dayGroups) {
       // Add day wrapper
-      const dayDate = new Date(dateKey + 'T00:00:00')
+      const dayDate = new Date(`${dateKey}T00:00:00`)
       lines.push(`  <day date="${escapeXml(formatDayHeader(dayDate))}">`)
 
       // Add messages for this day
@@ -346,7 +346,7 @@ function formatSingleMessagePlain(
   msg: ChatMessage,
   config: FormatConfig,
   messageMap: Map<number, ChatMessage>,
-  showDate: boolean
+  showDate: boolean,
 ): string[] {
   const lines: string[] = []
   const headerParts: string[] = []
@@ -385,7 +385,7 @@ function formatSingleMessagePlain(
 
   // Header line
   if (headerParts.length > 0) {
-    lines.push(headerParts.join(' ') + ':')
+    lines.push(`${headerParts.join(' ')}:`)
   }
 
   // Content
@@ -406,7 +406,7 @@ function formatSingleMessagePlain(
 function formatAsPlain(
   messages: ChatMessage[],
   chatExport: ChatExport,
-  config: FormatConfig
+  config: FormatConfig,
 ): string {
   const prepared = prepareMessages(messages, config)
   const messageMap = buildMessageMap(messages)
@@ -423,7 +423,7 @@ function formatAsPlain(
 
     for (const [dateKey, dayMessages] of dayGroups) {
       // Add day separator
-      const dayDate = new Date(dateKey + 'T00:00:00')
+      const dayDate = new Date(`${dateKey}T00:00:00`)
       lines.push(`--- ${formatDayHeader(dayDate)} ---`)
       lines.push('')
 
@@ -453,7 +453,7 @@ function formatSingleMessageJson(
   msg: ChatMessage,
   config: FormatConfig,
   messageMap: Map<number, ChatMessage>,
-  showDate: boolean
+  showDate: boolean,
 ): Record<string, unknown> {
   const obj: Record<string, unknown> = {}
 
@@ -502,7 +502,7 @@ function formatSingleMessageJson(
 function formatAsJson(
   messages: ChatMessage[],
   chatExport: ChatExport,
-  config: FormatConfig
+  config: FormatConfig,
 ): string {
   const prepared = prepareMessages(messages, config)
   const messageMap = buildMessageMap(messages)
@@ -519,7 +519,7 @@ function formatAsJson(
     const days: JsonDay[] = []
 
     for (const [dateKey, dayMessages] of dayGroups) {
-      const dayDate = new Date(dateKey + 'T00:00:00')
+      const dayDate = new Date(`${dateKey}T00:00:00`)
       days.push({
         date: formatDayHeader(dayDate),
         messages: dayMessages.map((msg) => formatSingleMessageJson(msg, config, messageMap, true)),
@@ -599,7 +599,7 @@ function formatSingleMessageMarkdown(
   msg: ChatMessage,
   config: FormatConfig,
   messageMap: Map<number, ChatMessage>,
-  showDate: boolean
+  showDate: boolean,
 ): string[] {
   const lines: string[] = []
   const headerParts: string[] = []
@@ -659,7 +659,7 @@ function formatSingleMessageMarkdown(
 function formatAsMarkdown(
   messages: ChatMessage[],
   chatExport: ChatExport,
-  config: FormatConfig
+  config: FormatConfig,
 ): string {
   const prepared = prepareMessages(messages, config)
   const messageMap = buildMessageMap(messages)
@@ -680,7 +680,7 @@ function formatAsMarkdown(
 
     for (const [dateKey, dayMessages] of dayGroups) {
       // Add day header
-      const dayDate = new Date(dateKey + 'T00:00:00')
+      const dayDate = new Date(`${dateKey}T00:00:00`)
       lines.push(`## ${formatDayHeader(dayDate)}`)
       lines.push('')
 
@@ -723,7 +723,7 @@ function formatAsMarkdown(
 function formatAsCustom(
   messages: ChatMessage[],
   chatExport: ChatExport,
-  config: FormatConfig
+  config: FormatConfig,
 ): string {
   const template =
     config.customTemplate || '{{chat_title}}\n\n{{#each messages}}{{sender}}: {{text}}\n{{/each}}'
@@ -786,7 +786,7 @@ function formatAsCustom(
 export function formatMessages(
   messages: ChatMessage[],
   chatExport: ChatExport,
-  config: FormatConfig
+  config: FormatConfig,
 ): string {
   switch (config.template) {
     case 'xml':
@@ -811,7 +811,7 @@ export function formatPreview(
   messages: ChatMessage[],
   chatExport: ChatExport,
   config: FormatConfig,
-  previewLimit: number = 10
+  previewLimit: number = 10,
 ): string {
   const previewConfig: FormatConfig = {
     ...config,
@@ -828,7 +828,7 @@ export function formatPreview(
 export function estimateOutputSize(
   messages: ChatMessage[],
   _chatExport: ChatExport,
-  config: FormatConfig
+  config: FormatConfig,
 ): number {
   // Quick estimate based on message count and average message length
   const avgMessageLength =

@@ -83,7 +83,7 @@ export async function pbkdf2Sync(
   salt: Uint8Array | ArrayBuffer | Buffer,
   iterations: number,
   _keylen?: number,
-  _digest?: string
+  _digest?: string,
 ): Promise<Buffer> {
   // Create regular ArrayBuffer copies to satisfy Web Crypto API types
   let passwordBuffer: ArrayBuffer
@@ -107,7 +107,7 @@ export async function pbkdf2Sync(
     passwordBuffer,
     { name: 'PBKDF2' },
     false,
-    ['deriveBits']
+    ['deriveBits'],
   )
 
   const result = await webCrypto.subtle.deriveBits(
@@ -118,7 +118,7 @@ export async function pbkdf2Sync(
       iterations: iterations,
     },
     passwordKey,
-    512
+    512,
   )
 
   return Buffer.from(result)
@@ -158,7 +158,7 @@ export class Counter {
 export class CTR {
   constructor(
     _key: Uint8Array | ArrayBuffer | Buffer,
-    _counter: Counter | Uint8Array | ArrayBuffer | Buffer
+    _counter: Counter | Uint8Array | ArrayBuffer | Buffer,
   ) {
     // This is a stub - GramJS uses its own CTR implementation
     throw new Error('CTR encryption should use telegram/crypto/crypto implementation')
@@ -176,7 +176,7 @@ export class CTR {
 export function createCipheriv(
   _algorithm: string,
   _key: Uint8Array | ArrayBuffer | Buffer,
-  _iv: Uint8Array | ArrayBuffer | Buffer
+  _iv: Uint8Array | ArrayBuffer | Buffer,
 ): CTR {
   throw new Error('createCipheriv should use telegram/crypto/crypto implementation')
 }
@@ -184,7 +184,7 @@ export function createCipheriv(
 export function createDecipheriv(
   _algorithm: string,
   _key: Uint8Array | ArrayBuffer | Buffer,
-  _iv: Uint8Array | ArrayBuffer | Buffer
+  _iv: Uint8Array | ArrayBuffer | Buffer,
 ): CTR {
   throw new Error('createDecipheriv should use telegram/crypto/crypto implementation')
 }

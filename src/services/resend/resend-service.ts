@@ -11,10 +11,10 @@
  * - Cancel support
  */
 
-import { telegramService } from '../telegram/client'
-import { withRetry, formatDuration, startFloodWaitCountdown } from '../telegram/rate-limiter'
+import type { DeletedMessage, ExportProgress, ResendConfig } from '@/types'
 import { getBrowserTimezone } from '@/types/backup'
-import type { DeletedMessage, ResendConfig, ExportProgress } from '@/types'
+import { telegramService } from '../telegram/client'
+import { formatDuration, startFloodWaitCountdown, withRetry } from '../telegram/rate-limiter'
 
 // Constants matching Python implementation
 const TELEGRAM_CAPTION_LIMIT = 1024
@@ -45,7 +45,7 @@ function safeTruncate(text: string, maxLength: number): string {
 
   // Reserve 3 characters for "..."
   const truncated = text.slice(0, maxLength - 3)
-  return truncated + '...'
+  return `${truncated}...`
 }
 
 /**
@@ -77,7 +77,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
         clearTimeout(timeout)
         reject(new DOMException('Aborted', 'AbortError'))
       },
-      { once: true }
+      { once: true },
     )
   })
 }
@@ -136,7 +136,7 @@ class ResendService {
     messages: DeletedMessage[],
     mediaBlobs: Map<number, Blob>,
     config: ResendConfig,
-    callbacks: ResendCallbacks = {}
+    callbacks: ResendCallbacks = {},
   ): Promise<ResendResult> {
     this.abortController = new AbortController()
     const signal = this.abortController.signal
@@ -203,7 +203,7 @@ class ResendService {
    */
   private createMessageBatches(
     messages: DeletedMessage[],
-    config: ResendConfig
+    config: ResendConfig,
   ): DeletedMessage[][] {
     if (!config.enableBatching) {
       return messages.map((m) => [m])
@@ -281,7 +281,7 @@ class ResendService {
     config: ResendConfig,
     progress: ExportProgress,
     callbacks: ResendCallbacks,
-    signal: AbortSignal
+    signal: AbortSignal,
   ): Promise<void> {
     // Single message - use single message logic
     if (batch.length === 1 && batch[0]) {
@@ -319,7 +319,7 @@ class ResendService {
     config: ResendConfig,
     progress: ExportProgress,
     callbacks: ResendCallbacks,
-    signal: AbortSignal
+    signal: AbortSignal,
   ): Promise<void> {
     progress.processedMessages++
     progress.currentMessageId = message.id
@@ -356,7 +356,7 @@ class ResendService {
               filename: message.mediaFilename || `media_${message.id}`,
             },
             callbacks,
-            signal
+            signal,
           )
 
           sentMedia = true
@@ -559,7 +559,7 @@ class ResendService {
     chatId: bigint,
     text: string,
     callbacks: ResendCallbacks,
-    signal: AbortSignal
+    signal: AbortSignal,
   ): Promise<void> {
     await withRetry(() => telegramService.sendMessage(chatId, text, 'html'), {
       maxRetries: MAX_SEND_RETRIES,
@@ -572,7 +572,7 @@ class ResendService {
       },
       onRetry: (attempt, waitMs, error) => {
         console.warn(
-          `Retry ${attempt} for sendMessage after ${formatDuration(waitMs)}: ${error.message}`
+          `Retry ${attempt} for sendMessage after ${formatDuration(waitMs)}: ${error.message}`,
         )
       },
     })
@@ -586,7 +586,7 @@ class ResendService {
     file: Blob,
     options: { caption?: string; parseMode?: 'html' | 'md'; filename?: string },
     callbacks: ResendCallbacks,
-    signal: AbortSignal
+    signal: AbortSignal,
   ): Promise<void> {
     await withRetry(
       () =>
@@ -606,10 +606,10 @@ class ResendService {
         },
         onRetry: (attempt, waitMs, error) => {
           console.warn(
-            `Retry ${attempt} for sendFile after ${formatDuration(waitMs)}: ${error.message}`
+            `Retry ${attempt} for sendFile after ${formatDuration(waitMs)}: ${error.message}`,
           )
         },
-      }
+      },
     )
   }
 }

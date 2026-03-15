@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { type BotApiUser, getBotInfo } from '@/services/telegram/bot-api'
+import { type AccountStats, type FullUserInfo, telegramService } from '@/services/telegram/client'
 import { useAccountsStore, useUiStore } from '@/stores'
-import { getBotInfo, type BotApiUser } from '@/services/telegram/bot-api'
-import { telegramService, type FullUserInfo, type AccountStats } from '@/services/telegram/client'
 
 const { t } = useI18n()
 const accountsStore = useAccountsStore()

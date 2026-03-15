@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useBackupsStore, useUiStore } from '@/stores'
-import { telegramService } from '@/services/telegram/client'
-import { backupManager } from '@/services/storage/backup-manager'
+import { useRouter } from 'vue-router'
 import { resendService } from '@/services/resend/resend-service'
+import { backupManager } from '@/services/storage/backup-manager'
+import { telegramService } from '@/services/telegram/client'
+import { useBackupsStore, useUiStore } from '@/stores'
+import type { Backup, ChatInfo, DeletedMessage, ExportProgress, ResendConfig } from '@/types'
 import { getBrowserTimezone, getTimezoneLabel } from '@/types/backup'
-import type { ChatInfo, Backup, ResendConfig, ExportProgress, DeletedMessage } from '@/types'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -90,7 +90,7 @@ watch(
       // Silently ignore - preview is optional
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 // Computed
@@ -104,7 +104,7 @@ const filteredChats = computed(() => {
 const progressPercentage = computed(() => {
   if (!currentProgress.value || currentProgress.value.totalMessages === 0) return 0
   return Math.round(
-    (currentProgress.value.processedMessages / currentProgress.value.totalMessages) * 100
+    (currentProgress.value.processedMessages / currentProgress.value.totalMessages) * 100,
   )
 })
 
@@ -244,7 +244,7 @@ async function startResend() {
     step.value = 'complete'
     uiStore.showToast(
       'success',
-      t('resend.successMessage', { count: result.sentCount, chat: selectedTarget.value.title })
+      t('resend.successMessage', { count: result.sentCount, chat: selectedTarget.value.title }),
     )
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
@@ -270,7 +270,7 @@ function formatBytes(bytes: number): string {
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`
 }
 </script>
 

@@ -4,8 +4,8 @@
 
 import { v4 as uuidv4 } from 'uuid'
 import type { Backup, BackupWithMessages, DeletedMessage, ExportConfig } from '@/types'
-import * as db from './indexed-db'
 import { zipGenerator } from '../export/zip-generator'
+import * as db from './indexed-db'
 
 class BackupManager {
   async listBackups(): Promise<Backup[]> {
@@ -31,7 +31,7 @@ class BackupManager {
   async createBackup(
     config: ExportConfig,
     messages: DeletedMessage[],
-    mediaBlobs: Map<number, Blob>
+    mediaBlobs: Map<number, Blob>,
   ): Promise<Backup> {
     const id = uuidv4()
 
@@ -132,7 +132,7 @@ class BackupManager {
 
     // Create merged backup
     const messages = Array.from(messageMap.values()).sort(
-      (a, b) => a.date.getTime() - b.date.getTime()
+      (a, b) => a.date.getTime() - b.date.getTime(),
     )
 
     const mergedBackup = await this.createBackup(
@@ -143,7 +143,7 @@ class BackupManager {
         storageStrategy: 'indexeddb',
       },
       messages,
-      mediaMap
+      mediaMap,
     )
 
     // Delete original backups

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import { useBackupsStore } from '@/stores'
 import { backupManager } from '@/services/storage/backup-manager'
 import { quotaManager } from '@/services/storage/quota'
+import { useBackupsStore } from '@/stores'
 
 const backupsStore = useBackupsStore()
 
@@ -27,7 +27,7 @@ function formatBytes(bytes: number): string {
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`
 }
 
 function formatDate(date: Date): string {

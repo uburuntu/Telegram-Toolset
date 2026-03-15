@@ -33,7 +33,7 @@ export function isFloodWaitError(error: unknown): error is FloodWaitError {
     if (gramError.errorMessage?.startsWith('FLOOD_WAIT_')) {
       // Extract seconds from error message like "FLOOD_WAIT_420"
       const match = gramError.errorMessage.match(/FLOOD_WAIT_(\d+)/)
-      if (match && match[1]) {
+      if (match?.[1]) {
         ;(error as FloodWaitError).seconds = parseInt(match[1], 10)
         return true
       }
@@ -48,7 +48,7 @@ export function isFloodWaitError(error: unknown): error is FloodWaitError {
     if (error.message?.toLowerCase().includes('flood')) {
       // Try to extract seconds from message
       const match = error.message.match(/(\d+)\s*second/i)
-      if (match && match[1]) {
+      if (match?.[1]) {
         ;(error as FloodWaitError).seconds = parseInt(match[1], 10)
         return true
       }
@@ -78,7 +78,7 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
         clearTimeout(timeout)
         reject(new DOMException('Aborted', 'AbortError'))
       },
-      { once: true }
+      { once: true },
     )
   })
 }
@@ -93,7 +93,7 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
  */
 export async function withRetry<T>(
   operation: () => Promise<T>,
-  options: RateLimitOptions = {}
+  options: RateLimitOptions = {},
 ): Promise<T> {
   const {
     maxRetries = MAX_RETRIES,
@@ -126,15 +126,13 @@ export async function withRetry<T>(
         if (attempt < maxRetries - 1) {
           onRetry?.(attempt + 1, waitMs, lastError)
           await sleep(waitMs, signal)
-          continue
         }
       } else {
         // For non-FloodWait errors, use exponential backoff
         if (attempt < maxRetries - 1) {
-          const waitMs = backoffBase * Math.pow(2, attempt)
+          const waitMs = backoffBase * 2 ** attempt
           onRetry?.(attempt + 1, waitMs, lastError)
           await sleep(waitMs, signal)
-          continue
         }
       }
     }
@@ -193,7 +191,7 @@ export class Semaphore {
  */
 export function rateLimited<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
-  options: RateLimitOptions = {}
+  options: RateLimitOptions = {},
 ): T {
   return ((...args: Parameters<T>) => withRetry(() => fn(...args), options)) as T
 }
@@ -245,7 +243,7 @@ export function formatDuration(ms: number): string {
 export function startFloodWaitCountdown(
   seconds: number,
   callback: (remaining: number) => void,
-  signal: AbortSignal
+  signal: AbortSignal,
 ): void {
   let remaining = seconds
 
@@ -265,7 +263,7 @@ export function startFloodWaitCountdown(
     () => {
       clearInterval(interval)
     },
-    { once: true }
+    { once: true },
   )
 }
 
@@ -303,7 +301,7 @@ export function createFloodWaitSubscription(
     onFloodWait: (listener: (seconds: number, method: string) => void) => () => void
   },
   callbacks: FloodWaitCallbacks,
-  signal: AbortSignal
+  signal: AbortSignal,
 ): () => void {
   return telegramService.onFloodWait((seconds) => {
     callbacks.onFloodWait?.(seconds)

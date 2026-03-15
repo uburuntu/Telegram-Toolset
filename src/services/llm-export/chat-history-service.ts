@@ -5,18 +5,18 @@
  * Handles progress tracking, cancellation, and error recovery.
  */
 
-import { telegramService } from '../telegram/client'
-import { createFloodWaitSubscription } from '../telegram/rate-limiter'
-import * as db from '../storage/indexed-db'
 import type {
-  ChatMessage,
   ChatExport,
+  ChatHistoryCallbacks,
   ChatHistoryOptions,
   ChatHistoryProgress,
-  ChatHistoryCallbacks,
   ChatHistoryResult,
   ChatInfo,
+  ChatMessage,
 } from '@/types'
+import * as db from '../storage/indexed-db'
+import { telegramService } from '../telegram/client'
+import { createFloodWaitSubscription } from '../telegram/rate-limiter'
 
 class ChatHistoryService {
   private abortController: AbortController | null = null
@@ -48,7 +48,7 @@ class ChatHistoryService {
   async downloadChatHistory(
     chatInfo: ChatInfo,
     options: ChatHistoryOptions = {},
-    callbacks: ChatHistoryCallbacks = {}
+    callbacks: ChatHistoryCallbacks = {},
   ): Promise<ChatHistoryResult> {
     // Create new abort controller for this download
     this.abortController = new AbortController()
@@ -86,7 +86,7 @@ class ChatHistoryService {
       callbacks.onProgress?.(progress)
 
       // Batch for saving to IndexedDB
-      let batch: ChatMessage[] = []
+      const batch: ChatMessage[] = []
 
       for await (const msg of telegramService.iterChatMessages(chatInfo.id, options)) {
         // Check for cancellation

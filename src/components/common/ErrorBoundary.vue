@@ -6,7 +6,7 @@
  * Logs errors for debugging and provides recovery options.
  */
 
-import { ref, onErrorCaptured } from 'vue'
+import { onErrorCaptured, ref } from 'vue'
 
 interface Props {
   fallbackMessage?: string
