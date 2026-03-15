@@ -2,7 +2,7 @@
  * Storage quota management
  */
 
-import type { StorageEstimate, StorageCheckResult, ExportStrategy } from '@/types'
+import type { ExportStrategy, StorageCheckResult, StorageEstimate } from '@/types'
 
 const LOW_SPACE_THRESHOLD = 0.8 // 80%
 const CRITICAL_SPACE_THRESHOLD = 0.95 // 95%

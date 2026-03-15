@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
+import { contributeCard, modules } from '@/modules'
 import { useAccountsStore, useUiStore } from '@/stores'
-import { modules, contributeCard } from '@/modules'
 import type { ToolModule } from '@/types'
 
 const { t } = useI18n()

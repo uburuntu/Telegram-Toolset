@@ -1,26 +1,23 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useUiStore } from '@/stores'
 import { useFloodWait } from '@/composables'
-import { telegramService } from '@/services/telegram/client'
 import {
-  scheduledService,
   type ChatWithScheduledMessages,
   type ScheduledMessagesProgress,
+  scheduledService,
 } from '@/services/scheduled/scheduled-service'
-import { toUserFriendlyError } from '@/utils/error-messages'
+import { telegramService } from '@/services/telegram/client'
+import { useUiStore } from '@/stores'
 import type { ChatInfo } from '@/types'
-
-// Components
-import FloodWaitIndicator from '@/components/common/FloodWaitIndicator.vue'
+import { toUserFriendlyError } from '@/utils/error-messages'
 
 const { t } = useI18n()
 const uiStore = useUiStore()
 
 // State
 const step = ref<'select-mode' | 'select-chat' | 'configure-all' | 'loading' | 'view-messages'>(
-  'select-mode'
+  'select-mode',
 )
 const mode = ref<'single' | 'all'>('single')
 const chats = ref<ChatInfo[]>([])
@@ -64,7 +61,7 @@ const progressPercentage = computed(() => {
 
 const allSelected = computed(() => {
   const allIds = scheduledData.value.flatMap((item) =>
-    item.messages.map((msg) => `${item.chat.id}-${msg.id}`)
+    item.messages.map((msg) => `${item.chat.id}-${msg.id}`),
   )
   return allIds.length > 0 && allIds.every((id) => selectedMessages.value.has(id))
 })
@@ -115,7 +112,7 @@ async function loadChatScheduledMessages(chat: ChatInfo) {
   try {
     const messages = await scheduledService.getScheduledMessagesForChat(
       chat.id,
-      floodWait.callbacks
+      floodWait.callbacks,
     )
     scheduledData.value = [
       {
@@ -151,7 +148,7 @@ async function loadAllScheduledMessages() {
         },
         ...floodWait.callbacks,
       },
-      { chatLimit: chatLimit.value }
+      { chatLimit: chatLimit.value },
     )
 
     scheduledData.value = results
@@ -245,7 +242,7 @@ async function deleteSelectedMessages() {
       .map((item) => ({
         ...item,
         messages: item.messages.filter(
-          (msg) => !selectedMessages.value.has(`${item.chat.id}-${msg.id}`)
+          (msg) => !selectedMessages.value.has(`${item.chat.id}-${msg.id}`),
         ),
       }))
       .filter((item) => item.messages.length > 0)

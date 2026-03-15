@@ -3,10 +3,10 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getTemplateDescription, getTemplateExample } from '@/services/llm-export/format-service'
 import type {
-  FormatConfig,
-  FormatTemplate,
   DateFormatOption,
   DateGroupingOption,
+  FormatConfig,
+  FormatTemplate,
   MediaPlaceholderOption,
 } from '@/types'
 

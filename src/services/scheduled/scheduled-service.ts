@@ -7,10 +7,10 @@
  * - Delete scheduled messages
  */
 
-import { telegramService } from '../telegram/client'
+import type { ChatInfo, ScheduledMessage } from '@/types'
 import { safeJsonStringify } from '@/utils/message-serialization'
-import { withRetry, createFloodWaitSubscription } from '../telegram/rate-limiter'
-import type { ScheduledMessage, ChatInfo } from '@/types'
+import { telegramService } from '../telegram/client'
+import { createFloodWaitSubscription, withRetry } from '../telegram/rate-limiter'
 
 export interface ScheduledMessagesProgress {
   phase: 'loading_chats' | 'fetching_messages' | 'complete' | 'error'
@@ -59,7 +59,7 @@ class ScheduledService {
    */
   async getScheduledMessagesForChat(
     chatId: bigint,
-    callbacks: Pick<ScheduledMessagesCallbacks, 'onFloodWait' | 'onFloodWaitCountdown'> = {}
+    callbacks: Pick<ScheduledMessagesCallbacks, 'onFloodWait' | 'onFloodWaitCountdown'> = {},
   ): Promise<ScheduledMessage[]> {
     const controller = new AbortController()
     const signal = controller.signal
@@ -83,7 +83,7 @@ class ScheduledService {
    */
   async getAllScheduledMessages(
     callbacks: ScheduledMessagesCallbacks = {},
-    options: ScheduledMessagesOptions = {}
+    options: ScheduledMessagesOptions = {},
   ): Promise<ChatWithScheduledMessages[]> {
     const chatLimit = options.chatLimit ?? 100
 

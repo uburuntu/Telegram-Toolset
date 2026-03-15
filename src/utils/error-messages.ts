@@ -146,7 +146,7 @@ export function toUserFriendlyError(error: unknown): UserFriendlyError {
       // Extract wait time for rate limit errors
       let message = mapping.message
       const floodMatch = errorMessage.match(/FLOOD_WAIT_(\d+)/i)
-      if (floodMatch && floodMatch[1]) {
+      if (floodMatch?.[1]) {
         const seconds = parseInt(floodMatch[1], 10)
         message = `Too many requests. Please wait ${formatWaitTime(seconds)} and try again.`
       }
@@ -220,7 +220,7 @@ function formatWaitTime(seconds: number): string {
  */
 export function showErrorToast(
   showToast: (type: 'error', message: string) => void,
-  error: unknown
+  error: unknown,
 ): void {
   const friendly = toUserFriendlyError(error)
   showToast('error', friendly.message)

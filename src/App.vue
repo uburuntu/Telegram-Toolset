@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import { onMounted, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useAccountsStore, useUiStore } from '@/stores'
+import { useRoute } from 'vue-router'
 import { telegramService } from '@/services/telegram/client'
-import AccountSwitcher from '@/components/auth/AccountSwitcher.vue'
-import LoginModal from '@/components/auth/LoginModal.vue'
-import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
-import PrivacyFooter from '@/components/layout/PrivacyFooter.vue'
+import { useAccountsStore, useUiStore } from '@/stores'
 
 const { t } = useI18n()
 
@@ -19,7 +15,7 @@ const uiStore = useUiStore()
 const showLoginModal = computed(() => uiStore.currentModal?.component === 'LoginModal')
 
 const loginModalProps = computed(
-  () => uiStore.currentModal?.props as { requiredType?: string; targetRoute?: string } | undefined
+  () => uiStore.currentModal?.props as { requiredType?: string; targetRoute?: string } | undefined,
 )
 
 onMounted(() => {
@@ -59,7 +55,7 @@ watch(
         targetRoute: query.redirect as string,
       })
     }
-  }
+  },
 )
 
 // Keep Telegram client session in sync with the active user account (multi-account support).
@@ -96,7 +92,7 @@ watch(
       // Don't spam on startup; module UIs will show their own errors/reconnect UI if needed.
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 </script>
 

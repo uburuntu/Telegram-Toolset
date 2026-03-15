@@ -9,15 +9,15 @@
  * - Sender name resolution
  */
 
+import type { AdminLogIterOptions, DeletedMessage, ExportConfig, ExportProgress } from '@/types'
+import { safeJsonStringify } from '@/utils/message-serialization'
 import { telegramService } from '../telegram/client'
 import {
-  Semaphore,
-  withRetry,
   formatDuration,
+  Semaphore,
   startFloodWaitCountdown,
+  withRetry,
 } from '../telegram/rate-limiter'
-import { safeJsonStringify } from '@/utils/message-serialization'
-import type { DeletedMessage, ExportProgress, ExportConfig, AdminLogIterOptions } from '@/types'
 
 // Constants matching Python implementation
 const MAX_PARALLEL_DOWNLOADS = 4
@@ -80,7 +80,7 @@ class ExportService {
   async exportDeletedMessages(
     config: ExportConfig,
     callbacks: ExportCallbacks = {},
-    options: ExportOptions = {}
+    options: ExportOptions = {},
   ): Promise<ExportResult> {
     // Create new abort controller for this export
     this.abortController = new AbortController()
@@ -218,7 +218,7 @@ class ExportService {
     mediaBlobs: Map<number, Blob>,
     progress: ExportProgress,
     callbacks: ExportCallbacks,
-    signal: AbortSignal
+    signal: AbortSignal,
   ): Promise<void> {
     const semaphore = new Semaphore(MAX_PARALLEL_DOWNLOADS)
 
@@ -244,7 +244,7 @@ class ExportService {
 
           callbacks.onProgress?.(progress)
         }
-      })
+      }),
     )
 
     // Wait for all downloads, but stop on abort
@@ -265,7 +265,7 @@ class ExportService {
   private async downloadMediaWithRetry(
     msg: DeletedMessage,
     callbacks: ExportCallbacks,
-    signal: AbortSignal
+    signal: AbortSignal,
   ): Promise<Blob | null> {
     return withRetry(
       async () => {
@@ -286,10 +286,10 @@ class ExportService {
         },
         onRetry: (attempt, waitMs, error) => {
           console.warn(
-            `Retry ${attempt} for message ${msg.id} after ${formatDuration(waitMs)}: ${error.message}`
+            `Retry ${attempt} for message ${msg.id} after ${formatDuration(waitMs)}: ${error.message}`,
           )
         },
-      }
+      },
     )
   }
 

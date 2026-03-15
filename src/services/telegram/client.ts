@@ -5,19 +5,19 @@
  * See: https://gram.js.org/getting-started/authorization
  */
 
-import { TelegramClient, Api } from 'telegram'
+import { Api, TelegramClient } from 'telegram'
 import { StringSession } from 'telegram/sessions'
 import type {
-  UserInfo,
-  ChatInfo,
-  DeletedMessage,
-  ScheduledMessage,
-  MediaType,
   AdminLogIterOptions,
+  ChatHistoryOptions,
+  ChatInfo,
+  ChatMessage,
   ChatValidationResult,
   ConnectionState,
-  ChatMessage,
-  ChatHistoryOptions,
+  DeletedMessage,
+  MediaType,
+  ScheduledMessage,
+  UserInfo,
 } from '@/types'
 
 // Reconnection settings
@@ -99,7 +99,9 @@ class TelegramService {
 
   private setConnectionState(state: ConnectionState): void {
     this._connectionState = state
-    this.connectionStateListeners.forEach((listener) => listener(state))
+    this.connectionStateListeners.forEach((listener) => {
+      listener(state)
+    })
   }
 
   /**
@@ -112,7 +114,9 @@ class TelegramService {
   }
 
   private emitFloodWait(seconds: number, method: string): void {
-    this.floodWaitListeners.forEach((listener) => listener(seconds, method))
+    this.floodWaitListeners.forEach((listener) => {
+      listener(seconds, method)
+    })
   }
 
   /**
@@ -385,7 +389,7 @@ class TelegramService {
     this.setConnectionState('reconnecting')
 
     // Exponential backoff
-    const delay = RECONNECT_DELAY_MS * Math.pow(2, this.reconnectAttempts - 1)
+    const delay = RECONNECT_DELAY_MS * 2 ** (this.reconnectAttempts - 1)
     await new Promise((resolve) => setTimeout(resolve, delay))
 
     try {
@@ -458,7 +462,7 @@ class TelegramService {
    */
   async startUserAuth(
     phone: string,
-    options?: { onPasswordNeeded?: (hint?: string) => void }
+    options?: { onPasswordNeeded?: (hint?: string) => void },
   ): Promise<UserInfo> {
     if (!this.client) {
       throw new Error('Client not initialized')
@@ -618,7 +622,7 @@ class TelegramService {
       const id = BigInt(entity.id.toString())
       let type: ChatInfo['type'] = 'user'
       let canExport = false
-      let canSend = true
+      const canSend = true
 
       // Check for admin rights or creator status
       const hasAdminRights = !!(entity as any).adminRights
@@ -731,7 +735,7 @@ class TelegramService {
       try {
         // Get input channel for the API call
         const inputChannel = (await client.getInputEntity(
-          entity
+          entity,
         )) as unknown as Api.TypeInputChannel
 
         await client.invoke(
@@ -744,7 +748,7 @@ class TelegramService {
             eventsFilter: new Api.ChannelAdminLogEventsFilter({
               delete: true,
             }),
-          })
+          }),
         )
         // If we got here, admin log access is working
       } catch (adminLogError) {
@@ -798,7 +802,7 @@ class TelegramService {
    */
   async *iterDeletedMessages(
     chatId: bigint,
-    options: AdminLogIterOptions = {}
+    options: AdminLogIterOptions = {},
   ): AsyncGenerator<DeletedMessage> {
     if (!this.client) {
       throw new Error('Client not connected')
@@ -840,7 +844,7 @@ class TelegramService {
           eventsFilter: new Api.ChannelAdminLogEventsFilter({
             delete: true,
           }),
-        })
+        }),
       )
 
       const events = result.events
@@ -885,7 +889,7 @@ class TelegramService {
           const doc = msg.media.document as Api.Document
           mediaSize = Number(doc.size)
           const filenameAttr = doc.attributes?.find(
-            (a): a is Api.DocumentAttributeFilename => a instanceof Api.DocumentAttributeFilename
+            (a): a is Api.DocumentAttributeFilename => a instanceof Api.DocumentAttributeFilename,
           )
           if (filenameAttr) {
             mediaFilename = filenameAttr.fileName
@@ -1087,7 +1091,7 @@ class TelegramService {
       // For groups/supergroups, check if we can send
       // @ts-expect-error - defaultBannedRights may exist
       const banned = entity.defaultBannedRights
-      if (banned && banned.sendMessages) {
+      if (banned?.sendMessages) {
         return false
       }
 
@@ -1125,7 +1129,7 @@ class TelegramService {
       parseMode?: 'html' | 'md'
       forceDocument?: boolean
       filename?: string
-    } = {}
+    } = {},
   ): Promise<void> {
     if (!this.client) {
       throw new Error('Client not connected')
@@ -1182,7 +1186,7 @@ class TelegramService {
       new Api.messages.GetScheduledHistory({
         peer: inputPeer,
         hash: BigInt(0) as unknown as Api.long,
-      })
+      }),
     )
 
     const messages: ScheduledMessage[] = []
@@ -1211,7 +1215,7 @@ class TelegramService {
         const doc = msg.media.document as Api.Document
         mediaSize = Number(doc.size)
         const filenameAttr = doc.attributes?.find(
-          (a): a is Api.DocumentAttributeFilename => a instanceof Api.DocumentAttributeFilename
+          (a): a is Api.DocumentAttributeFilename => a instanceof Api.DocumentAttributeFilename,
         )
         if (filenameAttr) {
           mediaFilename = filenameAttr.fileName
@@ -1257,7 +1261,7 @@ class TelegramService {
       new Api.messages.DeleteScheduledMessages({
         peer: inputPeer,
         id: messageIds,
-      })
+      }),
     )
   }
 
@@ -1275,7 +1279,7 @@ class TelegramService {
    */
   async *iterChatMessages(
     chatId: bigint,
-    options: ChatHistoryOptions = {}
+    options: ChatHistoryOptions = {},
   ): AsyncGenerator<ChatMessage> {
     const client = await this.getConnectedClient()
 
@@ -1345,8 +1349,8 @@ class TelegramService {
                   ? msg.fwdFrom.fromId.userId.toString()
                   : 'channelId' in msg.fwdFrom.fromId
                     ? msg.fwdFrom.fromId.channelId.toString()
-                    : '0'
-              )
+                    : '0',
+              ),
             )
             if (fwdEntity && typeof fwdEntity === 'object') {
               if ('firstName' in fwdEntity) {
@@ -1402,7 +1406,7 @@ class TelegramService {
         maxId: 0,
         minId: 0,
         hash: BigInt(0) as unknown as Api.long,
-      })
+      }),
     )
 
     if ('count' in result) {
@@ -1467,7 +1471,7 @@ class TelegramService {
       const result = await client.invoke(
         new Api.users.GetFullUser({
           id: new Api.InputUserSelf(),
-        })
+        }),
       )
 
       const fullUser = result.fullUser
@@ -1537,7 +1541,7 @@ class TelegramService {
 
       // Get contacts count
       const contacts = await client.invoke(
-        new Api.contacts.GetContacts({ hash: BigInt(0) as unknown as Api.long })
+        new Api.contacts.GetContacts({ hash: BigInt(0) as unknown as Api.long }),
       )
       const contactsCount =
         contacts.className === 'contacts.Contacts' ? contacts.contacts.length : 0

@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useBackupsStore, useUiStore } from '@/stores'
-import { telegramService } from '@/services/telegram/client'
-import { backupManager } from '@/services/storage/backup-manager'
-import { quotaManager } from '@/services/storage/quota'
+import { useRouter } from 'vue-router'
 import { exportService } from '@/services/export/export-service'
 import { zipGenerator } from '@/services/export/zip-generator'
+import { backupManager } from '@/services/storage/backup-manager'
+import { quotaManager } from '@/services/storage/quota'
+import { telegramService } from '@/services/telegram/client'
 import { formatDuration } from '@/services/telegram/rate-limiter'
+import { useBackupsStore, useUiStore } from '@/stores'
+import type { BackupWithMessages, ChatInfo, ExportConfig, ExportProgress } from '@/types'
 import { toUserFriendlyError } from '@/utils/error-messages'
-import type { ChatInfo, ExportConfig, ExportProgress, BackupWithMessages } from '@/types'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -78,7 +78,6 @@ function applyDatePreset(preset: (typeof datePresets)[number]) {
       maxDate.value = lastOfLastMonth.toISOString().split('T')[0] || ''
       break
     }
-    case 'custom':
     default:
       // Keep current values for custom
       break
@@ -109,7 +108,7 @@ const exportableChatsCount = computed(() => chats.value.filter((c) => c.canExpor
 const progressPercentage = computed(() => {
   if (!currentProgress.value || currentProgress.value.totalMessages === 0) return 0
   return Math.round(
-    (currentProgress.value.processedMessages / currentProgress.value.totalMessages) * 100
+    (currentProgress.value.processedMessages / currentProgress.value.totalMessages) * 100,
   )
 })
 
@@ -234,7 +233,7 @@ async function startExport() {
     minDate: useDateFilter.value && minDate.value ? new Date(minDate.value) : undefined,
     maxDate:
       useDateFilter.value && maxDate.value
-        ? new Date(maxDate.value + 'T23:59:59') // Include the entire day
+        ? new Date(`${maxDate.value}T23:59:59`) // Include the entire day
         : undefined,
   }
 

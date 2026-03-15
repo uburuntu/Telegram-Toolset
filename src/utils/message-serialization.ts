@@ -21,7 +21,7 @@ export function stripRawMessage<T extends DeletedMessage>(message: T): Omit<T, '
  * Strip `_rawMessage` from an array of messages.
  */
 export function stripRawMessages<T extends DeletedMessage>(
-  messages: T[]
+  messages: T[],
 ): Omit<T, '_rawMessage'>[] {
   return messages.map(stripRawMessage)
 }

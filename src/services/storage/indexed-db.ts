@@ -2,9 +2,9 @@
  * IndexedDB operations using idb library
  */
 
-import { openDB, type IDBPDatabase } from 'idb'
-import type { Backup, DeletedMessage, MediaTypeStats, ChatExport, ChatMessage } from '@/types'
-import { stripRawMessage, safeJsonStringify } from '@/utils/message-serialization'
+import { type IDBPDatabase, openDB } from 'idb'
+import type { Backup, ChatExport, ChatMessage, DeletedMessage, MediaTypeStats } from '@/types'
+import { safeJsonStringify, stripRawMessage } from '@/utils/message-serialization'
 
 interface TelegramToolsetDB {
   backups: {
@@ -183,7 +183,7 @@ export async function saveMedia(
   messageId: number,
   blob: Blob,
   filename: string,
-  mimeType: string
+  mimeType: string,
 ): Promise<void> {
   const db = await getDB()
   await db.put('media', { backupId, messageId, blob, filename, mimeType })
@@ -226,7 +226,7 @@ export async function calculateBackupSize(backupId: string): Promise<number> {
 
 export async function countMediaTypes(
   _backupId: string,
-  messages: DeletedMessage[]
+  messages: DeletedMessage[],
 ): Promise<MediaTypeStats> {
   const stats: MediaTypeStats = {
     photos: 0,

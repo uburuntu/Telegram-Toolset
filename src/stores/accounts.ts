@@ -3,9 +3,9 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
 import { v4 as uuidv4 } from 'uuid'
-import type { SavedAccount, AccountType, AuthFlowState } from '@/types/account'
+import { computed, ref } from 'vue'
+import type { AccountType, AuthFlowState, SavedAccount } from '@/types/account'
 
 const ACCOUNTS_STORAGE_KEY = 'telegram_accounts'
 const ACTIVE_ACCOUNT_KEY = 'telegram_active_account'
@@ -21,7 +21,7 @@ export const useAccountsStore = defineStore('accounts', () => {
 
   // Getters
   const activeAccount = computed(
-    () => accounts.value.find((a) => a.id === activeAccountId.value) ?? null
+    () => accounts.value.find((a) => a.id === activeAccountId.value) ?? null,
   )
 
   const userAccounts = computed(() => accounts.value.filter((a) => a.type === 'user'))
@@ -80,7 +80,7 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   function addAccount(
-    account: Omit<SavedAccount, 'id' | 'createdAt' | 'lastUsedAt'>
+    account: Omit<SavedAccount, 'id' | 'createdAt' | 'lastUsedAt'>,
   ): SavedAccount {
     const newAccount: SavedAccount = {
       ...account,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccountsStore, useUiStore } from '@/stores'
 
@@ -36,7 +36,7 @@ function addBotAccount(): void {
 
 function removeAccount(id: string, event: Event): void {
   event.stopPropagation()
-  if (confirm(t('accounts.removeAccount') + '?')) {
+  if (confirm(`${t('accounts.removeAccount')}?`)) {
     accountsStore.removeAccount(id)
   }
 }
