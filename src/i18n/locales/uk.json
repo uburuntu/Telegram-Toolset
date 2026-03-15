@@ -407,7 +407,7 @@
       "custom": "Власний шаблон"
     },
     "customTemplate": "Власний шаблон",
-    "customTemplateHint": "Використовуйте {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} всередині {'{{'}#each messages{'}}'}...{'{{'}/each{'}}'}",
+    "customTemplateHint": "Змінні: sender, date, text, media, reply, forward — загорніть у подвійні фігурні дужки, використовуйте #each messages / /each для циклів",
     "includeSenderName": "Включити ім'я відправника",
     "includeSenderUsername": "Включити @username",
     "useOriginalNames": "Використовувати оригінальні імена",
@@ -454,7 +454,7 @@
       "plain": "Простий текстовий формат, легко читається та універсально сумісний",
       "json": "JSON-формат для програмної обробки або інтеграції з API",
       "markdown": "Markdown-формат із заголовками та форматуванням, підходить для документації",
-      "custom": "Визначте свій шаблон зі змінними {'{{'}sender{'}}'}, {'{{'}text{'}}'}, {'{{'}date{'}}'}"
+      "custom": "Визначте свій шаблон зі змінними sender, text, date"
     }
   }
 }

@@ -408,7 +408,7 @@
       "custom": "Custom"
     },
     "customTemplate": "Custom Template",
-    "customTemplateHint": "Use {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} inside {'{{'}#each messages{'}}'}...{'{{'}/each{'}}'}",
+    "customTemplateHint": "Variables: sender, date, text, media, reply, forward — wrap in double curly braces, use #each messages / /each for loops",
     "includeSenderName": "Include sender name",
     "includeSenderUsername": "Include @username",
     "useOriginalNames": "Use original names",
@@ -455,7 +455,7 @@
       "plain": "Simple plain text format, easy to read and universally compatible",
       "json": "JSON format for programmatic processing or API integration",
       "markdown": "Markdown format with headers and formatting, good for documentation",
-      "custom": "Define your own template with variables like {'{{'}sender{'}}'}, {'{{'}text{'}}'}, {'{{'}date{'}}'}"
+      "custom": "Define your own template with variables like sender, text, date"
     }
   }
 }

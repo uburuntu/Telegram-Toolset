@@ -407,7 +407,7 @@
       "custom": "Kustom"
     },
     "customTemplate": "Templat Kustom",
-    "customTemplateHint": "Gunakan {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} di dalam {'{{'}#each messages{'}}'}...{'{{'}/each{'}}'}",
+    "customTemplateHint": "Variabel: sender, date, text, media, reply, forward — bungkus dalam kurung kurawal ganda, gunakan #each messages / /each untuk loop",
     "includeSenderName": "Sertakan nama pengirim",
     "includeSenderUsername": "Sertakan @username",
     "useOriginalNames": "Gunakan nama asli",
@@ -454,7 +454,7 @@
       "plain": "Format teks sederhana, mudah dibaca dan kompatibel secara universal",
       "json": "Format JSON untuk pemrosesan programatis atau integrasi API",
       "markdown": "Format Markdown dengan header dan pemformatan, cocok untuk dokumentasi",
-      "custom": "Tentukan template Anda sendiri dengan variabel seperti {'{{'}sender{'}}'}, {'{{'}text{'}}'}, {'{{'}date{'}}'}"
+      "custom": "Tentukan template Anda sendiri dengan variabel seperti sender, text, date"
     }
   }
 }

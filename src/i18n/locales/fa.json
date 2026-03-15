@@ -407,7 +407,7 @@
       "custom": "سفارشی"
     },
     "customTemplate": "قالب سفارشی",
-    "customTemplateHint": "از {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} در داخل {'{{'}#each messages{'}}'}...{'{{'}/each{'}}'} استفاده کنید",
+    "customTemplateHint": "متغیرها: sender, date, text, media, reply, forward — در آکولادهای دوتایی قرار دهید، از #each messages / /each برای حلقه‌ها استفاده کنید",
     "includeSenderName": "شامل نام فرستنده",
     "includeSenderUsername": "شامل نام کاربری @",
     "useOriginalNames": "استفاده از نام‌های اصلی",
@@ -454,7 +454,7 @@
       "plain": "فرمت متن ساده، آسان برای خواندن و سازگار جهانی",
       "json": "فرمت JSON برای پردازش برنامه‌نویسی یا یکپارچه‌سازی با API",
       "markdown": "فرمت Markdown با عناوین و قالب‌بندی، مناسب برای مستندسازی",
-      "custom": "قالب خود را با متغیرهایی مانند {'{{'}sender{'}}'}، {'{{'}text{'}}'}، {'{{'}date{'}}'} تعریف کنید"
+      "custom": "قالب خود را با متغیرهایی مانند sender, text, date تعریف کنید"
     }
   }
 }

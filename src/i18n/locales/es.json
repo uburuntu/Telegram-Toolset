@@ -407,7 +407,7 @@
       "custom": "Personalizado"
     },
     "customTemplate": "Plantilla Personalizada",
-    "customTemplateHint": "Use {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} dentro de {'{{'}#each messages{'}}'}...{'{{'}/each{'}}'}",
+    "customTemplateHint": "Variables: sender, date, text, media, reply, forward — envuelva en dobles llaves, use #each messages / /each para bucles",
     "includeSenderName": "Incluir nombre del remitente",
     "includeSenderUsername": "Incluir @nombredeusuario",
     "useOriginalNames": "Usar nombres originales",
@@ -454,7 +454,7 @@
       "plain": "Formato de texto simple, fácil de leer y universalmente compatible",
       "json": "Formato JSON para procesamiento programático o integración con API",
       "markdown": "Formato Markdown con encabezados y formato, ideal para documentación",
-      "custom": "Define tu propia plantilla con variables como {'{{'}sender{'}}'}, {'{{'}text{'}}'}, {'{{'}date{'}}'}"
+      "custom": "Define tu propia plantilla con variables como sender, text, date"
     }
   }
 }

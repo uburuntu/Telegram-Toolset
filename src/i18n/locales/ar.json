@@ -407,7 +407,7 @@
       "custom": "مخصص"
     },
     "customTemplate": "قالب مخصص",
-    "customTemplateHint": "استخدم {'{{'}sender{'}}'}, {'{{'}date{'}}'}, {'{{'}text{'}}'}, {'{{'}media{'}}'}, {'{{'}reply{'}}'}, {'{{'}forward{'}}'} داخل {'{{'}#each messages{'}}'}...{'{{'}/each{'}}'}",
+    "customTemplateHint": "المتغيرات: sender, date, text, media, reply, forward — اغلفها بأقواس مزدوجة، استخدم #each messages / /each للحلقات",
     "includeSenderName": "تضمين اسم المرسل",
     "includeSenderUsername": "تضمين اسم المستخدم @",
     "useOriginalNames": "استخدام الأسماء الأصلية",
@@ -454,7 +454,7 @@
       "plain": "تنسيق نص بسيط، سهل القراءة ومتوافق عالمياً",
       "json": "تنسيق JSON للمعالجة البرمجية أو التكامل مع API",
       "markdown": "تنسيق Markdown مع عناوين وتنسيق، مناسب للتوثيق",
-      "custom": "حدد قالبك الخاص باستخدام متغيرات مثل {'{{'}sender{'}}'}، {'{{'}text{'}}'}، {'{{'}date{'}}'}"
+      "custom": "حدد قالبك الخاص باستخدام متغيرات مثل sender, text, date"
     }
   }
 }
