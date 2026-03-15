@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getTemplateExample } from '@/services/llm-export/format-service'
 import type {
@@ -19,6 +19,56 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+onMounted(() => {
+  console.log('[FormatConfig] mounted, template:', props.config.template)
+  // Test each i18n key to find which one crashes
+  const keysToTest = [
+    'llmExport.formatConfig',
+    'llmExport.template',
+    'llmExport.customTemplate',
+    'llmExport.customTemplateHint',
+    'llmExport.includeSenderName',
+    'llmExport.includeSenderUsername',
+    'llmExport.useOriginalNames',
+    'llmExport.useOriginalNamesHint',
+    'llmExport.includeReplyContext',
+    'llmExport.includeDate',
+    'llmExport.includeMessageIds',
+    'llmExport.reverseOrder',
+    'llmExport.dateFormat',
+    'llmExport.dateGrouping',
+    'llmExport.dateGroupingHint',
+    'llmExport.mediaPlaceholder',
+    'llmExport.outputLimit',
+    'llmExport.outputLimitHint',
+    'llmExport.noLimit',
+    'llmExport.templateDescriptions.plain',
+    'llmExport.templateDescriptions.xml',
+    'llmExport.templateDescriptions.json',
+    'llmExport.templateDescriptions.markdown',
+    'llmExport.templateDescriptions.custom',
+    'llmExport.templates.plain',
+    'llmExport.templates.custom',
+    'llmExport.dateFormats.short',
+    'llmExport.dateFormats.long',
+    'llmExport.dateFormats.timeOnly',
+    'llmExport.dateFormats.none',
+    'llmExport.dateGroupings.perMessage',
+    'llmExport.dateGroupings.perDay',
+    'llmExport.mediaOptions.bracket',
+    'llmExport.mediaOptions.emoji',
+    'llmExport.mediaOptions.skip',
+  ]
+  for (const key of keysToTest) {
+    try {
+      t(key)
+      console.log(`[FormatConfig] t('${key}') = OK`)
+    } catch (e) {
+      console.error(`[FormatConfig] t('${key}') FAILED:`, e)
+    }
+  }
+})
 
 const templates: FormatTemplate[] = ['plain', 'xml', 'json', 'markdown', 'custom']
 const dateFormats: DateFormatOption[] = ['short', 'long', 'iso', 'time-only', 'none']

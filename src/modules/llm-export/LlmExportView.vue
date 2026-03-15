@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onErrorCaptured, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloodWaitIndicator from '@/components/common/FloodWaitIndicator.vue'
 import { useFloodWait } from '@/composables'
@@ -16,6 +16,14 @@ import LivePreview from './components/LivePreview.vue'
 
 const { t } = useI18n()
 const uiStore = useUiStore()
+
+// Debug: catch rendering errors from child components
+onErrorCaptured((err, instance, info) => {
+  console.error('[LlmExportView] Error captured:', err)
+  console.error('[LlmExportView] Component:', instance?.$options?.name || instance)
+  console.error('[LlmExportView] Info:', info)
+  return false // let it propagate
+})
 
 // Tab state
 const activeTab = ref<'new' | 'exports'>('new')
