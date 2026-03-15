@@ -446,6 +446,8 @@
     "copyError": "Gagal menyalin ke papan klip",
     "preview": "Pratinjau Langsung",
     "noPreview": "Konfigurasikan ekspor untuk melihat pratinjau",
-    "previewNote": "Menampilkan 15 pesan pertama. Output penuh akan menyertakan semua pesan."
+    "previewNote": "Menampilkan 15 pesan pertama. Output penuh akan menyertakan semua pesan.",
+    "stopAndSave": "Hentikan & Simpan",
+    "advancedOptions": "Opsi lanjutan"
   }
 }

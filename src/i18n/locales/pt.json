@@ -446,6 +446,8 @@
     "copyError": "Falha ao copiar para a área de transferência",
     "preview": "Prévia ao Vivo",
     "noPreview": "Configure uma exportação para ver a prévia",
-    "previewNote": "Mostrando as primeiras 15 mensagens. A saída completa incluirá todas as mensagens."
+    "previewNote": "Mostrando as primeiras 15 mensagens. A saída completa incluirá todas as mensagens.",
+    "stopAndSave": "Parar e salvar",
+    "advancedOptions": "Opções avançadas"
   }
 }

@@ -446,6 +446,8 @@
     "copyError": "Panoya kopyalanamadı",
     "preview": "Canlı Önizleme",
     "noPreview": "Önizlemeyi görmek için bir dışa aktarma yapılandırın",
-    "previewNote": "İlk 15 mesaj gösteriliyor. Tam çıktı tüm mesajları içerecektir."
+    "previewNote": "İlk 15 mesaj gösteriliyor. Tam çıktı tüm mesajları içerecektir.",
+    "stopAndSave": "Durdur ve kaydet",
+    "advancedOptions": "Gelişmiş seçenekler"
   }
 }

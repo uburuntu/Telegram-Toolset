@@ -446,6 +446,8 @@
     "copyError": "Error al copiar al portapapeles",
     "preview": "Vista Previa en Vivo",
     "noPreview": "Configure una exportación para ver la vista previa",
-    "previewNote": "Mostrando los primeros 15 mensajes. La salida completa incluirá todos los mensajes."
+    "previewNote": "Mostrando los primeros 15 mensajes. La salida completa incluirá todos los mensajes.",
+    "stopAndSave": "Detener y guardar",
+    "advancedOptions": "Opciones avanzadas"
   }
 }
