@@ -552,7 +552,7 @@ function goBack(): void {
           <form @submit.prevent="handleCredentialsSubmit" class="space-y-3">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >{{ t('accounts.apiId') }}</label
+                >API ID</label
               >
               <input
                 v-model="apiId"
