@@ -16,7 +16,8 @@
     "test:component": "vitest run --config vitest.config.component.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "check:i18n": "node scripts/check-i18n.js"
   },
   "dependencies": {
     "idb": "latest",

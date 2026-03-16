@@ -22,8 +22,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run ESLint
+      - name: Run Biome lint
         run: npm run lint
+
+      - name: Check i18n values
+        run: npm run check:i18n
 
       - name: Run TypeScript check
         run: npm run type-check
