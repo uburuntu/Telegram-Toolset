@@ -144,6 +144,8 @@ const ALLOWED_HARDCODED = new Set([
   'Shanghai (CST)',
   'Dubai (GST)',
   'Sydney (AEST/AEDT)',
+  // Domain names
+  'my.telegram.org',
 ])
 
 function findVueFiles(dir) {

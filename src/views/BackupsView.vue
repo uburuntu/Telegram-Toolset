@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { backupManager } from '@/services/storage/backup-manager'
 import { quotaManager } from '@/services/storage/quota'
 import { useBackupsStore } from '@/stores'
 
+const { t } = useI18n()
 const backupsStore = useBackupsStore()
 
 onMounted(async () => {
@@ -64,7 +66,7 @@ async function handleDownload(id: string) {
   <div class="max-w-4xl mx-auto py-8 px-4">
     <header class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Your Backups</h1>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('backups.title') }}</h1>
         <p class="text-gray-600 dark:text-gray-400 text-sm">
           {{ backupsStore.backupCount }} backup{{ backupsStore.backupCount !== 1 ? 's' : '' }}
         </p>
@@ -73,14 +75,14 @@ async function handleDownload(id: string) {
         to="/export"
         class="px-4 py-2 rounded-lg font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700"
       >
-        + New Export
+        {{ t('backups.newExport') }}
       </router-link>
     </header>
 
     <!-- Storage indicator -->
     <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg mb-6">
       <div class="flex justify-between text-sm mb-1">
-        <span class="text-gray-600 dark:text-gray-400">Storage used</span>
+        <span class="text-gray-600 dark:text-gray-400">{{ t('backups.storageUsed') }}</span>
         <span class="font-medium text-gray-900 dark:text-white">
           {{ formatBytes(backupsStore.storageEstimate.used) }} /
           {{
@@ -105,21 +107,21 @@ async function handleDownload(id: string) {
       <div
         class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"
       ></div>
-      <p class="text-gray-600 dark:text-gray-400">Loading backups...</p>
+      <p class="text-gray-600 dark:text-gray-400">{{ t('backups.loading') }}</p>
     </div>
 
     <!-- Empty state -->
     <div v-else-if="backupsStore.backupCount === 0" class="text-center py-12">
       <div class="text-4xl mb-4">📭</div>
-      <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">No backups yet</h2>
+      <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">{{ t('backups.noBackups') }}</h2>
       <p class="text-gray-600 dark:text-gray-400 mb-6">
-        Export deleted messages from your channels to get started
+        {{ t('backups.noBackupsHint') }}
       </p>
       <router-link
         to="/export"
         class="px-4 py-2 rounded-lg font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700"
       >
-        Create First Backup
+        {{ t('backups.createFirst') }}
       </router-link>
     </div>
 
@@ -160,13 +162,13 @@ async function handleDownload(id: string) {
               @click="handleDownload(backup.id)"
               class="px-4 py-2 rounded-lg font-medium text-sm transition-colors bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
             >
-              Download ZIP
+              {{ t('backups.downloadZip') }}
             </button>
             <button
               @click="handleDelete(backup.id)"
               class="px-4 py-2 rounded-lg font-medium text-sm transition-colors bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50"
             >
-              Delete
+              {{ t('common.delete') }}
             </button>
           </div>
         </div>

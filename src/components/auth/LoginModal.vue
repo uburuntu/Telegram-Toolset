@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import type { BotApiUser } from '@/services/telegram/bot-api'
 import { getBotInfo, isValidTokenFormat, maskBotToken } from '@/services/telegram/bot-api'
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
+const { t } = useI18n()
 const router = useRouter()
 const accountsStore = useAccountsStore()
 const uiStore = useUiStore()
@@ -420,7 +422,7 @@ function goBack(): void {
     >
       <!-- Header -->
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Add Account</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('accounts.addAccount') }}</h2>
         <button
           @click="handleClose"
           class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
@@ -444,7 +446,7 @@ function goBack(): void {
               : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
           ]"
         >
-          👤 User Account
+          👤 {{ t('accounts.userAccount') }}
         </button>
         <button
           data-testid="tab-bot"
@@ -456,7 +458,7 @@ function goBack(): void {
               : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
           ]"
         >
-          🤖 Bot Token
+          🤖 {{ t('accounts.botTokenTab') }}
         </button>
       </div>
 
@@ -468,11 +470,10 @@ function goBack(): void {
             class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-sm"
           >
             <p class="text-blue-800 dark:text-blue-300 mb-2">
-              <strong>API credentials found</strong>
+              <strong>{{ t('accounts.credentialsFound') }}</strong>
             </p>
             <p class="text-blue-700 dark:text-blue-400 text-xs">
-              You have API credentials saved from a previous login. The same credentials can be used
-              for multiple Telegram accounts.
+              {{ t('accounts.credentialsFoundHint') }}
             </p>
           </div>
 
@@ -490,7 +491,7 @@ function goBack(): void {
                 </div>
                 <div>
                   <p class="font-medium text-gray-900 dark:text-white text-sm">
-                    Use saved credentials
+                    {{ t('accounts.useSavedCredentials') }}
                   </p>
                   <p class="text-xs text-gray-500 dark:text-gray-400">
                     API ID: {{ accountsStore.apiCredentials?.apiId }}
@@ -512,10 +513,10 @@ function goBack(): void {
                 </div>
                 <div>
                   <p class="font-medium text-gray-900 dark:text-white text-sm">
-                    Enter different credentials
+                    {{ t('accounts.enterDifferentCredentials') }}
                   </p>
                   <p class="text-xs text-gray-500 dark:text-gray-400">
-                    Use a different API ID & Hash
+                    {{ t('accounts.useDifferentApiHint') }}
                   </p>
                 </div>
               </div>
@@ -530,7 +531,7 @@ function goBack(): void {
             @click="goBack"
             class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-100"
           >
-            ← Back
+            ← {{ t('accounts.back') }}
           </button>
 
           <!-- API Explanation -->
@@ -538,11 +539,10 @@ function goBack(): void {
             class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-sm"
           >
             <p class="text-blue-800 dark:text-blue-300 mb-2">
-              <strong>Why do I need API credentials?</strong>
+              <strong>{{ t('accounts.whyCredentials') }}</strong>
             </p>
             <p class="text-blue-700 dark:text-blue-400 text-xs">
-              To connect as a user (not a bot), you need your own app credentials from Telegram.
-              This is like a developer key that identifies your connection. Get them free at
+              {{ t('accounts.credentialsExplanation') }}
               <a href="https://my.telegram.org/auth" target="_blank" class="underline"
                 >my.telegram.org</a
               >.
@@ -552,7 +552,7 @@ function goBack(): void {
           <form @submit.prevent="handleCredentialsSubmit" class="space-y-3">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >API ID</label
+                >{{ t('accounts.apiId') }}</label
               >
               <input
                 v-model="apiId"
@@ -584,7 +584,7 @@ function goBack(): void {
               type="submit"
               class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
             >
-              Continue
+              {{ t('accounts.continue') }}
             </button>
           </form>
         </template>
@@ -595,16 +595,16 @@ function goBack(): void {
             @click="goBack"
             class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-100"
           >
-            ← Back
+            ← {{ t('accounts.back') }}
           </button>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Enter your phone number to receive a verification code
+            {{ t('accounts.phoneHint') }}
           </p>
 
           <form @submit.prevent="handlePhoneSubmit" class="space-y-3">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >Phone Number</label
+                >{{ t('accounts.phoneNumber') }}</label
               >
               <input
                 v-model="phone"
@@ -621,7 +621,7 @@ function goBack(): void {
               class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
               :disabled="isLoading"
             >
-              {{ isLoading ? 'Sending...' : 'Send Code' }}
+              {{ isLoading ? t('accounts.sending') : t('accounts.sendCode') }}
             </button>
           </form>
         </template>
@@ -632,7 +632,7 @@ function goBack(): void {
             @click="goBack"
             class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-100"
           >
-            ← Back
+            ← {{ t('accounts.back') }}
           </button>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Enter the code sent to {{ phone }}
@@ -641,7 +641,7 @@ function goBack(): void {
           <form @submit.prevent="handleCodeSubmit" class="space-y-3">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >Verification Code</label
+                >{{ t('accounts.verificationCode') }}</label
               >
               <input
                 v-model="code"
@@ -659,7 +659,7 @@ function goBack(): void {
               class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
               :disabled="isLoading"
             >
-              {{ isLoading ? 'Verifying...' : 'Verify' }}
+              {{ isLoading ? t('accounts.verifying') : t('accounts.verify') }}
             </button>
           </form>
         </template>
@@ -670,19 +670,19 @@ function goBack(): void {
             @click="goBack"
             class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-100"
           >
-            ← Back
+            ← {{ t('accounts.back') }}
           </button>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Your account has two-factor authentication enabled. Enter your password to continue.
+            {{ t('accounts.twoFaHint') }}
           </p>
 
           <form @submit.prevent="handlePasswordSubmit" class="space-y-3">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >2FA Password</label
+                >{{ t('accounts.twoFaPassword') }}</label
               >
               <p v-if="passwordHint" class="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                Hint: {{ passwordHint }}
+                {{ t('accounts.hint') }}: {{ passwordHint }}
               </p>
               <input
                 v-model="password"
@@ -698,7 +698,7 @@ function goBack(): void {
               class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
               :disabled="isLoading"
             >
-              {{ isLoading ? 'Signing in...' : 'Sign In' }}
+              {{ isLoading ? t('accounts.signingIn') : t('accounts.signIn') }}
             </button>
           </form>
         </template>
@@ -707,7 +707,7 @@ function goBack(): void {
       <!-- Bot Token Flow -->
       <template v-if="activeTab === 'bot' && step === 'token'">
         <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Get your bot token from
+          {{ t('accounts.botTokenHint') }}
           <a href="https://t.me/BotFather" target="_blank" class="text-purple-600 hover:underline">
             @BotFather
           </a>
@@ -716,7 +716,7 @@ function goBack(): void {
         <form @submit.prevent="handleBotTokenSubmit" class="space-y-3">
           <div>
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >Bot Token</label
+              >{{ t('accounts.botToken') }}</label
             >
             <div class="relative">
               <input
@@ -724,7 +724,7 @@ function goBack(): void {
                 @input="handleTokenInput"
                 @paste="handleTokenPaste"
                 type="text"
-                placeholder="Paste your bot token here"
+                :placeholder="t('accounts.pasteTokenHint')"
                 spellcheck="false"
                 autocomplete="off"
                 autocorrect="off"
@@ -763,7 +763,7 @@ function goBack(): void {
               </div>
             </div>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Token is masked for your privacy when screen sharing
+              {{ t('accounts.tokenMaskedHint') }}
             </p>
           </div>
 
@@ -791,7 +791,7 @@ function goBack(): void {
             class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-sm"
           >
             <p class="text-amber-700 dark:text-amber-300">
-              ⚠️ This bot is already added. Proceeding will update the existing token.
+              ⚠️ {{ t('accounts.duplicateBotWarning') }}
             </p>
           </div>
 
@@ -803,13 +803,13 @@ function goBack(): void {
             :disabled="isLoading || !tokenValidated"
           >
             <template v-if="isLoading">{{
-              existingBotAccount ? 'Updating...' : 'Adding...'
+              existingBotAccount ? t('accounts.updating') : t('accounts.adding')
             }}</template>
             <template v-else-if="tokenValidated && existingBotAccount"
               >Update {{ botInfo?.first_name }}</template
             >
             <template v-else-if="tokenValidated">Add {{ botInfo?.first_name }}</template>
-            <template v-else>Enter a valid token</template>
+            <template v-else>{{ t('accounts.enterValidToken') }}</template>
           </button>
         </form>
       </template>
@@ -818,8 +818,8 @@ function goBack(): void {
       <template v-if="step === 'success'">
         <div class="text-center py-6">
           <div class="text-4xl mb-3">✅</div>
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Account Added!</h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400">Redirecting...</p>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">{{ t('accounts.accountAdded') }}</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">{{ t('accounts.redirecting') }}</p>
         </div>
       </template>
 
@@ -828,7 +828,7 @@ function goBack(): void {
         v-if="step !== 'success'"
         class="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded text-xs text-gray-500 dark:text-gray-400"
       >
-        🔒 Your credentials are stored locally in your browser and never sent to any server.
+        🔒 {{ t('accounts.privacyNote') }}
       </div>
     </div>
   </div>
