@@ -422,7 +422,7 @@ function goBack(): void {
     >
       <!-- Header -->
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('accounts.addAccount') }}</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('accounts.addAccountTitle') }}</h2>
         <button
           @click="handleClose"
           class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"

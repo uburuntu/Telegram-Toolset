@@ -95,7 +95,8 @@
     "botTokenTab": "Bot Token",
     "updating": "Updating...",
     "adding": "Adding...",
-    "duplicateBotWarning": "This bot is already added. Proceeding will update the existing token."
+    "duplicateBotWarning": "This bot is already added. Proceeding will update the existing token.",
+    "addAccountTitle": "افزودن حساب"
   },
   "auth": {
     "addAccount": "افزودن حساب",
