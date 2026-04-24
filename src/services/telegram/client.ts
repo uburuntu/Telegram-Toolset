@@ -23,6 +23,7 @@ import type {
 // Reconnection settings
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_ATTEMPTS = 5
+const MESSAGE_FETCH_BATCH_SIZE = 100
 
 // Deferred promise helper for interactive auth flow
 interface DeferredPromise<T> {
@@ -880,25 +881,7 @@ class TelegramService {
           continue
         }
 
-        const mediaType = this.getMediaType(msg)
-
-        // Extract media filename from document attributes if available
-        let mediaFilename: string | undefined
-        let mediaSize: number | undefined
-
-        if (msg.media && 'document' in msg.media && msg.media.document) {
-          const doc = msg.media.document as Api.Document
-          mediaSize = Number(doc.size)
-          const filenameAttr = doc.attributes?.find(
-            (a): a is Api.DocumentAttributeFilename => a instanceof Api.DocumentAttributeFilename,
-          )
-          if (filenameAttr) {
-            mediaFilename = filenameAttr.fileName
-          }
-        } else if (msg.media && 'photo' in msg.media && msg.media.photo) {
-          // For photos, generate a filename
-          mediaFilename = `photo_${msg.id}.jpg`
-        }
+        const mediaInfo = this.extractMediaInfo(msg)
 
         yield {
           id: msg.id,
@@ -907,10 +890,7 @@ class TelegramService {
             msg.fromId && 'userId' in msg.fromId ? BigInt(msg.fromId.userId.toString()) : undefined,
           text: msg.message || undefined,
           date: new Date(msg.date * 1000),
-          hasMedia: !!msg.media,
-          mediaType,
-          mediaFilename,
-          mediaSize,
+          ...mediaInfo,
           replyToMsgId:
             msg.replyTo && 'replyToMsgId' in msg.replyTo ? msg.replyTo.replyToMsgId : undefined,
           replyToTopId:
@@ -965,6 +945,81 @@ class TelegramService {
     return undefined
   }
 
+  private extractMediaInfo(msg: Api.Message): {
+    hasMedia: boolean
+    mediaType?: MediaType
+    mediaFilename?: string
+    mediaSize?: number
+    mediaMimeType?: string
+  } {
+    const mediaType = this.getMediaType(msg)
+    let mediaFilename: string | undefined
+    let mediaSize: number | undefined
+    let mediaMimeType: string | undefined
+
+    if (
+      msg.media instanceof Api.MessageMediaDocument &&
+      msg.media.document instanceof Api.Document
+    ) {
+      const doc = msg.media.document
+      mediaSize = Number(doc.size)
+      mediaMimeType = doc.mimeType || undefined
+      const filenameAttr = doc.attributes?.find(
+        (attribute): attribute is Api.DocumentAttributeFilename =>
+          attribute instanceof Api.DocumentAttributeFilename,
+      )
+      if (filenameAttr?.fileName) {
+        mediaFilename = filenameAttr.fileName
+      }
+    } else if (msg.media instanceof Api.MessageMediaPhoto && msg.media.photo) {
+      mediaFilename = `photo_${msg.id}.jpg`
+      mediaMimeType = 'image/jpeg'
+    }
+
+    return {
+      hasMedia: !!msg.media,
+      mediaType,
+      mediaFilename,
+      mediaSize,
+      mediaMimeType,
+    }
+  }
+
+  private getBlobMimeType(messageOrMedia: unknown): string | undefined {
+    const media = messageOrMedia instanceof Api.Message ? messageOrMedia.media : messageOrMedia
+
+    if (media instanceof Api.MessageMediaPhoto || media instanceof Api.Photo) {
+      return 'image/jpeg'
+    }
+
+    if (media instanceof Api.MessageMediaDocument && media.document instanceof Api.Document) {
+      return media.document.mimeType || undefined
+    }
+
+    if (media instanceof Api.Document) {
+      return media.mimeType || undefined
+    }
+
+    if (media instanceof Api.MessageMediaContact) {
+      return 'text/vcard'
+    }
+
+    if (media instanceof Api.MessageMediaWebPage && media.webpage instanceof Api.WebPage) {
+      if (media.webpage.document instanceof Api.Document) {
+        return media.webpage.document.mimeType || undefined
+      }
+      if (media.webpage.photo instanceof Api.Photo) {
+        return 'image/jpeg'
+      }
+    }
+
+    if (media instanceof Api.WebDocument || media instanceof Api.WebDocumentNoProxy) {
+      return media.mimeType || undefined
+    }
+
+    return undefined
+  }
+
   /**
    * Download media from a message
    * Accepts either a raw GramJS message or a DeletedMessage with _rawMessage
@@ -986,8 +1041,16 @@ class TelegramService {
       const buffer = await client.downloadMedia(rawMsg as any, {})
       if (buffer) {
         // Handle both Buffer and string types from GramJS
-        const data = typeof buffer === 'string' ? new TextEncoder().encode(buffer) : buffer
-        return new Blob([data as BlobPart])
+        const data =
+          typeof buffer === 'string' ? new TextEncoder().encode(buffer) : new Uint8Array(buffer)
+        if (data.byteLength === 0) {
+          return null
+        }
+
+        const mimeType = this.getBlobMimeType(rawMsg)
+        return mimeType
+          ? new Blob([data as BlobPart], { type: mimeType })
+          : new Blob([data as BlobPart])
       }
     } catch (error) {
       console.error('Failed to download media:', error)
@@ -1005,6 +1068,38 @@ class TelegramService {
       return null
     }
     return this.downloadMedia(message._rawMessage)
+  }
+
+  /**
+   * Fetch full GramJS messages by ID so media can be downloaded on demand later.
+   */
+  async getChatMessagesByIds(
+    chatId: bigint,
+    messageIds: number[],
+  ): Promise<Map<number, Api.Message>> {
+    if (messageIds.length === 0) {
+      return new Map()
+    }
+
+    const client = await this.getConnectedClient()
+
+    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+    const entity = await client.getEntity(chatId)
+    const uniqueIds = Array.from(new Set(messageIds))
+    const messages = new Map<number, Api.Message>()
+
+    for (let index = 0; index < uniqueIds.length; index += MESSAGE_FETCH_BATCH_SIZE) {
+      const chunk = uniqueIds.slice(index, index + MESSAGE_FETCH_BATCH_SIZE)
+      const result = await client.getMessages(entity, { ids: chunk })
+
+      for (const message of result) {
+        if (message instanceof Api.Message) {
+          messages.set(message.id, message)
+        }
+      }
+    }
+
+    return messages
   }
 
   /**
@@ -1206,24 +1301,7 @@ class TelegramService {
       // editDate is when it was last edited, or creation time
       const date = msg.editDate ? new Date(msg.editDate * 1000) : scheduledDate
 
-      const mediaType = this.getMediaType(msg)
-
-      // Extract media info
-      let mediaFilename: string | undefined
-      let mediaSize: number | undefined
-
-      if (msg.media && 'document' in msg.media && msg.media.document) {
-        const doc = msg.media.document as Api.Document
-        mediaSize = Number(doc.size)
-        const filenameAttr = doc.attributes?.find(
-          (a): a is Api.DocumentAttributeFilename => a instanceof Api.DocumentAttributeFilename,
-        )
-        if (filenameAttr) {
-          mediaFilename = filenameAttr.fileName
-        }
-      } else if (msg.media && 'photo' in msg.media && msg.media.photo) {
-        mediaFilename = `photo_${msg.id}.jpg`
-      }
+      const mediaInfo = this.extractMediaInfo(msg)
 
       messages.push({
         id: msg.id,
@@ -1231,10 +1309,7 @@ class TelegramService {
         text: msg.message || undefined,
         date,
         scheduledDate,
-        hasMedia: !!msg.media,
-        mediaType,
-        mediaFilename,
-        mediaSize,
+        ...mediaInfo,
         replyToMsgId:
           msg.replyTo && 'replyToMsgId' in msg.replyTo ? msg.replyTo.replyToMsgId : undefined,
         _rawMessage: msg.media ? msg : undefined,
@@ -1299,10 +1374,6 @@ class TelegramService {
     if (options.reverse !== undefined) {
       iterParams.reverse = options.reverse
     }
-    if (options.minDate !== undefined) {
-      // GramJS expects Unix timestamp in seconds
-      iterParams.minDate = Math.floor(options.minDate.getTime() / 1000)
-    }
     if (options.maxDate !== undefined) {
       // offsetDate is used for "messages before this date"
       iterParams.offsetDate = Math.floor(options.maxDate.getTime() / 1000)
@@ -1313,9 +1384,11 @@ class TelegramService {
       // Skip non-message types
       if (!(msg instanceof Api.Message)) continue
 
-      // Apply minDate filter (GramJS minDate may not work perfectly)
+      const msgDate = new Date(msg.date * 1000)
+
+      // GramJS iterMessages supports offsetDate but not minDate, so lower bounds
+      // are enforced here after fetching.
       if (options.minDate) {
-        const msgDate = new Date(msg.date * 1000)
         if (msgDate < options.minDate) {
           // If we're iterating in reverse (oldest first), we can stop
           if (options.reverse) break
@@ -1324,7 +1397,11 @@ class TelegramService {
         }
       }
 
-      const mediaType = this.getMediaType(msg)
+      if (options.maxDate && msgDate > options.maxDate) {
+        continue
+      }
+
+      const mediaInfo = this.extractMediaInfo(msg)
 
       // Extract sender info
       let senderId: bigint | undefined
@@ -1376,11 +1453,10 @@ class TelegramService {
         chatId,
         senderId,
         text: msg.message || undefined,
-        date: new Date(msg.date * 1000),
+        date: msgDate,
         replyToMsgId:
           msg.replyTo && 'replyToMsgId' in msg.replyTo ? msg.replyTo.replyToMsgId : undefined,
-        hasMedia: !!msg.media,
-        mediaType,
+        ...mediaInfo,
         forwardedFrom,
       }
     }

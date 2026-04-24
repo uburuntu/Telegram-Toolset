@@ -25,6 +25,9 @@ export interface ChatMessage {
   replyToMsgId?: number
   hasMedia: boolean
   mediaType?: MediaType
+  mediaFilename?: string
+  mediaSize?: number
+  mediaMimeType?: string
   /** For forwarded messages */
   forwardedFrom?: string
 }
@@ -39,6 +42,8 @@ export interface ChatExport {
   chatType: 'channel' | 'supergroup' | 'group' | 'user'
   createdAt: Date
   messageCount: number
+  hasMedia?: boolean
+  mediaCount?: number
   /** Date range of messages in the export */
   dateRange: {
     from: Date
@@ -175,6 +180,36 @@ export interface ChatHistoryCallbacks {
 export interface ChatHistoryResult {
   messages: ChatMessage[]
   chatExport: ChatExport
+}
+
+/**
+ * Progress tracking for LLM archive generation
+ */
+export interface ChatArchiveProgress {
+  phase:
+    | 'preparing'
+    | 'fetching_messages'
+    | 'downloading_media'
+    | 'building_archive'
+    | 'complete'
+    | 'error'
+  totalMediaMessages: number
+  processedMediaMessages: number
+  downloadedMediaMessages: number
+  failedMediaMessages: number
+  currentMessageId?: number
+  errorMessage?: string
+  startTime: Date
+}
+
+/**
+ * Callbacks for LLM archive generation
+ */
+export interface ChatArchiveCallbacks {
+  onProgress?: (progress: ChatArchiveProgress) => void
+  onError?: (error: Error, messageId?: number) => void
+  onFloodWait?: (seconds: number) => void
+  onFloodWaitCountdown?: (remainingSeconds: number) => void
 }
 
 /**

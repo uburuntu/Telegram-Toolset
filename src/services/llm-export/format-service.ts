@@ -158,7 +158,7 @@ function groupMessagesByDay(messages: ChatMessage[]): Map<string, ChatMessage[]>
 /**
  * Filter and prepare messages based on config
  */
-function prepareMessages(messages: ChatMessage[], config: FormatConfig): ChatMessage[] {
+export function prepareMessages(messages: ChatMessage[], config: FormatConfig): ChatMessage[] {
   let result = [...messages]
 
   // Apply date range filter
@@ -184,6 +184,36 @@ function prepareMessages(messages: ChatMessage[], config: FormatConfig): ChatMes
   }
 
   return result
+}
+
+/**
+ * Get the recommended file extension for a formatted export
+ */
+export function getFormatFileExtension(template: FormatTemplate): string {
+  switch (template) {
+    case 'xml':
+      return 'xml'
+    case 'json':
+      return 'json'
+    case 'markdown':
+      return 'md'
+    default:
+      return 'txt'
+  }
+}
+
+/**
+ * Get the recommended MIME type for a formatted export
+ */
+export function getFormatMimeType(template: FormatTemplate): string {
+  switch (template) {
+    case 'xml':
+      return 'application/xml;charset=utf-8'
+    case 'json':
+      return 'application/json;charset=utf-8'
+    default:
+      return 'text/plain;charset=utf-8'
+  }
 }
 
 /**

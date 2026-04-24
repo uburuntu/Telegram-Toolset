@@ -100,8 +100,11 @@ function handleDelete(e: Event, exportId: string) {
             <div class="font-medium text-sm text-gray-900 dark:text-white truncate">
               {{ exp.chatTitle }}
             </div>
-            <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex flex-wrap gap-2">
               {{ exp.messageCount.toLocaleString() }} {{ t('llmExport.messages') }}
+              <span v-if="(exp.mediaCount ?? 0) > 0">
+                • {{ t('export.mediaFiles', { count: exp.mediaCount ?? 0 }) }}
+              </span>
             </div>
             <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
               {{ formatDateRange(exp.dateRange) }}

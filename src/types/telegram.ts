@@ -59,6 +59,7 @@ export interface DeletedMessage {
   mediaType?: MediaType
   mediaFilename?: string
   mediaSize?: number
+  mediaMimeType?: string
   replyToMsgId?: number
   replyToTopId?: number
   quoteText?: string
@@ -82,6 +83,7 @@ export interface ScheduledMessage {
   mediaType?: MediaType
   mediaFilename?: string
   mediaSize?: number
+  mediaMimeType?: string
   replyToMsgId?: number
   /** Raw GramJS message object for media download - not serialized */
   _rawMessage?: unknown

@@ -136,6 +136,8 @@ class ChatHistoryService {
       progress.phase = 'saving'
       callbacks.onProgress?.(progress)
 
+      const mediaCount = messages.filter((msg) => msg.hasMedia).length
+
       const chatExport: ChatExport = {
         id: this.generateExportId(),
         chatId: chatInfo.id,
@@ -143,6 +145,8 @@ class ChatHistoryService {
         chatType: chatInfo.type,
         createdAt: new Date(),
         messageCount: messages.length,
+        hasMedia: mediaCount > 0,
+        mediaCount,
         dateRange: {
           from: minDate || new Date(),
           to: maxDate || new Date(),

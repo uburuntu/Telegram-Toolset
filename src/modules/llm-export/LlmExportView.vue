@@ -3,11 +3,24 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloodWaitIndicator from '@/components/common/FloodWaitIndicator.vue'
 import { useFloodWait } from '@/composables'
+import { chatArchiveService } from '@/services/llm-export/archive-service'
 import { chatHistoryService } from '@/services/llm-export/chat-history-service'
-import { formatMessages, formatPreview } from '@/services/llm-export/format-service'
+import {
+  formatMessages,
+  formatPreview,
+  getFormatFileExtension,
+  getFormatMimeType,
+} from '@/services/llm-export/format-service'
 import { telegramService } from '@/services/telegram/client'
 import { useUiStore } from '@/stores'
-import type { ChatExport, ChatHistoryProgress, ChatInfo, ChatMessage, FormatConfig } from '@/types'
+import type {
+  ChatArchiveProgress,
+  ChatExport,
+  ChatHistoryProgress,
+  ChatInfo,
+  ChatMessage,
+  FormatConfig,
+} from '@/types'
 import { toUserFriendlyError } from '@/utils/error-messages'
 import ChatSelector from './components/ChatSelector.vue'
 import ExportsList from './components/ExportsList.vue'
@@ -28,6 +41,8 @@ const selectedChat = ref<ChatInfo | null>(null)
 // Download state
 const isDownloading = ref(false)
 const downloadProgress = ref<ChatHistoryProgress | null>(null)
+const isDownloadingArchive = ref(false)
+const archiveProgress = ref<ChatArchiveProgress | null>(null)
 
 // Export state
 const cachedExports = ref<ChatExport[]>([])
@@ -79,6 +94,24 @@ const outputStats = computed(() => {
     characters: output.length,
     lines: output.split('\n').length,
     estimatedTokens: Math.ceil(output.length / 4), // Rough estimate
+  }
+})
+
+const archiveStatusText = computed(() => {
+  if (!archiveProgress.value) return ''
+
+  switch (archiveProgress.value.phase) {
+    case 'fetching_messages':
+      return t('llmExport.downloading')
+    case 'downloading_media':
+      return archiveProgress.value.downloadedMediaMessages > 0
+        ? `${t('export.downloadingMedia')} • ${t('export.mediaDownloaded', { count: archiveProgress.value.downloadedMediaMessages })}`
+        : t('export.downloadingMedia')
+    case 'preparing':
+    case 'building_archive':
+      return t('export.generating')
+    default:
+      return ''
   }
 })
 
@@ -228,38 +261,16 @@ async function copyToClipboard() {
   }
 }
 
-function getFileExtension(): string {
-  switch (formatConfig.value.template) {
-    case 'xml':
-      return 'xml'
-    case 'json':
-      return 'json'
-    case 'markdown':
-      return 'md'
-    default:
-      return 'txt'
-  }
-}
-
-function getMimeType(): string {
-  switch (formatConfig.value.template) {
-    case 'xml':
-      return 'application/xml;charset=utf-8'
-    case 'json':
-      return 'application/json;charset=utf-8'
-    default:
-      return 'text/plain;charset=utf-8'
-  }
-}
-
 function sanitizeFilename(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_')
 }
 
 function downloadAsFile() {
   const chatTitle = sanitizeFilename(selectedExport.value?.chatTitle || 'chat')
-  const ext = getFileExtension()
-  const blob = new Blob([formattedOutput.value], { type: getMimeType() })
+  const ext = getFormatFileExtension(formatConfig.value.template)
+  const blob = new Blob([formattedOutput.value], {
+    type: getFormatMimeType(formatConfig.value.template),
+  })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -268,6 +279,40 @@ function downloadAsFile() {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+async function downloadAsZip() {
+  if (!selectedExport.value || exportMessages.value.length === 0 || isDownloadingArchive.value) {
+    return
+  }
+
+  isDownloadingArchive.value = true
+  archiveProgress.value = null
+  error.value = ''
+  floodWait.reset()
+
+  try {
+    await chatArchiveService.generateAndDownload(
+      selectedExport.value,
+      exportMessages.value,
+      formatConfig.value,
+      {
+        onProgress: (progress) => {
+          archiveProgress.value = { ...progress }
+        },
+        onError: (err, messageId) => {
+          console.warn('Archive media download failed', messageId, err)
+        },
+        ...floodWait.callbacks,
+      },
+    )
+  } catch (e) {
+    const friendlyError = toUserFriendlyError(e)
+    error.value = friendlyError.message
+    uiStore.showToast('error', friendlyError.message)
+  } finally {
+    isDownloadingArchive.value = false
+  }
 }
 </script>
 
@@ -502,7 +547,40 @@ function downloadAsFile() {
               >
                 {{ t('llmExport.download') }}
               </button>
+              <button
+                @click="downloadAsZip"
+                :disabled="isDownloadingArchive"
+                class="px-3 py-1.5 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-100 disabled:opacity-50"
+              >
+                <span v-if="isDownloadingArchive" class="animate-spin">⏳</span>
+                {{
+                  isDownloadingArchive ? t('export.generating') : t('export.downloadZipBtn')
+                }}
+              </button>
             </div>
+          </div>
+
+          <div
+            v-if="isDownloadingArchive && archiveProgress"
+            class="p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 text-sm"
+          >
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-gray-700 dark:text-gray-300">
+                {{ archiveStatusText }}
+              </span>
+              <span
+                v-if="archiveProgress.totalMediaMessages > 0"
+                class="text-xs text-gray-500 dark:text-gray-400"
+              >
+                {{ archiveProgress.processedMediaMessages }} /
+                {{ archiveProgress.totalMediaMessages }}
+              </span>
+            </div>
+            <FloodWaitIndicator
+              :seconds="floodWait.seconds.value"
+              :remaining="floodWait.remaining.value"
+              :progress="floodWait.progress.value"
+            />
           </div>
 
           <!-- Live preview -->
