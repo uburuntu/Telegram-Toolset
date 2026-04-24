@@ -1,21 +1,41 @@
 /**
  * Format Service for LLM Context Export
  *
- * Pure functions that transform ChatMessage[] + FormatConfig into formatted strings.
- * No side effects - all operations are synchronous and deterministic.
+ * Builds deterministic export documents and renders them into text-oriented
+ * templates. Dates are formatted in UTC to keep exports stable across
+ * timezones, DST changes, and future re-renders.
  */
 
 import type {
   ChatExport,
+  ChatExportDocument,
   ChatMessage,
   DateFormatOption,
   FormatConfig,
   FormatTemplate,
 } from '@/types'
 
-/**
- * Escape XML special characters
- */
+const EXPORT_DOCUMENT_SCHEMA_VERSION = 1
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+]
+const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function pad2(value: number): string {
+  return value.toString().padStart(2, '0')
+}
+
 function escapeXml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -25,33 +45,23 @@ function escapeXml(text: string): string {
     .replace(/'/g, '&apos;')
 }
 
-/**
- * Format a date according to the specified format option
- */
 function formatDate(date: Date, format: DateFormatOption): string {
+  const year = date.getUTCFullYear()
+  const month = MONTH_NAMES[date.getUTCMonth()] || ''
+  const day = date.getUTCDate()
+  const weekday = WEEKDAY_NAMES[date.getUTCDay()] || ''
+  const hours = pad2(date.getUTCHours())
+  const minutes = pad2(date.getUTCMinutes())
+
   switch (format) {
     case 'iso':
       return date.toISOString()
     case 'short':
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
-      })
+      return `${month} ${day}, ${year}`
     case 'long':
-      return date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
+      return `${weekday}, ${month} ${day}, ${year} ${hours}:${minutes} UTC`
     case 'time-only':
-      return date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
+      return `${hours}:${minutes} UTC`
     case 'none':
       return ''
     default:
@@ -59,9 +69,19 @@ function formatDate(date: Date, format: DateFormatOption): string {
   }
 }
 
-/**
- * Get media placeholder text based on config
- */
+function getDateKey(date: Date): string {
+  return [date.getUTCFullYear(), pad2(date.getUTCMonth() + 1), pad2(date.getUTCDate())].join('-')
+}
+
+function formatDayHeader(dateKey: string): string {
+  const [year, month, day] = dateKey.split('-').map((part) => Number(part))
+  const date = new Date(Date.UTC(year || 0, (month || 1) - 1, day || 1))
+  const weekday = WEEKDAY_NAMES[date.getUTCDay()] || ''
+  const monthName = MONTH_NAMES[date.getUTCMonth()] || ''
+
+  return `${weekday}, ${monthName} ${date.getUTCDate()}, ${date.getUTCFullYear()} UTC`
+}
+
 function getMediaPlaceholder(message: ChatMessage, config: FormatConfig): string {
   if (!message.hasMedia) return ''
 
@@ -96,19 +116,16 @@ function getMediaPlaceholder(message: ChatMessage, config: FormatConfig): string
   }
 }
 
-/**
- * Build sender string based on config
- */
 function buildSenderString(message: ChatMessage, config: FormatConfig): string {
   const parts: string[] = []
 
   if (config.includeSenderName) {
-    // Use original name if configured and available, otherwise fallback to contact name
-    const name = config.useOriginalSenderNames
+    const senderName = config.useOriginalSenderNames
       ? message.senderOriginalName || message.senderName
       : message.senderName
-    if (name) {
-      parts.push(name)
+
+    if (senderName) {
+      parts.push(senderName)
     }
   }
 
@@ -119,66 +136,90 @@ function buildSenderString(message: ChatMessage, config: FormatConfig): string {
   return parts.join(' ')
 }
 
-/**
- * Get the date key for grouping (YYYY-MM-DD)
- */
-function getDateKey(date: Date): string {
-  return date.toISOString().split('T')[0] || ''
+function buildMessageMap(messages: ChatMessage[]): Map<number, ChatMessage> {
+  const map = new Map<number, ChatMessage>()
+  for (const message of messages) {
+    map.set(message.id, message)
+  }
+  return map
 }
 
-/**
- * Format a date as a day header
- */
-function formatDayHeader(date: Date): string {
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+function getReplyContext(
+  message: ChatMessage,
+  messageMap: Map<number, ChatMessage>,
+  config: FormatConfig,
+): string | undefined {
+  if (!config.includeReplyContext || !message.replyToMsgId) {
+    return undefined
+  }
+
+  const replyTo = messageMap.get(message.replyToMsgId)
+  if (!replyTo) {
+    return `reply to #${message.replyToMsgId}`
+  }
+
+  const sender = buildSenderString(replyTo, config)
+  return sender ? `reply to ${sender}` : `reply to #${message.replyToMsgId}`
 }
 
-/**
- * Group messages by day
- */
 function groupMessagesByDay(messages: ChatMessage[]): Map<string, ChatMessage[]> {
   const groups = new Map<string, ChatMessage[]>()
 
-  for (const msg of messages) {
-    const key = getDateKey(msg.date)
+  for (const message of messages) {
+    const key = getDateKey(message.date)
     if (!groups.has(key)) {
       groups.set(key, [])
     }
-    groups.get(key)!.push(msg)
+    groups.get(key)?.push(message)
   }
 
   return groups
 }
 
-/**
- * Filter and prepare messages based on config
- */
+function getSelectedDateRange(messages: ChatMessage[]): { from?: string; to?: string } | undefined {
+  if (messages.length === 0) {
+    return undefined
+  }
+
+  const timestamps = messages.map((message) => message.date.getTime())
+  const from = new Date(Math.min(...timestamps))
+  const to = new Date(Math.max(...timestamps))
+
+  return {
+    from: from.toISOString(),
+    to: to.toISOString(),
+  }
+}
+
+function serializeFilterDateRange(
+  config: FormatConfig,
+): { from?: string; to?: string } | undefined {
+  if (!config.filterDateRange) {
+    return undefined
+  }
+
+  return {
+    from: config.filterDateRange.from?.toISOString(),
+    to: config.filterDateRange.to?.toISOString(),
+  }
+}
+
 export function prepareMessages(messages: ChatMessage[], config: FormatConfig): ChatMessage[] {
   let result = [...messages]
 
-  // Apply date range filter
-  if (config.filterDateRange) {
-    if (config.filterDateRange.from) {
-      result = result.filter((m) => m.date >= config.filterDateRange!.from!)
-    }
-    if (config.filterDateRange.to) {
-      result = result.filter((m) => m.date <= config.filterDateRange!.to!)
-    }
+  if (config.filterDateRange?.from) {
+    result = result.filter((message) => message.date >= config.filterDateRange!.from!)
+  }
+  if (config.filterDateRange?.to) {
+    result = result.filter((message) => message.date <= config.filterDateRange!.to!)
   }
 
-  // Apply ordering
-  if (config.reverseOrder) {
-    result.sort((a, b) => a.date.getTime() - b.date.getTime())
-  } else {
-    result.sort((a, b) => b.date.getTime() - a.date.getTime())
-  }
+  result.sort((left, right) =>
+    config.reverseOrder
+      ? left.date.getTime() - right.date.getTime()
+      : right.date.getTime() - left.date.getTime(),
+  )
 
-  // Apply limit
   if (config.messageLimit > 0) {
     result = result.slice(0, config.messageLimit)
   }
@@ -186,9 +227,85 @@ export function prepareMessages(messages: ChatMessage[], config: FormatConfig): 
   return result
 }
 
-/**
- * Get the recommended file extension for a formatted export
- */
+export function buildExportDocument(
+  messages: ChatMessage[],
+  chatExport: ChatExport,
+  config: FormatConfig,
+  options: {
+    mediaPaths?: Map<number, string>
+    template?: FormatTemplate
+  } = {},
+): ChatExportDocument {
+  const preparedMessages = prepareMessages(messages, config)
+  const messageMap = buildMessageMap(messages)
+
+  return {
+    schemaVersion: EXPORT_DOCUMENT_SCHEMA_VERSION,
+    export: {
+      id: chatExport.id,
+      createdAt: chatExport.createdAt.toISOString(),
+      template: options.template ?? config.template,
+    },
+    chat: {
+      id: chatExport.chatId.toString(),
+      peerId: chatExport.chatPeerId,
+      title: chatExport.chatTitle,
+      type: chatExport.chatType,
+    },
+    source: {
+      cachedMessageCount: chatExport.messageCount,
+      hasMedia: chatExport.hasMedia ?? (chatExport.mediaCount ?? 0) > 0,
+      mediaCount: chatExport.mediaCount ?? 0,
+      dateRange: {
+        from: chatExport.dateRange.from.toISOString(),
+        to: chatExport.dateRange.to.toISOString(),
+      },
+    },
+    selection: {
+      selectedMessageCount: preparedMessages.length,
+      reverseOrder: config.reverseOrder,
+      messageLimit: config.messageLimit,
+      filterDateRange: serializeFilterDateRange(config),
+      selectedDateRange: getSelectedDateRange(preparedMessages),
+    },
+    messages: preparedMessages.map((message) => {
+      const replyContext = getReplyContext(message, messageMap, config)
+      const mediaPlaceholder = getMediaPlaceholder(message, config)
+
+      return {
+        id: message.id,
+        chatPeerId: message.chatPeerId || chatExport.chatPeerId,
+        sender:
+          message.senderName || message.senderOriginalName || message.senderUsername
+            ? {
+                peerId: message.senderPeerId,
+                name: message.senderName,
+                displayName: buildSenderString(message, config) || undefined,
+                originalName: message.senderOriginalName,
+                username: message.senderUsername,
+              }
+            : undefined,
+        timestamp: message.date.toISOString(),
+        day: getDateKey(message.date),
+        replyToMessageId: message.replyToMsgId,
+        replyContext,
+        forwardedFrom: message.forwardedFrom,
+        text: message.text,
+        media: message.hasMedia
+          ? {
+              type: message.mediaType,
+              filename: message.mediaFilename,
+              size: message.mediaSize,
+              mimeType: message.mediaMimeType,
+              placeholder: mediaPlaceholder || undefined,
+              archivePath: options.mediaPaths?.get(message.id),
+            }
+          : undefined,
+      }
+    }),
+  }
+}
+
 export function getFormatFileExtension(template: FormatTemplate): string {
   switch (template) {
     case 'xml':
@@ -202,9 +319,6 @@ export function getFormatFileExtension(template: FormatTemplate): string {
   }
 }
 
-/**
- * Get the recommended MIME type for a formatted export
- */
 export function getFormatMimeType(template: FormatTemplate): string {
   switch (template) {
     case 'xml':
@@ -216,511 +330,300 @@ export function getFormatMimeType(template: FormatTemplate): string {
   }
 }
 
-/**
- * Build a map of message IDs to messages for reply context
- */
-function buildMessageMap(messages: ChatMessage[]): Map<number, ChatMessage> {
-  const map = new Map<number, ChatMessage>()
-  for (const msg of messages) {
-    map.set(msg.id, msg)
-  }
-  return map
+function shouldRenderMessageText(message: ChatMessage, config: FormatConfig): boolean {
+  return !!message.text || !!getMediaPlaceholder(message, config)
 }
 
-/**
- * Get reply context string
- */
-function getReplyContext(
-  message: ChatMessage,
-  messageMap: Map<number, ChatMessage>,
-  config: FormatConfig,
-): string | null {
-  if (!config.includeReplyContext || !message.replyToMsgId) return null
-
-  const replyTo = messageMap.get(message.replyToMsgId)
-  if (!replyTo) return `reply to #${message.replyToMsgId}`
-
-  const sender = buildSenderString(replyTo, config)
-  if (sender) return `reply to ${sender}`
-
-  return `reply to #${message.replyToMsgId}`
-}
-
-// =============================================================================
-// Format Templates
-// =============================================================================
-
-/**
- * Format a single message as XML (helper for date grouping)
- */
 function formatSingleMessageXml(
-  msg: ChatMessage,
+  message: ChatMessage,
   config: FormatConfig,
   messageMap: Map<number, ChatMessage>,
   indent: string,
-  showDate: boolean,
 ): string {
-  const msgAttrs: string[] = []
+  if (!shouldRenderMessageText(message, config)) {
+    return ''
+  }
 
-  // Sender
-  const sender = buildSenderString(msg, config)
+  const attributes: string[] = []
+  const sender = buildSenderString(message, config)
+  const dateFormat =
+    config.dateGrouping === 'per-day' && config.dateFormat !== 'iso'
+      ? 'time-only'
+      : config.dateFormat
+
   if (sender) {
-    msgAttrs.push(`from="${escapeXml(sender)}"`)
+    attributes.push(`from="${escapeXml(sender)}"`)
   }
 
-  // Date - only show if requested and showDate is true
-  if (showDate && config.includeDate && config.dateFormat !== 'none') {
-    // For per-day grouping, use time-only format
-    const dateFormat =
-      config.dateGrouping === 'per-day' && config.dateFormat !== 'iso'
-        ? 'time-only'
-        : config.dateFormat
-    msgAttrs.push(`date="${escapeXml(formatDate(msg.date, dateFormat))}"`)
+  if (config.includeDate && config.dateFormat !== 'none') {
+    attributes.push(`date="${escapeXml(formatDate(message.date, dateFormat))}"`)
   }
 
-  // Message ID
   if (config.includeMessageIds) {
-    msgAttrs.push(`id="${msg.id}"`)
+    attributes.push(`id="${message.id}"`)
   }
 
-  // Reply context
-  const replyContext = getReplyContext(msg, messageMap, config)
+  const replyContext = getReplyContext(message, messageMap, config)
   if (replyContext) {
-    msgAttrs.push(`reply="${escapeXml(replyContext)}"`)
+    attributes.push(`reply="${escapeXml(replyContext)}"`)
   }
 
-  // Forwarded
-  if (msg.forwardedFrom) {
-    msgAttrs.push(`forwarded_from="${escapeXml(msg.forwardedFrom)}"`)
+  if (message.forwardedFrom) {
+    attributes.push(`forwarded_from="${escapeXml(message.forwardedFrom)}"`)
   }
 
-  // Build content
-  const contentParts: string[] = []
-  const mediaPlaceholder = getMediaPlaceholder(msg, config)
-  if (mediaPlaceholder) contentParts.push(mediaPlaceholder)
-  if (msg.text) contentParts.push(escapeXml(msg.text))
-
-  const content = contentParts.join(' ')
+  const content = [
+    getMediaPlaceholder(message, config),
+    message.text ? escapeXml(message.text) : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const attributesSuffix = attributes.length > 0 ? ` ${attributes.join(' ')}` : ''
 
   if (content) {
-    return `${indent}<message ${msgAttrs.join(' ')}>${content}</message>`
-  } else if (msgAttrs.length > 0) {
-    return `${indent}<message ${msgAttrs.join(' ')} />`
+    return `${indent}<message${attributesSuffix}>${content}</message>`
   }
-  return ''
+
+  return attributes.length > 0 ? `${indent}<message${attributesSuffix} />` : ''
 }
 
-/**
- * Format messages as XML (Claude-optimized)
- */
 function formatAsXml(
   messages: ChatMessage[],
   chatExport: ChatExport,
   config: FormatConfig,
 ): string {
-  const prepared = prepareMessages(messages, config)
+  const preparedMessages = prepareMessages(messages, config)
+  const renderableMessages = preparedMessages.filter((message) =>
+    shouldRenderMessageText(message, config),
+  )
   const messageMap = buildMessageMap(messages)
-
-  // Collect unique participants
   const participants = new Set<string>()
-  for (const msg of prepared) {
-    const sender = buildSenderString(msg, config)
-    if (sender) participants.add(sender)
+
+  for (const message of renderableMessages) {
+    const sender = buildSenderString(message, config)
+    if (sender) {
+      participants.add(sender)
+    }
   }
 
-  const lines: string[] = []
-
-  // Opening tag with metadata
-  const attrs: string[] = [`chat="${escapeXml(chatExport.chatTitle)}"`]
+  const attributes = [
+    `chat="${escapeXml(chatExport.chatTitle)}"`,
+    `messages="${renderableMessages.length}"`,
+  ]
   if (participants.size > 0 && participants.size <= 10) {
-    attrs.push(`participants="${escapeXml(Array.from(participants).join(', '))}"`)
+    attributes.push(`participants="${escapeXml(Array.from(participants).join(', '))}"`)
   }
-  attrs.push(`messages="${prepared.length}"`)
 
-  lines.push(`<conversation ${attrs.join(' ')}>`)
+  const lines = [`<conversation ${attributes.join(' ')}>`]
 
-  // Check if using per-day grouping
   if (config.dateGrouping === 'per-day' && config.includeDate) {
-    const dayGroups = groupMessagesByDay(prepared)
-
-    for (const [dateKey, dayMessages] of dayGroups) {
-      // Add day wrapper
-      const dayDate = new Date(`${dateKey}T00:00:00`)
-      lines.push(`  <day date="${escapeXml(formatDayHeader(dayDate))}">`)
-
-      // Add messages for this day
-      for (const msg of dayMessages) {
-        const line = formatSingleMessageXml(msg, config, messageMap, '    ', true)
-        if (line) lines.push(line)
+    for (const [dayKey, dayMessages] of groupMessagesByDay(renderableMessages)) {
+      lines.push(`  <day date="${escapeXml(formatDayHeader(dayKey))}">`)
+      for (const message of dayMessages) {
+        const line = formatSingleMessageXml(message, config, messageMap, '    ')
+        if (line) {
+          lines.push(line)
+        }
       }
-
       lines.push('  </day>')
     }
   } else {
-    // Original per-message behavior
-    for (const msg of prepared) {
-      const line = formatSingleMessageXml(msg, config, messageMap, '  ', true)
-      if (line) lines.push(line)
+    for (const message of renderableMessages) {
+      const line = formatSingleMessageXml(message, config, messageMap, '  ')
+      if (line) {
+        lines.push(line)
+      }
     }
   }
 
   lines.push('</conversation>')
-
   return lines.join('\n')
 }
 
-/**
- * Format a single message as plain text (helper for date grouping)
- */
 function formatSingleMessagePlain(
-  msg: ChatMessage,
+  message: ChatMessage,
   config: FormatConfig,
   messageMap: Map<number, ChatMessage>,
-  showDate: boolean,
 ): string[] {
-  // Skip media-only messages when media placeholder is 'skip'
-  const mediaPlaceholder = getMediaPlaceholder(msg, config)
-  if (!msg.text && !mediaPlaceholder) return []
+  if (!shouldRenderMessageText(message, config)) {
+    return []
+  }
 
-  const lines: string[] = []
   const headerParts: string[] = []
+  const dateFormat =
+    config.dateGrouping === 'per-day' && config.dateFormat !== 'iso'
+      ? 'time-only'
+      : config.dateFormat
+  const sender = buildSenderString(message, config)
 
-  // Sender
-  const sender = buildSenderString(msg, config)
   if (sender) {
     headerParts.push(sender)
   }
-
-  // Date - only show if requested and showDate is true
-  if (showDate && config.includeDate && config.dateFormat !== 'none') {
-    // For per-day grouping, use time-only format
-    const dateFormat =
-      config.dateGrouping === 'per-day' && config.dateFormat !== 'iso'
-        ? 'time-only'
-        : config.dateFormat
-    headerParts.push(`(${formatDate(msg.date, dateFormat)})`)
+  if (config.includeDate && config.dateFormat !== 'none') {
+    headerParts.push(`(${formatDate(message.date, dateFormat)})`)
   }
-
-  // Message ID
   if (config.includeMessageIds) {
-    headerParts.push(`#${msg.id}`)
+    headerParts.push(`#${message.id}`)
   }
 
-  // Reply context
-  const replyContext = getReplyContext(msg, messageMap, config)
+  const replyContext = getReplyContext(message, messageMap, config)
   if (replyContext) {
     headerParts.push(`[${replyContext}]`)
   }
 
-  // Forwarded
-  if (msg.forwardedFrom) {
-    headerParts.push(`[forwarded from ${msg.forwardedFrom}]`)
+  if (message.forwardedFrom) {
+    headerParts.push(`[forwarded from ${message.forwardedFrom}]`)
   }
 
-  // Header line
+  const lines: string[] = []
   if (headerParts.length > 0) {
     lines.push(`${headerParts.join(' ')}:`)
   }
 
-  // Content
+  const mediaPlaceholder = getMediaPlaceholder(message, config)
   if (mediaPlaceholder) {
     lines.push(mediaPlaceholder)
   }
-  if (msg.text) {
-    lines.push(msg.text)
+  if (message.text) {
+    lines.push(message.text)
   }
 
   return lines
 }
 
-/**
- * Format messages as plain text
- */
 function formatAsPlain(
   messages: ChatMessage[],
   chatExport: ChatExport,
   config: FormatConfig,
 ): string {
-  const prepared = prepareMessages(messages, config)
+  const preparedMessages = prepareMessages(messages, config)
+  const renderableMessages = preparedMessages.filter((message) =>
+    shouldRenderMessageText(message, config),
+  )
   const messageMap = buildMessageMap(messages)
+  const lines = [`[${chatExport.chatTitle} - ${renderableMessages.length} messages]`, '']
 
-  const lines: string[] = []
-
-  // Header
-  lines.push(`[${chatExport.chatTitle} - ${prepared.length} messages]`)
-  lines.push('')
-
-  // Check if using per-day grouping
   if (config.dateGrouping === 'per-day' && config.includeDate) {
-    const dayGroups = groupMessagesByDay(prepared)
-
-    for (const [dateKey, dayMessages] of dayGroups) {
-      // Add day separator
-      const dayDate = new Date(`${dateKey}T00:00:00`)
-      lines.push(`--- ${formatDayHeader(dayDate)} ---`)
+    for (const [dayKey, dayMessages] of groupMessagesByDay(renderableMessages)) {
+      lines.push(`--- ${formatDayHeader(dayKey)} ---`)
       lines.push('')
-
-      // Add messages for this day
-      for (const msg of dayMessages) {
-        const msgLines = formatSingleMessagePlain(msg, config, messageMap, true)
-        lines.push(...msgLines)
-        lines.push('')
+      for (const message of dayMessages) {
+        lines.push(...formatSingleMessagePlain(message, config, messageMap), '')
       }
     }
   } else {
-    // Original per-message behavior
-    for (const msg of prepared) {
-      const msgLines = formatSingleMessagePlain(msg, config, messageMap, true)
-      lines.push(...msgLines)
-      lines.push('')
+    for (const message of renderableMessages) {
+      lines.push(...formatSingleMessagePlain(message, config, messageMap), '')
     }
   }
 
   return lines.join('\n').trim()
 }
 
-/**
- * Format a single message as JSON object (helper for date grouping)
- */
-function formatSingleMessageJson(
-  msg: ChatMessage,
-  config: FormatConfig,
-  messageMap: Map<number, ChatMessage>,
-  showDate: boolean,
-): Record<string, unknown> {
-  const obj: Record<string, unknown> = {}
-
-  if (config.includeMessageIds) {
-    obj.id = msg.id
-  }
-
-  const sender = buildSenderString(msg, config)
-  if (sender) {
-    obj.from = sender
-  }
-
-  if (showDate && config.includeDate && config.dateFormat !== 'none') {
-    // For per-day grouping, use time-only format since the day is shown in the group header
-    const dateFormat =
-      config.dateGrouping === 'per-day' && config.dateFormat !== 'iso'
-        ? 'time-only'
-        : config.dateFormat
-    obj.date = formatDate(msg.date, dateFormat)
-  }
-
-  const replyContext = getReplyContext(msg, messageMap, config)
-  if (replyContext) {
-    obj.reply_to = replyContext
-  }
-
-  if (msg.forwardedFrom) {
-    obj.forwarded_from = msg.forwardedFrom
-  }
-
-  if (msg.text) {
-    obj.text = msg.text
-  }
-
-  const mediaPlaceholder = getMediaPlaceholder(msg, config)
-  if (mediaPlaceholder && config.mediaPlaceholder !== 'skip') {
-    obj.media = msg.mediaType || 'unknown'
-  }
-
-  return obj
-}
-
-/**
- * Format messages as JSON
- */
 function formatAsJson(
   messages: ChatMessage[],
   chatExport: ChatExport,
   config: FormatConfig,
 ): string {
-  const prepared = prepareMessages(messages, config)
-  const messageMap = buildMessageMap(messages)
-
-  // Check if using per-day grouping
-  if (config.dateGrouping === 'per-day' && config.includeDate) {
-    const dayGroups = groupMessagesByDay(prepared)
-
-    interface JsonDay {
-      date: string
-      messages: Record<string, unknown>[]
-    }
-
-    const days: JsonDay[] = []
-
-    for (const [dateKey, dayMessages] of dayGroups) {
-      const dayDate = new Date(`${dateKey}T00:00:00`)
-      days.push({
-        date: formatDayHeader(dayDate),
-        messages: dayMessages.map((msg) => formatSingleMessageJson(msg, config, messageMap, true)),
-      })
-    }
-
-    const output = {
-      chat: chatExport.chatTitle,
-      type: chatExport.chatType,
-      message_count: prepared.length,
-      date_range: {
-        from: chatExport.dateRange.from.toISOString(),
-        to: chatExport.dateRange.to.toISOString(),
-      },
-      days,
-    }
-
-    return JSON.stringify(output, null, 2)
-  }
-
-  // Original per-message behavior
-  const jsonMessages = prepared.map((msg) => formatSingleMessageJson(msg, config, messageMap, true))
-
-  const output = {
-    chat: chatExport.chatTitle,
-    type: chatExport.chatType,
-    message_count: prepared.length,
-    date_range: {
-      from: chatExport.dateRange.from.toISOString(),
-      to: chatExport.dateRange.to.toISOString(),
-    },
-    messages: jsonMessages,
-  }
-
-  return JSON.stringify(output, null, 2)
+  return JSON.stringify(
+    buildExportDocument(messages, chatExport, config, { template: 'json' }),
+    null,
+    2,
+  )
 }
 
-/**
- * Format a single message as Markdown (helper for date grouping)
- */
 function formatSingleMessageMarkdown(
-  msg: ChatMessage,
+  message: ChatMessage,
   config: FormatConfig,
   messageMap: Map<number, ChatMessage>,
-  showDate: boolean,
 ): string[] {
-  // Skip media-only messages when media placeholder is 'skip'
-  const mediaPlaceholder = getMediaPlaceholder(msg, config)
-  if (!msg.text && !mediaPlaceholder) return []
+  if (!shouldRenderMessageText(message, config)) {
+    return []
+  }
 
   const lines: string[] = []
   const headerParts: string[] = []
+  const dateFormat =
+    config.dateGrouping === 'per-day' && config.dateFormat !== 'iso'
+      ? 'time-only'
+      : config.dateFormat
 
-  // Sender (bold)
-  const sender = buildSenderString(msg, config)
+  const sender = buildSenderString(message, config)
   if (sender) {
     headerParts.push(`**${sender}**`)
   }
-
-  // Date (italic) - only show if requested and showDate is true
-  if (showDate && config.includeDate && config.dateFormat !== 'none') {
-    // For per-day grouping, use time-only format
-    const dateFormat =
-      config.dateGrouping === 'per-day' && config.dateFormat !== 'iso'
-        ? 'time-only'
-        : config.dateFormat
-    headerParts.push(`*${formatDate(msg.date, dateFormat)}*`)
+  if (config.includeDate && config.dateFormat !== 'none') {
+    headerParts.push(`*${formatDate(message.date, dateFormat)}*`)
   }
-
-  // Message ID
   if (config.includeMessageIds) {
-    headerParts.push(`\`#${msg.id}\``)
+    headerParts.push(`\`#${message.id}\``)
   }
 
-  // Reply context
-  const replyContext = getReplyContext(msg, messageMap, config)
+  const replyContext = getReplyContext(message, messageMap, config)
   if (replyContext) {
     headerParts.push(`> ${replyContext}`)
   }
 
-  // Header line
   if (headerParts.length > 0) {
     lines.push(headerParts.join(' '))
   }
-
-  // Forwarded
-  if (msg.forwardedFrom) {
-    lines.push(`> Forwarded from ${msg.forwardedFrom}`)
+  if (message.forwardedFrom) {
+    lines.push(`> Forwarded from ${message.forwardedFrom}`)
   }
 
-  // Content
+  const mediaPlaceholder = getMediaPlaceholder(message, config)
   if (mediaPlaceholder) {
     lines.push(mediaPlaceholder)
   }
-  if (msg.text) {
-    lines.push(msg.text)
+  if (message.text) {
+    lines.push(message.text)
   }
 
   return lines
 }
 
-/**
- * Format messages as Markdown
- */
 function formatAsMarkdown(
   messages: ChatMessage[],
   chatExport: ChatExport,
   config: FormatConfig,
 ): string {
-  const prepared = prepareMessages(messages, config)
+  const preparedMessages = prepareMessages(messages, config)
+  const renderableMessages = preparedMessages.filter((message) =>
+    shouldRenderMessageText(message, config),
+  )
   const messageMap = buildMessageMap(messages)
+  const lines = [
+    `# ${chatExport.chatTitle}`,
+    '',
+    `*${renderableMessages.length} messages*`,
+    '',
+    '---',
+    '',
+  ]
 
-  const lines: string[] = []
-
-  // Header
-  lines.push(`# ${chatExport.chatTitle}`)
-  lines.push('')
-  lines.push(`*${prepared.length} messages*`)
-  lines.push('')
-  lines.push('---')
-  lines.push('')
-
-  // Check if using per-day grouping
   if (config.dateGrouping === 'per-day' && config.includeDate) {
-    const dayGroups = groupMessagesByDay(prepared)
-
-    for (const [dateKey, dayMessages] of dayGroups) {
-      // Add day header
-      const dayDate = new Date(`${dateKey}T00:00:00`)
-      lines.push(`## ${formatDayHeader(dayDate)}`)
-      lines.push('')
-
-      // Add messages for this day
-      for (const msg of dayMessages) {
-        const msgLines = formatSingleMessageMarkdown(msg, config, messageMap, true)
-        lines.push(...msgLines)
-        lines.push('')
+    for (const [dayKey, dayMessages] of groupMessagesByDay(renderableMessages)) {
+      lines.push(`## ${formatDayHeader(dayKey)}`, '')
+      for (const message of dayMessages) {
+        lines.push(...formatSingleMessageMarkdown(message, config, messageMap), '')
       }
     }
   } else {
-    // Original per-message behavior
-    for (const msg of prepared) {
-      const msgLines = formatSingleMessageMarkdown(msg, config, messageMap, true)
-      lines.push(...msgLines)
-      lines.push('')
+    for (const message of renderableMessages) {
+      lines.push(...formatSingleMessageMarkdown(message, config, messageMap), '')
     }
   }
 
   return lines.join('\n').trim()
 }
 
-/**
- * Format messages using a custom template
- *
- * Template variables:
- * - {{chat_title}} - Chat title
- * - {{message_count}} - Number of messages
- * - {{messages}} - Formatted messages block
- *
- * Per-message variables (used within {{#each messages}}...{{/each}}):
- * - {{sender}} - Sender name/username
- * - {{date}} - Formatted date
- * - {{id}} - Message ID
- * - {{text}} - Message text
- * - {{media}} - Media placeholder
- * - {{reply}} - Reply context
- * - {{forward}} - Forward info
- */
+function renderTemplateString(
+  template: string,
+  values: Record<string, string | undefined>,
+): string {
+  return template.replace(/\{\{([a-z_]+)\}\}/g, (_match, key) => values[key] || '')
+}
+
 function formatAsCustom(
   messages: ChatMessage[],
   chatExport: ChatExport,
@@ -728,62 +631,45 @@ function formatAsCustom(
 ): string {
   const template =
     config.customTemplate || '{{chat_title}}\n\n{{#each messages}}{{sender}}: {{text}}\n{{/each}}'
-  const prepared = prepareMessages(messages, config)
+  const preparedMessages = prepareMessages(messages, config)
   const messageMap = buildMessageMap(messages)
-
-  // Build messages string
   const eachMatch = template.match(/\{\{#each messages\}\}([\s\S]*?)\{\{\/each\}\}/)
+  const messageBlock = eachMatch?.[1] || '{{text}}\n'
+  const renderableMessages = preparedMessages.filter((message) =>
+    shouldRenderMessageText(message, config),
+  )
 
-  if (!eachMatch) {
-    // No each block, just replace global variables
-    return template
-      .replace(/\{\{chat_title\}\}/g, chatExport.chatTitle)
-      .replace(/\{\{message_count\}\}/g, String(prepared.length))
-      .replace(/\{\{messages\}\}/g, prepared.map((m) => m.text || '').join('\n'))
-  }
-
-  const messageTemplate = eachMatch[1] || ''
-  const formattedMessages = prepared
-    .map((msg) => {
-      let result = messageTemplate
-
-      const sender = buildSenderString(msg, config)
-      const dateStr = config.includeDate ? formatDate(msg.date, config.dateFormat) : ''
-      const replyContext = getReplyContext(msg, messageMap, config)
-      const mediaPlaceholder = getMediaPlaceholder(msg, config)
-
-      result = result.replace(/\{\{sender\}\}/g, sender)
-      result = result.replace(/\{\{date\}\}/g, dateStr)
-      result = result.replace(/\{\{id\}\}/g, String(msg.id))
-      result = result.replace(/\{\{text\}\}/g, msg.text || '')
-      result = result.replace(/\{\{media\}\}/g, mediaPlaceholder)
-      result = result.replace(/\{\{reply\}\}/g, replyContext || '')
-      result = result.replace(/\{\{forward\}\}/g, msg.forwardedFrom || '')
-
-      return result
+  const renderedMessages = renderableMessages
+    .map((message) => {
+      const sender = buildSenderString(message, config)
+      const replyContext = getReplyContext(message, messageMap, config)
+      return renderTemplateString(messageBlock, {
+        sender,
+        date: config.includeDate ? formatDate(message.date, config.dateFormat) : '',
+        id: String(message.id),
+        text: message.text || '',
+        media: getMediaPlaceholder(message, config),
+        reply: replyContext,
+        forward: message.forwardedFrom || '',
+      })
     })
     .join('')
 
-  // Replace the each block with formatted messages
-  let output = template.replace(/\{\{#each messages\}\}[\s\S]*?\{\{\/each\}\}/, formattedMessages)
+  const globalValues = {
+    chat_title: chatExport.chatTitle,
+    message_count: String(renderableMessages.length),
+    messages: renderedMessages,
+  }
 
-  // Replace global variables
-  output = output.replace(/\{\{chat_title\}\}/g, chatExport.chatTitle)
-  output = output.replace(/\{\{message_count\}\}/g, String(prepared.length))
+  if (!eachMatch) {
+    return renderTemplateString(template, globalValues)
+  }
 
-  return output
+  const before = template.slice(0, eachMatch.index)
+  const after = template.slice((eachMatch.index || 0) + eachMatch[0].length)
+  return `${renderTemplateString(before, globalValues)}${renderedMessages}${renderTemplateString(after, globalValues)}`
 }
 
-// =============================================================================
-// Main Export Function
-// =============================================================================
-
-/**
- * Format messages according to the specified configuration
- *
- * This is a pure function with no side effects.
- * It transforms messages + config into a formatted string.
- */
 export function formatMessages(
   messages: ChatMessage[],
   chatExport: ChatExport,
@@ -792,59 +678,49 @@ export function formatMessages(
   switch (config.template) {
     case 'xml':
       return formatAsXml(messages, chatExport, config)
-    case 'plain':
-      return formatAsPlain(messages, chatExport, config)
     case 'json':
       return formatAsJson(messages, chatExport, config)
     case 'markdown':
       return formatAsMarkdown(messages, chatExport, config)
     case 'custom':
       return formatAsCustom(messages, chatExport, config)
+    case 'plain':
     default:
       return formatAsPlain(messages, chatExport, config)
   }
 }
 
-/**
- * Get a preview of the formatted output (limited to first N messages)
- */
 export function formatPreview(
   messages: ChatMessage[],
   chatExport: ChatExport,
   config: FormatConfig,
   previewLimit: number = 10,
 ): string {
-  const previewConfig: FormatConfig = {
+  return formatMessages(messages, chatExport, {
     ...config,
     messageLimit:
       config.messageLimit > 0 ? Math.min(config.messageLimit, previewLimit) : previewLimit,
-  }
-
-  return formatMessages(messages, chatExport, previewConfig)
+  })
 }
 
-/**
- * Estimate the output size in characters
- */
 export function estimateOutputSize(
   messages: ChatMessage[],
   _chatExport: ChatExport,
   config: FormatConfig,
 ): number {
-  // Quick estimate based on message count and average message length
-  const avgMessageLength =
-    messages.reduce((sum, m) => sum + (m.text?.length || 0), 0) / messages.length || 50
-  const overhead = config.template === 'xml' ? 100 : config.template === 'json' ? 80 : 30
+  const preparedMessages = prepareMessages(messages, config)
+  if (preparedMessages.length === 0) {
+    return 0
+  }
 
-  const effectiveCount =
-    config.messageLimit > 0 ? Math.min(messages.length, config.messageLimit) : messages.length
+  const averageMessageLength =
+    preparedMessages.reduce((total, message) => total + (message.text?.length || 0), 0) /
+      preparedMessages.length || 50
+  const overhead = config.template === 'xml' ? 100 : config.template === 'json' ? 120 : 30
 
-  return effectiveCount * (avgMessageLength + overhead)
+  return preparedMessages.length * (averageMessageLength + overhead)
 }
 
-/**
- * Get template description for UI
- */
 export function getTemplateDescription(template: FormatTemplate): string {
   switch (template) {
     case 'xml':
@@ -852,7 +728,7 @@ export function getTemplateDescription(template: FormatTemplate): string {
     case 'plain':
       return 'Simple plain text format, easy to read and universally compatible'
     case 'json':
-      return 'JSON format for programmatic processing or API integration'
+      return 'Stable JSON document for tooling, automation, and archive inspection'
     case 'markdown':
       return 'Markdown format with headers and formatting, good for documentation'
     case 'custom':
@@ -862,36 +738,33 @@ export function getTemplateDescription(template: FormatTemplate): string {
   }
 }
 
-/**
- * Get example output for a template
- */
 export function getTemplateExample(template: FormatTemplate): string {
   switch (template) {
     case 'xml':
-      return `<conversation chat="Family Group" messages="3">
-  <message from="Alice" date="Jan 10">Hello everyone!</message>
-  <message from="Bob" reply="Alice">Hey! How are you?</message>
+      return `<conversation chat="Family Group" messages="2">
+  <message from="Alice" date="Mar 10, 2024">Hello everyone!</message>
+  <message from="Bob" reply="reply to Alice">Hey! How are you?</message>
 </conversation>`
     case 'plain':
-      return `[Family Group - 3 messages]
+      return `[Family Group - 2 messages]
 
-Alice (Jan 10):
+Alice (Mar 10, 2024):
 Hello everyone!
 
 Bob [reply to Alice]:
 Hey! How are you?`
     case 'json':
       return `{
-  "chat": "Family Group",
+  "schemaVersion": 1,
+  "chat": { "title": "Family Group", "type": "supergroup" },
   "messages": [
-    {"from": "Alice", "date": "Jan 10", "text": "Hello everyone!"},
-    {"from": "Bob", "reply_to": "Alice", "text": "Hey! How are you?"}
+    { "id": 1, "timestamp": "2024-03-10T10:00:00.000Z", "text": "Hello everyone!" }
   ]
 }`
     case 'markdown':
       return `# Family Group
 
-**Alice** *Jan 10*
+**Alice** *Mar 10, 2024*
 Hello everyone!
 
 **Bob** > reply to Alice

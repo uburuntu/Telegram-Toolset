@@ -612,7 +612,7 @@ class TelegramService {
   /**
    * Get list of dialogs/chats
    */
-  async getDialogs(limit = 100): Promise<ChatInfo[]> {
+  async getDialogs(limit?: number): Promise<ChatInfo[]> {
     const client = await this.getConnectedClient()
     const dialogs = await client.getDialogs({ limit })
     const chats: ChatInfo[] = []
@@ -622,6 +622,7 @@ class TelegramService {
       if (!entity) continue
 
       const id = BigInt(entity.id.toString())
+      const peerId = this.getMarkedPeerId(entity)
       let type: ChatInfo['type'] = 'user'
       let canExport = false
       const canSend = true
@@ -645,6 +646,7 @@ class TelegramService {
 
       chats.push({
         id,
+        peerId,
         title:
           'title' in entity
             ? entity.title
@@ -793,6 +795,59 @@ class TelegramService {
     if ('title' in entity) return 'group'
     if ('firstName' in entity) return 'user'
     return 'chat'
+  }
+
+  private getMarkedPeerId(peer: unknown): string | undefined {
+    if (!peer || typeof peer !== 'object') {
+      return undefined
+    }
+
+    if ('userId' in peer) {
+      const userId = peer.userId
+      if (userId !== undefined && userId !== null) {
+        return userId.toString()
+      }
+    }
+
+    if ('chatId' in peer) {
+      const chatId = peer.chatId
+      if (chatId !== undefined && chatId !== null) {
+        return `-${chatId.toString()}`
+      }
+    }
+
+    if ('channelId' in peer) {
+      const channelId = peer.channelId
+      if (channelId !== undefined && channelId !== null) {
+        return `-100${channelId.toString()}`
+      }
+    }
+
+    if ('id' in peer) {
+      const entityId = peer.id
+      if (entityId === undefined || entityId === null) {
+        return undefined
+      }
+      const id = entityId.toString()
+
+      if (
+        ('broadcast' in peer && !!(peer as { broadcast?: boolean }).broadcast) ||
+        ('megagroup' in peer && !!(peer as { megagroup?: boolean }).megagroup) ||
+        'gigagroup' in peer
+      ) {
+        return `-100${id}`
+      }
+
+      if ('title' in peer) {
+        return `-${id}`
+      }
+
+      if ('firstName' in peer || 'lastName' in peer || 'username' in peer) {
+        return id
+      }
+    }
+
+    return undefined
   }
 
   /**
@@ -1074,7 +1129,7 @@ class TelegramService {
    * Fetch full GramJS messages by ID so media can be downloaded on demand later.
    */
   async getChatMessagesByIds(
-    chatId: bigint,
+    chatId: bigint | string,
     messageIds: number[],
   ): Promise<Map<number, Api.Message>> {
     if (messageIds.length === 0) {
@@ -1083,7 +1138,7 @@ class TelegramService {
 
     const client = await this.getConnectedClient()
 
-    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+    // @ts-expect-error - GramJS accepts marked peer IDs but types don't reflect it
     const entity = await client.getEntity(chatId)
     const uniqueIds = Array.from(new Set(messageIds))
     const messages = new Map<number, Api.Message>()
@@ -1113,12 +1168,12 @@ class TelegramService {
    * Get entity with caching to avoid redundant API calls
    * Matches Python's get_entity_cached pattern
    */
-  async getEntityCached(entityId: bigint): Promise<unknown> {
-    const cacheKey = entityId.toString()
+  async getEntityCached(entityId: bigint | string): Promise<unknown> {
+    const cacheKey = typeof entityId === 'bigint' ? entityId.toString() : entityId
 
     if (!this.entityCache.has(cacheKey)) {
       const client = await this.getConnectedClient()
-      // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+      // @ts-expect-error - GramJS accepts marked peer IDs but types don't reflect it
       const entity = await client.getEntity(entityId)
       this.entityCache.set(cacheKey, entity)
     }
@@ -1136,7 +1191,9 @@ class TelegramService {
   /**
    * Resolve sender info from entity
    */
-  async resolveSenderInfo(senderId: bigint): Promise<{ name?: string; username?: string }> {
+  async resolveSenderInfo(
+    senderId: bigint | string,
+  ): Promise<{ name?: string; username?: string }> {
     try {
       const entity = await this.getEntityCached(senderId)
       if (!entity) return {}
@@ -1354,13 +1411,18 @@ class TelegramService {
    * @param options - Filtering options (limit, minDate, maxDate, reverse)
    */
   async *iterChatMessages(
-    chatId: bigint,
+    chatId: bigint | string,
     options: ChatHistoryOptions = {},
   ): AsyncGenerator<ChatMessage> {
     const client = await this.getConnectedClient()
 
-    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+    // @ts-expect-error - GramJS accepts marked peer IDs but types don't reflect it
     const entity = await client.getEntity(chatId)
+    const rawChatId =
+      entity && typeof entity === 'object' && 'id' in entity
+        ? BigInt((entity as { id: { toString(): string } }).id.toString())
+        : BigInt(String(chatId).replace(/^-100/, '').replace(/^-/, ''))
+    const chatPeerId = this.getMarkedPeerId(entity)
 
     // Build iteration parameters
     const iterParams: Record<string, unknown> = {}
@@ -1374,9 +1436,9 @@ class TelegramService {
     if (options.reverse !== undefined) {
       iterParams.reverse = options.reverse
     }
-    if (options.maxDate !== undefined) {
-      // offsetDate is used for "messages before this date"
-      iterParams.offsetDate = Math.floor(options.maxDate.getTime() / 1000)
+    const offsetDate = options.reverse ? options.minDate : options.maxDate
+    if (offsetDate !== undefined) {
+      iterParams.offsetDate = Math.floor(offsetDate.getTime() / 1000)
     }
 
     // Use GramJS iterMessages helper
@@ -1386,33 +1448,43 @@ class TelegramService {
 
       const msgDate = new Date(msg.date * 1000)
 
-      // GramJS iterMessages supports offsetDate but not minDate, so lower bounds
-      // are enforced here after fetching.
-      if (options.minDate) {
-        if (msgDate < options.minDate) {
-          // If we're iterating in reverse (oldest first), we can stop
-          if (options.reverse) break
-          // Otherwise skip this message
+      // GramJS source flips offsetDate semantics when reverse=true, so we use
+      // it only as the nearest cursor and enforce the full closed range here.
+      if (options.reverse) {
+        if (options.minDate && msgDate < options.minDate) {
           continue
         }
-      }
-
-      if (options.maxDate && msgDate > options.maxDate) {
-        continue
+        if (options.maxDate && msgDate > options.maxDate) {
+          break
+        }
+      } else {
+        if (options.maxDate && msgDate > options.maxDate) {
+          continue
+        }
+        if (options.minDate && msgDate < options.minDate) {
+          break
+        }
       }
 
       const mediaInfo = this.extractMediaInfo(msg)
 
       // Extract sender info
       let senderId: bigint | undefined
+      let senderPeerId: string | undefined
       let forwardedFrom: string | undefined
 
       if (msg.fromId && 'userId' in msg.fromId) {
         senderId = BigInt(msg.fromId.userId.toString())
+        senderPeerId = this.getMarkedPeerId(msg.fromId)
+      } else if (msg.fromId && 'chatId' in msg.fromId) {
+        senderId = BigInt(msg.fromId.chatId.toString())
+        senderPeerId = this.getMarkedPeerId(msg.fromId)
       } else if (msg.fromId && 'channelId' in msg.fromId) {
         senderId = BigInt(msg.fromId.channelId.toString())
+        senderPeerId = this.getMarkedPeerId(msg.fromId)
       } else if (msg.peerId && 'userId' in msg.peerId) {
         senderId = BigInt(msg.peerId.userId.toString())
+        senderPeerId = this.getMarkedPeerId(msg.peerId)
       }
 
       // Handle forwarded messages
@@ -1421,15 +1493,10 @@ class TelegramService {
           forwardedFrom = msg.fwdFrom.fromName
         } else if (msg.fwdFrom.fromId) {
           try {
-            const fwdEntity = await this.getEntityCached(
-              BigInt(
-                'userId' in msg.fwdFrom.fromId
-                  ? msg.fwdFrom.fromId.userId.toString()
-                  : 'channelId' in msg.fwdFrom.fromId
-                    ? msg.fwdFrom.fromId.channelId.toString()
-                    : '0',
-              ),
-            )
+            const forwardedPeerId = this.getMarkedPeerId(msg.fwdFrom.fromId)
+            const fwdEntity = forwardedPeerId
+              ? await this.getEntityCached(forwardedPeerId)
+              : undefined
             if (fwdEntity && typeof fwdEntity === 'object') {
               if ('firstName' in fwdEntity) {
                 forwardedFrom = [
@@ -1450,8 +1517,10 @@ class TelegramService {
 
       yield {
         id: msg.id,
-        chatId,
+        chatId: rawChatId,
+        chatPeerId,
         senderId,
+        senderPeerId,
         text: msg.message || undefined,
         date: msgDate,
         replyToMsgId:
@@ -1466,10 +1535,10 @@ class TelegramService {
    * Get total message count for a chat (approximate)
    * Useful for progress estimation
    */
-  async getChatMessageCount(chatId: bigint): Promise<number> {
+  async getChatMessageCount(chatId: bigint | string): Promise<number> {
     const client = await this.getConnectedClient()
 
-    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
+    // @ts-expect-error - GramJS accepts marked peer IDs but types don't reflect it
     const entity = await client.getEntity(chatId)
     const inputPeer = await client.getInputEntity(entity)
 

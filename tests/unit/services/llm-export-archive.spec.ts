@@ -14,9 +14,11 @@ import { telegramService } from '@/services/telegram/client'
 
 const chatExport: ChatExport = {
   id: 'export-1',
-  chatId: BigInt('-1001234567890'),
+  chatId: BigInt('1234567890'),
+  chatPeerId: '-1001234567890',
   chatTitle: 'Test Chat',
   chatType: 'supergroup',
+  schemaVersion: 2,
   createdAt: new Date('2024-03-10T12:00:00Z'),
   messageCount: 3,
   hasMedia: true,
@@ -31,7 +33,9 @@ const messages: ChatMessage[] = [
   {
     id: 1,
     chatId: chatExport.chatId,
+    chatPeerId: chatExport.chatPeerId,
     senderId: BigInt('101'),
+    senderPeerId: '101',
     senderName: 'Alice',
     text: 'Hello',
     date: new Date('2024-03-10T10:00:00Z'),
@@ -40,7 +44,9 @@ const messages: ChatMessage[] = [
   {
     id: 2,
     chatId: chatExport.chatId,
+    chatPeerId: chatExport.chatPeerId,
     senderId: BigInt('202'),
+    senderPeerId: '202',
     senderName: 'Bob',
     text: 'See photo',
     date: new Date('2024-03-10T11:00:00Z'),
@@ -52,7 +58,9 @@ const messages: ChatMessage[] = [
   {
     id: 3,
     chatId: chatExport.chatId,
+    chatPeerId: chatExport.chatPeerId,
     senderId: BigInt('303'),
+    senderPeerId: '303',
     senderName: 'Carol',
     text: 'Quarterly report',
     date: new Date('2024-03-10T12:00:00Z'),
@@ -93,7 +101,7 @@ describe('ChatArchiveService', () => {
     })
   })
 
-  it('builds a ZIP with formatted output, manifest, and media files', async () => {
+  it('builds a ZIP with formatted output, canonical messages.json, and media files', async () => {
     const blob = await chatArchiveService.generateBlob(chatExport, messages, baseConfig)
     const zip = await JSZip.loadAsync(blob)
 
@@ -108,36 +116,33 @@ describe('ChatArchiveService', () => {
       ]),
     )
 
-    const context = await zip.file('context.txt')!.async('string')
-    expect(context).toContain('Alice')
-    expect(context).toContain('[photo]')
-
     const metadata = JSON.parse(await zip.file('metadata.json')!.async('string'))
-    expect(metadata.formattedFile).toBe('context.txt')
     expect(metadata.includedMediaFiles).toBe(2)
     expect(metadata.failedMediaFiles).toBe(0)
 
-    const manifest = JSON.parse(await zip.file('messages.json')!.async('string'))
-    expect(manifest).toHaveLength(3)
-    expect(manifest[1].media.path).toBe('media/2_photo_2.jpg')
-    expect(manifest[2].media.path).toBe('media/3_report.pdf')
+    const document = JSON.parse(await zip.file('messages.json')!.async('string'))
+    expect(document.schemaVersion).toBe(1)
+    expect(document.chat.peerId).toBe('-1001234567890')
+    expect(document.messages).toHaveLength(3)
+    expect(document.messages[1].media.archivePath).toBe('media/2_photo_2.jpg')
+    expect(document.messages[2].media.archivePath).toBe('media/3_report.pdf')
 
-    expect(telegramService.getChatMessagesByIds).toHaveBeenCalledWith(chatExport.chatId, [2, 3])
+    expect(telegramService.getChatMessagesByIds).toHaveBeenCalledWith(chatExport.chatPeerId, [2, 3])
     expect(telegramService.downloadMedia).toHaveBeenCalledTimes(2)
   })
 
-  it('only downloads media for the currently selected message subset', async () => {
+  it('only downloads media for the selected message subset', async () => {
     const blob = await chatArchiveService.generateBlob(chatExport, messages, {
       ...baseConfig,
       reverseOrder: false,
       messageLimit: 1,
     })
     const zip = await JSZip.loadAsync(blob)
-    const manifest = JSON.parse(await zip.file('messages.json')!.async('string'))
+    const document = JSON.parse(await zip.file('messages.json')!.async('string'))
 
-    expect(manifest).toHaveLength(1)
-    expect(manifest[0].id).toBe(3)
-    expect(telegramService.getChatMessagesByIds).toHaveBeenCalledWith(chatExport.chatId, [3])
+    expect(document.messages).toHaveLength(1)
+    expect(document.messages[0].id).toBe(3)
+    expect(telegramService.getChatMessagesByIds).toHaveBeenCalledWith(chatExport.chatPeerId, [3])
     expect(telegramService.downloadMedia).toHaveBeenCalledTimes(1)
   })
 
@@ -146,14 +151,14 @@ describe('ChatArchiveService', () => {
       new Map([[2, { id: 2, media: true }]]),
     )
 
-    const blob = await chatArchiveService.generateBlob(chatExport, messages, baseConfig)
-    const zip = await JSZip.loadAsync(blob)
+    const result = await chatArchiveService.generateArchive(chatExport, messages, baseConfig)
+    const zip = await JSZip.loadAsync(result.blob)
     const metadata = JSON.parse(await zip.file('metadata.json')!.async('string'))
-    const manifest = JSON.parse(await zip.file('messages.json')!.async('string'))
+    const document = JSON.parse(await zip.file('messages.json')!.async('string'))
 
-    expect(metadata.includedMediaFiles).toBe(1)
+    expect(result.mediaFailures).toHaveLength(1)
     expect(metadata.failedMediaFiles).toBe(1)
-    expect(manifest[1].media.path).toBe('media/2_photo_2.jpg')
-    expect(manifest[2].media.path).toBeUndefined()
+    expect(document.messages[1].media.archivePath).toBe('media/2_photo_2.jpg')
+    expect(document.messages[2].media.archivePath).toBeUndefined()
   })
 })

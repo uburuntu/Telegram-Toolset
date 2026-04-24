@@ -14,7 +14,11 @@ import type { MediaType } from './telegram'
 export interface ChatMessage {
   id: number
   chatId: bigint
+  /** Stable Bot API-style marked peer ID: userId, -chatId, or -100channelId */
+  chatPeerId?: string
   senderId?: bigint
+  /** Stable Bot API-style marked peer ID for the sender */
+  senderPeerId?: string
   /** Sender name (may be contact name from your contacts) */
   senderName?: string
   /** Sender's original Telegram display name (peer's own name) */
@@ -38,8 +42,11 @@ export interface ChatMessage {
 export interface ChatExport {
   id: string
   chatId: bigint
+  /** Stable Bot API-style marked peer ID: userId, -chatId, or -100channelId */
+  chatPeerId?: string
   chatTitle: string
   chatType: 'channel' | 'supergroup' | 'group' | 'user'
+  schemaVersion?: number
   createdAt: Date
   messageCount: number
   hasMedia?: boolean
@@ -182,6 +189,13 @@ export interface ChatHistoryResult {
   chatExport: ChatExport
 }
 
+export interface ChatHistoryTask {
+  promise: Promise<ChatHistoryResult>
+  cancel: () => void
+  stopAndSave: () => void
+  signal: AbortSignal
+}
+
 /**
  * Progress tracking for LLM archive generation
  */
@@ -192,6 +206,7 @@ export interface ChatArchiveProgress {
     | 'downloading_media'
     | 'building_archive'
     | 'complete'
+    | 'cancelled'
     | 'error'
   totalMediaMessages: number
   processedMediaMessages: number
@@ -210,6 +225,90 @@ export interface ChatArchiveCallbacks {
   onError?: (error: Error, messageId?: number) => void
   onFloodWait?: (seconds: number) => void
   onFloodWaitCountdown?: (remainingSeconds: number) => void
+}
+
+export interface ChatArchiveFailure {
+  messageId: number
+  errorMessage: string
+}
+
+export interface ChatArchiveResult {
+  blob: Blob
+  filename: string
+  mediaFailures: ChatArchiveFailure[]
+}
+
+export interface ChatArchiveTask {
+  promise: Promise<ChatArchiveResult>
+  cancel: () => void
+  signal: AbortSignal
+}
+
+export interface ChatExportDocumentFilterRange {
+  from?: string
+  to?: string
+}
+
+export interface ChatExportDocumentMedia {
+  type?: MediaType
+  filename?: string
+  size?: number
+  mimeType?: string
+  placeholder?: string
+  archivePath?: string
+}
+
+export interface ChatExportDocumentSender {
+  peerId?: string
+  name?: string
+  displayName?: string
+  originalName?: string
+  username?: string
+}
+
+export interface ChatExportDocumentMessage {
+  id: number
+  chatPeerId?: string
+  sender?: ChatExportDocumentSender
+  timestamp: string
+  day: string
+  replyToMessageId?: number
+  replyContext?: string
+  forwardedFrom?: string
+  text?: string
+  media?: ChatExportDocumentMedia
+}
+
+export interface ChatExportDocument {
+  schemaVersion: number
+  export: {
+    id: string
+    createdAt: string
+    template: FormatTemplate
+  }
+  chat: {
+    id: string
+    peerId?: string
+    title: string
+    type: ChatExport['chatType']
+  }
+  source: {
+    cachedMessageCount: number
+    hasMedia: boolean
+    mediaCount: number
+    dateRange: {
+      from: string
+      to: string
+    }
+  }
+  selection: {
+    selectedMessageCount: number
+    reverseOrder: boolean
+    messageLimit: number
+    filterDateRange?: ChatExportDocumentFilterRange
+    selectedDateRange?: ChatExportDocumentFilterRange
+  }
+  messages: ChatExportDocumentMessage[]
 }
 
 /**

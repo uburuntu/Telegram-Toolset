@@ -4,6 +4,8 @@
 
 export interface ChatInfo {
   id: bigint
+  /** Stable Bot API-style marked peer ID: userId, -chatId, or -100channelId */
+  peerId?: string
   title: string
   type: 'channel' | 'supergroup' | 'group' | 'user'
   username?: string

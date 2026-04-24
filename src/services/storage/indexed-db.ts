@@ -339,6 +339,23 @@ export async function saveChatMessages(exportId: string, messages: ChatMessage[]
   await tx.done
 }
 
+export async function saveChatExportBundle(
+  chatExport: ChatExport,
+  messages: ChatMessage[],
+): Promise<void> {
+  const db = await getDB()
+  const tx = db.transaction(['chatExports', 'chatMessages'], 'readwrite')
+
+  await tx.objectStore('chatExports').put(chatExport)
+
+  const store = tx.objectStore('chatMessages')
+  for (const message of messages) {
+    await store.put({ ...message, exportId: chatExport.id })
+  }
+
+  await tx.done
+}
+
 export async function getChatMessagesByExport(exportId: string): Promise<ChatMessage[]> {
   const db = await getDB()
   const messages = await db.getAllFromIndex('chatMessages', 'by-export', exportId)

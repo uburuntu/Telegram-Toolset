@@ -1,8 +1,8 @@
 /**
  * Chat History Service for LLM Context Export
  *
- * Orchestrates downloading chat history and storing it in IndexedDB.
- * Handles progress tracking, cancellation, and error recovery.
+ * Coordinates Telegram history retrieval with local persistence, while keeping
+ * each download request self-contained and cancellable.
  */
 
 import type {
@@ -11,60 +11,52 @@ import type {
   ChatHistoryOptions,
   ChatHistoryProgress,
   ChatHistoryResult,
+  ChatHistoryTask,
   ChatInfo,
   ChatMessage,
 } from '@/types'
-import * as db from '../storage/indexed-db'
+import {
+  deleteChatExport,
+  getChatMessages,
+  getTotalStorageSize as getStoredChatExportsSize,
+  listChatExports,
+  loadChatExportBundle,
+  saveChatExportBundle,
+} from './store'
 import { telegramService } from '../telegram/client'
 import { createFloodWaitSubscription } from '../telegram/rate-limiter'
 
-class ChatHistoryService {
-  private abortController: AbortController | null = null
-  private _stopAndSave = false
+class ChatHistoryDownloadTask implements ChatHistoryTask {
+  private readonly abortController = new AbortController()
+  private stopRequested = false
+  private readonly chatInfo: ChatInfo
+  private readonly options: ChatHistoryOptions
+  private readonly callbacks: ChatHistoryCallbacks
 
-  /**
-   * Check if a download is currently in progress
-   */
-  get isDownloading(): boolean {
-    return this.abortController !== null
+  readonly signal = this.abortController.signal
+  readonly promise: Promise<ChatHistoryResult>
+
+  constructor(chatInfo: ChatInfo, options: ChatHistoryOptions, callbacks: ChatHistoryCallbacks) {
+    this.chatInfo = chatInfo
+    this.options = options
+    this.callbacks = callbacks
+    this.promise = this.run()
   }
 
-  /**
-   * Cancel the current download operation (discards all fetched messages)
-   */
-  cancel(): void {
-    if (this.abortController) {
-      this.abortController.abort()
-      this.abortController = null
-    }
+  cancel = (): void => {
+    this.abortController.abort()
   }
 
-  /**
-   * Stop fetching and save whatever has been downloaded so far.
-   * Unlike cancel(), this preserves the partial result.
-   */
-  stopAndSave(): void {
-    this._stopAndSave = true
+  stopAndSave = (): void => {
+    this.stopRequested = true
   }
 
-  /**
-   * Download chat history and save to IndexedDB
-   *
-   * @param chatInfo - Chat to download from
-   * @param options - Download options (limit, date range)
-   * @param callbacks - Progress and error callbacks
-   */
-  async downloadChatHistory(
-    chatInfo: ChatInfo,
-    options: ChatHistoryOptions = {},
-    callbacks: ChatHistoryCallbacks = {},
-  ): Promise<ChatHistoryResult> {
-    // Create new abort controller for this download
-    this.abortController = new AbortController()
-    const signal = this.abortController.signal
-
-    // Subscribe to FloodWait events from Telegram service
-    const unsubscribeFloodWait = createFloodWaitSubscription(telegramService, callbacks, signal)
+  private async run(): Promise<ChatHistoryResult> {
+    const unsubscribeFloodWait = createFloodWaitSubscription(
+      telegramService,
+      this.callbacks,
+      this.signal,
+    )
 
     const progress: ChatHistoryProgress = {
       phase: 'initializing',
@@ -75,74 +67,67 @@ class ChatHistoryService {
     const messages: ChatMessage[] = []
     let minDate: Date | undefined
     let maxDate: Date | undefined
-    this._stopAndSave = false
 
     try {
-      // Get estimated message count for progress
-      progress.phase = 'initializing'
-      callbacks.onProgress?.(progress)
+      this.callbacks.onProgress?.({ ...progress })
 
       try {
-        const estimatedCount = await telegramService.getChatMessageCount(chatInfo.id)
-        progress.totalEstimate = options.limit
-          ? Math.min(estimatedCount, options.limit)
+        const estimatedCount = await telegramService.getChatMessageCount(
+          this.chatInfo.peerId || this.chatInfo.id,
+        )
+        progress.totalEstimate = this.options.limit
+          ? Math.min(estimatedCount, this.options.limit)
           : estimatedCount
       } catch {
-        // Ignore count estimation errors
+        // Progress estimation is best-effort only.
       }
 
-      // Start fetching messages
       progress.phase = 'fetching'
-      callbacks.onProgress?.(progress)
+      this.callbacks.onProgress?.({ ...progress })
 
-      for await (const msg of telegramService.iterChatMessages(chatInfo.id, options)) {
-        // Check for cancellation
-        if (signal.aborted) {
-          progress.phase = 'cancelled'
-          callbacks.onProgress?.(progress)
-          throw new DOMException('Download cancelled', 'AbortError')
-        }
+      for await (const message of telegramService.iterChatMessages(
+        this.chatInfo.peerId || this.chatInfo.id,
+        this.options,
+      )) {
+        this.throwIfCancelled(progress)
 
-        // Check for stop-and-save
-        if (this._stopAndSave) {
+        if (this.stopRequested) {
           break
         }
 
-        // Resolve sender info
-        const enrichedMsg = await this.enrichMessageWithSender(msg)
-        messages.push(enrichedMsg)
+        const enrichedMessage = await this.enrichMessageWithSender(message)
+        messages.push(enrichedMessage)
 
-        // Track date range
-        if (!minDate || enrichedMsg.date < minDate) {
-          minDate = enrichedMsg.date
+        if (!minDate || enrichedMessage.date < minDate) {
+          minDate = enrichedMessage.date
         }
-        if (!maxDate || enrichedMsg.date > maxDate) {
-          maxDate = enrichedMsg.date
+        if (!maxDate || enrichedMessage.date > maxDate) {
+          maxDate = enrichedMessage.date
         }
 
-        // Update progress
         progress.fetchedMessages = messages.length
-        progress.currentMessageId = enrichedMsg.id
-        callbacks.onProgress?.(progress)
-        callbacks.onMessage?.(enrichedMsg)
+        progress.currentMessageId = enrichedMessage.id
+        this.callbacks.onProgress?.({ ...progress })
+        this.callbacks.onMessage?.(enrichedMessage)
       }
 
-      // Check for empty result
+      this.throwIfCancelled(progress)
+
       if (messages.length === 0) {
         throw new Error('No messages found in this chat')
       }
 
-      // Create export metadata
       progress.phase = 'saving'
-      callbacks.onProgress?.(progress)
+      this.callbacks.onProgress?.({ ...progress })
 
-      const mediaCount = messages.filter((msg) => msg.hasMedia).length
-
+      const mediaCount = messages.filter((message) => message.hasMedia).length
       const chatExport: ChatExport = {
         id: this.generateExportId(),
-        chatId: chatInfo.id,
-        chatTitle: chatInfo.title,
-        chatType: chatInfo.type,
+        chatId: this.chatInfo.id,
+        chatPeerId: this.chatInfo.peerId,
+        chatTitle: this.chatInfo.title,
+        chatType: this.chatInfo.type,
+        schemaVersion: 2,
         createdAt: new Date(),
         messageCount: messages.length,
         hasMedia: mediaCount > 0,
@@ -153,117 +138,103 @@ class ChatHistoryService {
         },
       }
 
-      // Save to IndexedDB
-      await db.saveChatExport(chatExport)
-      await db.saveChatMessages(chatExport.id, messages)
+      const result = await saveChatExportBundle(chatExport, messages)
 
-      // Complete
       progress.phase = 'complete'
-      callbacks.onProgress?.(progress)
+      this.callbacks.onProgress?.({ ...progress })
 
-      return { messages, chatExport }
+      return result
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         progress.phase = 'cancelled'
       } else {
         progress.phase = 'error'
         progress.errorMessage = error instanceof Error ? error.message : String(error)
-        callbacks.onError?.(error instanceof Error ? error : new Error(String(error)))
+        this.callbacks.onError?.(error instanceof Error ? error : new Error(String(error)))
       }
-      callbacks.onProgress?.(progress)
+
+      this.callbacks.onProgress?.({ ...progress })
       throw error
     } finally {
       unsubscribeFloodWait()
-      this.abortController = null
     }
   }
 
-  /**
-   * Load a cached chat export from IndexedDB
-   */
-  async loadChatExport(exportId: string): Promise<ChatHistoryResult | null> {
-    const chatExport = await db.getChatExport(exportId)
-    if (!chatExport) return null
+  private throwIfCancelled(progress: ChatHistoryProgress): void {
+    if (!this.signal.aborted) {
+      return
+    }
 
-    const messages = await db.getChatMessagesByExport(exportId)
-
-    return { messages, chatExport }
+    progress.phase = 'cancelled'
+    this.callbacks.onProgress?.({ ...progress })
+    throw new DOMException('Download cancelled', 'AbortError')
   }
 
-  /**
-   * Get all cached chat exports
-   */
-  async listChatExports(): Promise<ChatExport[]> {
-    return db.getAllChatExports()
-  }
-
-  /**
-   * Delete a cached chat export
-   */
-  async deleteChatExport(exportId: string): Promise<void> {
-    await db.deleteChatExport(exportId)
-  }
-
-  /**
-   * Get messages for a cached export
-   */
-  async getChatMessages(exportId: string): Promise<ChatMessage[]> {
-    return db.getChatMessagesByExport(exportId)
-  }
-
-  /**
-   * Enrich a message with sender name and username
-   * Stores both senderName (potentially contact name) and senderOriginalName (peer's Telegram name)
-   */
-  private async enrichMessageWithSender(msg: ChatMessage): Promise<ChatMessage> {
-    if (!msg.senderId) return msg
+  private async enrichMessageWithSender(message: ChatMessage): Promise<ChatMessage> {
+    const senderRef = message.senderPeerId || message.senderId
+    if (!senderRef) {
+      return message
+    }
 
     try {
-      const senderInfo = await telegramService.resolveSenderInfo(msg.senderId)
-      // GramJS returns the peer's actual Telegram name, not contact names
-      // We store it in both fields - senderOriginalName is the canonical source
-      // senderName may be overwritten by contact name resolution in the future
+      const senderInfo = await telegramService.resolveSenderInfo(senderRef)
       return {
-        ...msg,
+        ...message,
         senderName: senderInfo.name,
         senderOriginalName: senderInfo.name,
         senderUsername: senderInfo.username,
       }
     } catch {
-      // Silently ignore entity resolution errors
-      return msg
+      return message
     }
   }
 
-  /**
-   * Generate a unique export ID
-   */
   private generateExportId(): string {
-    return `export_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-  }
-
-  /**
-   * Check if a chat has been exported before
-   */
-  async hasExistingExport(chatId: bigint): Promise<ChatExport | null> {
-    const exports = await db.getAllChatExports()
-    return exports.find((e) => e.chatId === chatId) || null
-  }
-
-  /**
-   * Get storage size used by chat exports
-   */
-  async getTotalStorageSize(): Promise<number> {
-    const exports = await db.getAllChatExports()
-    let total = 0
-
-    for (const exp of exports) {
-      total += await db.getChatExportSize(exp.id)
-    }
-
-    return total
+    return `export_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
   }
 }
 
-// Singleton instance
+class ChatHistoryService {
+  createDownloadTask(
+    chatInfo: ChatInfo,
+    options: ChatHistoryOptions = {},
+    callbacks: ChatHistoryCallbacks = {},
+  ): ChatHistoryTask {
+    return new ChatHistoryDownloadTask(chatInfo, options, callbacks)
+  }
+
+  async downloadChatHistory(
+    chatInfo: ChatInfo,
+    options: ChatHistoryOptions = {},
+    callbacks: ChatHistoryCallbacks = {},
+  ): Promise<ChatHistoryResult> {
+    return this.createDownloadTask(chatInfo, options, callbacks).promise
+  }
+
+  async loadChatExport(exportId: string): Promise<ChatHistoryResult | null> {
+    return loadChatExportBundle(exportId)
+  }
+
+  async listChatExports(): Promise<ChatExport[]> {
+    return listChatExports()
+  }
+
+  async deleteChatExport(exportId: string): Promise<void> {
+    await deleteChatExport(exportId)
+  }
+
+  async getChatMessages(exportId: string): Promise<ChatMessage[]> {
+    return getChatMessages(exportId)
+  }
+
+  async hasExistingExport(chatId: bigint): Promise<ChatExport | null> {
+    const exports = await listChatExports()
+    return exports.find((chatExport) => chatExport.chatId === chatId) || null
+  }
+
+  async getTotalStorageSize(): Promise<number> {
+    return getStoredChatExportsSize()
+  }
+}
+
 export const chatHistoryService = new ChatHistoryService()

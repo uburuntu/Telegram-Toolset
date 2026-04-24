@@ -1,14 +1,17 @@
 /**
  * Archive generation for LLM exports.
  *
- * Builds a ZIP containing the formatted text output, machine-readable metadata,
- * and any downloadable media files referenced by the selected message set.
+ * Builds a ZIP containing the formatted text output, canonical export document,
+ * archive metadata, and downloadable media files for the selected message set.
  */
 
 import JSZip from 'jszip'
 import type {
   ChatArchiveCallbacks,
+  ChatArchiveFailure,
   ChatArchiveProgress,
+  ChatArchiveResult,
+  ChatArchiveTask,
   ChatExport,
   ChatMessage,
   FormatConfig,
@@ -21,7 +24,12 @@ import {
   startFloodWaitCountdown,
   withRetry,
 } from '../telegram/rate-limiter'
-import { formatMessages, getFormatFileExtension, prepareMessages } from './format-service'
+import {
+  buildExportDocument,
+  formatMessages,
+  getFormatFileExtension,
+  prepareMessages,
+} from './format-service'
 
 const MAX_PARALLEL_DOWNLOADS = 4
 const MAX_DOWNLOAD_RETRIES = 3
@@ -34,7 +42,6 @@ const DOWNLOADABLE_MEDIA_TYPES = new Set<MediaType>([
   'videoNote',
   'audio',
   'animation',
-  'contact',
 ])
 
 interface ArchiveMediaEntry {
@@ -43,13 +50,34 @@ interface ArchiveMediaEntry {
   path: string
 }
 
-class ChatArchiveService {
-  async generateBlob(
+class ChatArchiveBuildTask implements ChatArchiveTask {
+  private readonly abortController = new AbortController()
+  private readonly chatExport: ChatExport
+  private readonly messages: ChatMessage[]
+  private readonly config: FormatConfig
+  private readonly callbacks: ChatArchiveCallbacks
+
+  readonly signal = this.abortController.signal
+  readonly promise: Promise<ChatArchiveResult>
+
+  constructor(
     chatExport: ChatExport,
     messages: ChatMessage[],
     config: FormatConfig,
-    callbacks: ChatArchiveCallbacks = {},
-  ): Promise<Blob> {
+    callbacks: ChatArchiveCallbacks,
+  ) {
+    this.chatExport = chatExport
+    this.messages = messages
+    this.config = config
+    this.callbacks = callbacks
+    this.promise = this.run()
+  }
+
+  cancel = (): void => {
+    this.abortController.abort()
+  }
+
+  private async run(): Promise<ChatArchiveResult> {
     const progress: ChatArchiveProgress = {
       phase: 'preparing',
       totalMediaMessages: 0,
@@ -59,79 +87,80 @@ class ChatArchiveService {
       startTime: new Date(),
     }
 
-    callbacks.onProgress?.({ ...progress })
+    this.callbacks.onProgress?.({ ...progress })
 
     try {
-      const selectedMessages = prepareMessages(messages, config)
-      const formattedOutput = formatMessages(messages, chatExport, config)
+      const selectedMessages = prepareMessages(this.messages, this.config)
+      const formattedOutput = formatMessages(this.messages, this.chatExport, this.config)
       const mediaMessages = selectedMessages.filter((message) =>
         this.isDownloadableMediaMessage(message),
       )
 
       progress.totalMediaMessages = mediaMessages.length
-      callbacks.onProgress?.({ ...progress })
+      this.callbacks.onProgress?.({ ...progress })
+      this.throwIfCancelled(progress)
 
       let rawMessages = new Map<number, unknown>()
       if (mediaMessages.length > 0) {
         progress.phase = 'fetching_messages'
-        callbacks.onProgress?.({ ...progress })
+        this.callbacks.onProgress?.({ ...progress })
         rawMessages = await telegramService.getChatMessagesByIds(
-          chatExport.chatId,
+          this.chatExport.chatPeerId || this.chatExport.chatId,
           mediaMessages.map((message) => message.id),
         )
       }
 
       const mediaEntries = new Map<number, ArchiveMediaEntry>()
+      const failures: ChatArchiveFailure[] = []
+
       if (mediaMessages.length > 0) {
         progress.phase = 'downloading_media'
-        callbacks.onProgress?.({ ...progress })
+        this.callbacks.onProgress?.({ ...progress })
         await this.downloadMediaEntries(
           mediaMessages,
           rawMessages,
           mediaEntries,
+          failures,
           progress,
-          callbacks,
         )
       }
 
+      this.throwIfCancelled(progress)
+
       progress.phase = 'building_archive'
-      callbacks.onProgress?.({ ...progress })
+      this.callbacks.onProgress?.({ ...progress })
 
       const zip = new JSZip()
-      const formattedFilename = `context.${getFormatFileExtension(config.template)}`
+      const formattedFilename = `context.${getFormatFileExtension(this.config.template)}`
 
       zip.file(formattedFilename, formattedOutput)
+
+      const mediaPaths = new Map<number, string>()
+      for (const [messageId, entry] of mediaEntries.entries()) {
+        mediaPaths.set(messageId, entry.path)
+      }
+
+      const exportDocument = buildExportDocument(this.messages, this.chatExport, this.config, {
+        mediaPaths,
+        template: this.config.template,
+      })
+
       zip.file(
         'metadata.json',
         JSON.stringify(
           {
-            exportId: chatExport.id,
-            chatId: chatExport.chatId.toString(),
-            chatTitle: chatExport.chatTitle,
-            chatType: chatExport.chatType,
-            exportCreatedAt: chatExport.createdAt.toISOString(),
+            schemaVersion: 1,
             archiveCreatedAt: new Date().toISOString(),
-            totalCachedMessages: chatExport.messageCount,
-            selectedMessages: selectedMessages.length,
-            includedMediaFiles: mediaEntries.size,
-            failedMediaFiles: progress.failedMediaMessages,
             formattedFile: formattedFilename,
-            format: this.serializeFormatConfig(config),
+            includedMediaFiles: mediaEntries.size,
+            failedMediaFiles: failures.length,
+            failures,
           },
           null,
           2,
         ),
       )
-      zip.file(
-        'messages.json',
-        JSON.stringify(
-          selectedMessages.map((message) =>
-            this.serializeMessage(message, mediaEntries.get(message.id)?.path),
-          ),
-          null,
-          2,
-        ),
-      )
+      zip.file('messages.json', JSON.stringify(exportDocument, null, 2))
 
       const mediaFolder = zip.folder('media')
       if (mediaFolder) {
@@ -140,46 +169,56 @@ class ChatArchiveService {
         }
       }
 
-      const archive = await zip.generateAsync({
+      const blob = await zip.generateAsync({
         type: 'blob',
         compression: 'DEFLATE',
         compressionOptions: { level: 6 },
       })
 
       progress.phase = 'complete'
-      callbacks.onProgress?.({ ...progress })
+      this.callbacks.onProgress?.({ ...progress })
 
-      return archive
+      return {
+        blob,
+        filename: this.buildArchiveFilename(this.chatExport, this.config),
+        mediaFailures: failures,
+      }
     } catch (error) {
-      progress.phase = 'error'
-      progress.errorMessage = error instanceof Error ? error.message : String(error)
-      callbacks.onProgress?.({ ...progress })
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        progress.phase = 'cancelled'
+      } else {
+        progress.phase = 'error'
+        progress.errorMessage = error instanceof Error ? error.message : String(error)
+      }
+
+      this.callbacks.onProgress?.({ ...progress })
       throw error
     }
   }
 
-  async generateAndDownload(
-    chatExport: ChatExport,
-    messages: ChatMessage[],
-    config: FormatConfig,
-    callbacks: ChatArchiveCallbacks = {},
-  ): Promise<void> {
-    const archive = await this.generateBlob(chatExport, messages, config, callbacks)
-    this.downloadBlob(archive, this.buildArchiveFilename(chatExport, config))
+  private throwIfCancelled(progress: ChatArchiveProgress): void {
+    if (!this.signal.aborted) {
+      return
+    }
+
+    progress.phase = 'cancelled'
+    this.callbacks.onProgress?.({ ...progress })
+    throw new DOMException('Archive generation cancelled', 'AbortError')
   }
 
   private async downloadMediaEntries(
     messages: ChatMessage[],
     rawMessages: Map<number, unknown>,
     mediaEntries: Map<number, ArchiveMediaEntry>,
+    failures: ChatArchiveFailure[],
     progress: ChatArchiveProgress,
-    callbacks: ChatArchiveCallbacks,
   ): Promise<void> {
     const semaphore = new Semaphore(MAX_PARALLEL_DOWNLOADS)
     const usedNames = new Set<string>()
 
     const tasks = messages.map((message) =>
       semaphore.withPermit(async () => {
+        this.throwIfCancelled(progress)
         progress.currentMessageId = message.id
 
         try {
@@ -190,13 +229,11 @@ class ChatArchiveService {
 
           const blob = await withRetry(() => telegramService.downloadMedia(rawMessage), {
             maxRetries: MAX_DOWNLOAD_RETRIES,
+            signal: this.signal,
             onFloodWait: (seconds) => {
-              callbacks.onFloodWait?.(seconds)
-
-              if (callbacks.onFloodWaitCountdown) {
-                const controller = new AbortController()
-                startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, controller.signal)
-                setTimeout(() => controller.abort(), seconds * 1000)
+              this.callbacks.onFloodWait?.(seconds)
+              if (this.callbacks.onFloodWaitCountdown) {
+                this.startFloodWaitCountdown(seconds)
               }
             },
             onRetry: (attempt, waitMs, error) => {
@@ -218,16 +255,45 @@ class ChatArchiveService {
           })
           progress.downloadedMediaMessages++
         } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            throw error
+          }
+
           progress.failedMediaMessages++
-          callbacks.onError?.(error instanceof Error ? error : new Error(String(error)), message.id)
+          const failure = {
+            messageId: message.id,
+            errorMessage: error instanceof Error ? error.message : String(error),
+          }
+          failures.push(failure)
+          this.callbacks.onError?.(
+            error instanceof Error ? error : new Error(failure.errorMessage),
+            message.id,
+          )
         } finally {
           progress.processedMediaMessages++
-          callbacks.onProgress?.({ ...progress })
+          this.callbacks.onProgress?.({ ...progress })
         }
       }),
     )
 
     await Promise.all(tasks)
+  }
+
+  private startFloodWaitCountdown(seconds: number): void {
+    const controller = new AbortController()
+    const cancelCountdown = () => controller.abort()
+
+    startFloodWaitCountdown(seconds, this.callbacks.onFloodWaitCountdown!, controller.signal)
+    const timeoutId = globalThis.setTimeout(cancelCountdown, seconds * 1000)
+
+    this.signal.addEventListener(
+      'abort',
+      () => {
+        globalThis.clearTimeout(timeoutId)
+        cancelCountdown()
+      },
+      { once: true },
+    )
   }
 
   private isDownloadableMediaMessage(message: ChatMessage): boolean {
@@ -240,42 +306,6 @@ class ChatArchiveService {
     }
 
     return message.mediaType ? DOWNLOADABLE_MEDIA_TYPES.has(message.mediaType) : false
-  }
-
-  private serializeFormatConfig(config: FormatConfig) {
-    return {
-      ...config,
-      filterDateRange: config.filterDateRange
-        ? {
-            from: config.filterDateRange.from?.toISOString(),
-            to: config.filterDateRange.to?.toISOString(),
-          }
-        : undefined,
-    }
-  }
-
-  private serializeMessage(message: ChatMessage, mediaPath?: string) {
-    return {
-      id: message.id,
-      chatId: message.chatId.toString(),
-      senderId: message.senderId?.toString(),
-      senderName: message.senderName,
-      senderOriginalName: message.senderOriginalName,
-      senderUsername: message.senderUsername,
-      text: message.text,
-      date: message.date.toISOString(),
-      replyToMsgId: message.replyToMsgId,
-      forwardedFrom: message.forwardedFrom,
-      media: message.hasMedia
-        ? {
-            type: message.mediaType,
-            filename: message.mediaFilename,
-            size: message.mediaSize,
-            mimeType: message.mediaMimeType,
-            path: mediaPath,
-          }
-        : undefined,
-    }
   }
 
   private buildArchiveFilename(chatExport: ChatExport, config: FormatConfig): string {
@@ -344,7 +374,6 @@ class ChatArchiveService {
       'image/jpeg': '.jpg',
       'image/png': '.png',
       'image/webp': '.webp',
-      'text/vcard': '.vcf',
       'video/mp4': '.mp4',
       'video/webm': '.webm',
     }
@@ -356,8 +385,6 @@ class ChatArchiveService {
     switch (mediaType) {
       case 'audio':
         return '.mp3'
-      case 'contact':
-        return '.vcf'
       case 'photo':
       case 'sticker':
         return '.jpg'
@@ -370,6 +397,47 @@ class ChatArchiveService {
       default:
         return ''
     }
+  }
+}
+
+class ChatArchiveService {
+  createArchiveTask(
+    chatExport: ChatExport,
+    messages: ChatMessage[],
+    config: FormatConfig,
+    callbacks: ChatArchiveCallbacks = {},
+  ): ChatArchiveTask {
+    return new ChatArchiveBuildTask(chatExport, messages, config, callbacks)
+  }
+
+  async generateBlob(
+    chatExport: ChatExport,
+    messages: ChatMessage[],
+    config: FormatConfig,
+    callbacks: ChatArchiveCallbacks = {},
+  ): Promise<Blob> {
+    const result = await this.createArchiveTask(chatExport, messages, config, callbacks).promise
+    return result.blob
+  }
+
+  async generateArchive(
+    chatExport: ChatExport,
+    messages: ChatMessage[],
+    config: FormatConfig,
+    callbacks: ChatArchiveCallbacks = {},
+  ): Promise<ChatArchiveResult> {
+    return this.createArchiveTask(chatExport, messages, config, callbacks).promise
+  }
+
+  async generateAndDownload(
+    chatExport: ChatExport,
+    messages: ChatMessage[],
+    config: FormatConfig,
+    callbacks: ChatArchiveCallbacks = {},
+  ): Promise<ChatArchiveResult> {
+    const result = await this.generateArchive(chatExport, messages, config, callbacks)
+    this.downloadBlob(result.blob, result.filename)
+    return result
   }
 
   private downloadBlob(blob: Blob, filename: string): void {
