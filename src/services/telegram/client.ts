@@ -301,7 +301,8 @@ class TelegramService {
         }
       }
 
-      this.setConnectionState('connected')
+      this.currentUser = null
+      this.setConnectionState('disconnected')
       return false
     } catch (error) {
       this.setConnectionState('error')
@@ -732,11 +733,16 @@ class TelegramService {
    */
   async disconnect(): Promise<void> {
     this.cancelInteractiveAuth()
-    if (this.client) {
-      await this.client.disconnect()
+    try {
+      if (this.client) {
+        await this.client.disconnect()
+      }
+    } finally {
       this.client = null
+      this.currentUser = null
+      this.entityCache.clear()
+      this.setConnectionState('disconnected')
     }
-    this.currentUser = null
   }
 
   /**
