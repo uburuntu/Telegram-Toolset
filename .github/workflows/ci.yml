@@ -157,6 +157,7 @@ jobs:
     needs: [lint-and-typecheck, unit-tests, component-tests, e2e-tests, build]
     permissions:
       contents: read
+      issues: write
       pull-requests: write
     steps:
       - name: Download build artifact
@@ -164,6 +165,11 @@ jobs:
         with:
           name: dist
           path: dist
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
 
       - name: Validate Surge token
         run: test -n "${{ secrets.SURGE_TOKEN }}"

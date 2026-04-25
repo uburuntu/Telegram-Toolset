@@ -215,6 +215,9 @@ describe('createTelegramGateway', () => {
     })
 
     const gateway = createTelegramGateway(service)
+    const connectionListener = vi.fn()
+    const unsubscribeConnection = vi.fn()
+    vi.mocked(service.onConnectionStateChange).mockReturnValue(unsubscribeConnection)
 
     expect(gateway.auth.isConnected).toBe(true)
     expect(gateway.auth.user).toEqual(userInfo)
@@ -223,40 +226,81 @@ describe('createTelegramGateway', () => {
     state.connectionState = 'reconnecting'
     expect(gateway.auth.connectionState).toBe('reconnecting')
 
+    const disconnect = gateway.auth.onConnectionStateChange(connectionListener)
     await gateway.auth.initClient(12345, 'hash')
+    const didConnect = await gateway.auth.connect('acct-1')
     await gateway.auth.useUserAccountSession({
       accountId: 'acct-1',
       sessionString: 'session-string',
       apiId: 12345,
       apiHash: 'hash',
     })
+    await gateway.auth.waitForActiveAccountInit()
+    await gateway.auth.resetForNewUserLogin()
+    const didReconnect = await gateway.auth.reconnect()
     const authenticatedUser = await gateway.auth.startUserAuth('+441234567890', {
       onCodeNeeded: vi.fn(),
     })
     gateway.auth.provideCode('12345')
     gateway.auth.providePassword('secret')
+    const botUser = await gateway.auth.startBotAuth('bot-token')
+    await gateway.auth.abortCurrentUserAuth()
     await gateway.auth.manualReconnect()
+    const canReconnect = gateway.auth.canManualReconnect()
+    const sessionString = gateway.auth.getSessionString()
     const snapshot = gateway.auth.exportSession()
+    const imported = gateway.auth.importSession({
+      sessionString: 'imported-session',
+      apiId: 54321,
+      apiHash: 'imported-secret',
+    })
+    const hasStoredCredentials = gateway.auth.hasStoredCredentials()
     gateway.auth.restoreSession('restored-session')
+    await gateway.auth.disconnect()
+    await gateway.auth.logout()
+    disconnect()
 
+    expect(service.onConnectionStateChange).toHaveBeenCalledWith(connectionListener)
     expect(service.initClient).toHaveBeenCalledWith(12345, 'hash')
+    expect(service.connect).toHaveBeenCalledWith('acct-1')
     expect(service.useUserAccountSession).toHaveBeenCalledWith({
       accountId: 'acct-1',
       sessionString: 'session-string',
       apiId: 12345,
       apiHash: 'hash',
     })
+    expect(service.waitForActiveAccountInit).toHaveBeenCalledTimes(1)
+    expect(service.resetForNewUserLogin).toHaveBeenCalledTimes(1)
+    expect(service.reconnect).toHaveBeenCalledTimes(1)
     expect(service.startUserAuth).toHaveBeenCalledWith('+441234567890', expect.any(Object))
     expect(service.provideCode).toHaveBeenCalledWith('12345')
     expect(service.providePassword).toHaveBeenCalledWith('secret')
+    expect(service.startBotAuth).toHaveBeenCalledWith('bot-token')
+    expect(service.abortCurrentUserAuth).toHaveBeenCalledTimes(1)
     expect(service.manualReconnect).toHaveBeenCalledTimes(1)
+    expect(service.getSessionString).toHaveBeenCalledTimes(1)
+    expect(service.importSession).toHaveBeenCalledWith({
+      sessionString: 'imported-session',
+      apiId: 54321,
+      apiHash: 'imported-secret',
+    })
+    expect(service.hasStoredCredentials).toHaveBeenCalledTimes(1)
     expect(service.restoreSession).toHaveBeenCalledWith('restored-session')
+    expect(service.disconnect).toHaveBeenCalledTimes(1)
+    expect(service.logout).toHaveBeenCalledTimes(1)
+    expect(unsubscribeConnection).toHaveBeenCalledTimes(1)
+    expect(didConnect).toBe(true)
+    expect(didReconnect).toBe(true)
     expect(snapshot).toEqual({
       sessionString: 'session-string',
       apiId: 12345,
       apiHash: 'secret',
     })
+    expect(sessionString).toBe('session-string')
+    expect(imported).toBe(true)
+    expect(hasStoredCredentials).toBe(true)
     expect(authenticatedUser).toEqual(userInfo)
+    expect(botUser).toEqual(botInfo)
   })
 
   it('forwards discovery, export, entity, and media domains', async () => {

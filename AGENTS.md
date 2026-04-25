@@ -248,9 +248,9 @@ Centralized rate limiting and retry logic:
 
 Two-phase export: metadata first, then media:
 1. **Phase 1**: Iterate admin log, build `DeletedMessage[]`, resolve sender info
-2. **Phase 2**: Parallel media downloads using Semaphore (default: 3 concurrent)
+2. **Phase 2**: Parallel media downloads using Semaphore (default: 4 concurrent)
 - **Cancellation**: `AbortController` passed through; checked at each step
-- **Progress callbacks**: `onProgress(ExportProgress)`, `onMessage(DeletedMessage)`, `onComplete()`
+- **Progress callbacks**: `onProgress(ExportProgress)`, `onFloodWait(seconds)`, `onError(error, messageId)`, `onFloodWaitCountdown(remainingSeconds)`
 - **Error resilience**: Retries on transient failures; continues on single-file failures
 
 ### Resend Service (`services/resend/resend-service.ts`)

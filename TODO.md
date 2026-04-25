@@ -81,13 +81,14 @@ Goal: make sure engineering is building the right product before rewriting archi
 Tasks:
 
 - [ ] Confirm the public product name and whether the repo should eventually be renamed.
-- [ ] Confirm that the first-class module set for the productionized app is:
+- [x] Confirm that the first-class module set for the productionized app is:
   - `Account Info`
   - `Export Deleted Messages`
   - `Backups`
   - `Resend Messages`
   - `Scheduled Messages`
   - `LLM Context Export`
+- [ ] Normalize how `Backups` is surfaced so docs, nav, and the landing/module registry tell the same story.
 - [ ] Confirm whether any current modules should be hidden behind capability flags while being rebuilt.
 - [ ] Decide which locales are fully maintained for launch versus best-effort.
 - [ ] Define browser support targets.
