@@ -43,6 +43,13 @@ export const useAccountsStore = defineStore('accounts', () => {
   // Actions
   function loadFromStorage(): void {
     try {
+      // Load API credentials first so reactive consumers that depend on both the
+      // active user account and credentials never observe an account without creds.
+      const storedCreds = localStorage.getItem(API_CREDENTIALS_KEY)
+      if (storedCreds) {
+        apiCredentials.value = JSON.parse(storedCreds)
+      }
+
       const storedAccounts = localStorage.getItem(ACCOUNTS_STORAGE_KEY)
       if (storedAccounts) {
         const parsed = JSON.parse(storedAccounts)
@@ -64,12 +71,6 @@ export const useAccountsStore = defineStore('accounts', () => {
       const storedActive = localStorage.getItem(ACTIVE_ACCOUNT_KEY)
       if (storedActive && accounts.value.some((a) => a.id === storedActive)) {
         activeAccountId.value = storedActive
-      }
-
-      // Load API credentials from dedicated storage
-      const storedCreds = localStorage.getItem(API_CREDENTIALS_KEY)
-      if (storedCreds) {
-        apiCredentials.value = JSON.parse(storedCreds)
       }
     } catch (e) {
       console.error('Failed to load accounts from storage:', e)

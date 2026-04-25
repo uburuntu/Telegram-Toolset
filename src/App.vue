@@ -28,7 +28,9 @@ const loginModalProps = computed(
 
 onMounted(() => {
   // Load accounts from storage
-  accountsStore.loadFromStorage()
+  if (accountsStore.accounts.length === 0 && !accountsStore.apiCredentials) {
+    accountsStore.loadFromStorage()
+  }
 
   // Load privacy notice state
   uiStore.loadPrivacyNoticeState()
@@ -70,8 +72,16 @@ watch(
 // Keep Telegram client session in sync with the active user account (multi-account support).
 // Skip if an auth flow is in progress (LoginModal manages its own client lifecycle during login).
 watch(
-  () => accountsStore.activeAccount,
-  async (account) => {
+  () => [
+    accountsStore.activeAccount?.id ?? null,
+    accountsStore.activeAccount?.type ?? null,
+    accountsStore.activeAccount?.sessionString ?? null,
+    accountsStore.apiCredentials?.apiId ?? null,
+    accountsStore.apiCredentials?.apiHash ?? null,
+  ],
+  async () => {
+    const account = accountsStore.activeAccount
+
     // Don't interfere while a login flow is active.
     if (accountsStore.authFlow.step !== 'idle' && accountsStore.authFlow.step !== 'complete') {
       return

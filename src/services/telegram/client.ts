@@ -220,6 +220,7 @@ class TelegramService {
             username: me.username || undefined,
           }
           this.saveSession()
+          await this.persistActiveUserSession()
           this.setConnectionState('connected')
           return true
         }
@@ -241,15 +242,19 @@ class TelegramService {
     if (!this.client) {
       const restored = await this.tryRestoreSession()
       if (!restored || !this.client) {
-        throw new Error('Client not initialized. Please log in again.')
+        throw new Error('Saved session could not be restored. Please log in again.')
       }
     }
 
     if (!this.client.connected) {
-      await this.connect()
+      const isAuthorized = await this.connect()
+      if (!isAuthorized) {
+        await this.disconnect()
+        throw new Error('Saved session could not be restored. Please log in again.')
+      }
     }
     if (!this.client) {
-      throw new Error('Client not initialized. Please log in again.')
+      throw new Error('Saved session could not be restored. Please log in again.')
     }
     return this.client
   }
@@ -341,7 +346,11 @@ class TelegramService {
         this.entityCache.clear()
         this.session = new StringSession(data.sessionString || '')
         await this.initClient(data.apiId, data.apiHash)
-        return await this.connect()
+        const isAuthorized = await this.connect()
+        if (!isAuthorized) {
+          await this.disconnect()
+        }
+        return isAuthorized
       } finally {
         // Clear the promise once done so future switches can proceed.
         this._activeAccountInitPromise = null
@@ -605,6 +614,31 @@ class TelegramService {
   private saveSession(): void {
     const sessionString = this.session.save()
     void sessionString
+  }
+
+  private async persistActiveUserSession(): Promise<void> {
+    const sessionString = this.session.save()
+    if (!sessionString) {
+      return
+    }
+
+    try {
+      const { useAccountsStore } = await import('@/stores/accounts')
+      const accountsStore = useAccountsStore()
+      const activeAccount = accountsStore.activeAccount
+
+      if (!activeAccount || activeAccount.type !== 'user') {
+        return
+      }
+
+      if (activeAccount.sessionString === sessionString) {
+        return
+      }
+
+      accountsStore.updateAccount(activeAccount.id, { sessionString })
+    } catch (error) {
+      console.warn('[TelegramService] Failed to persist refreshed session:', error)
+    }
   }
 
   /**
