@@ -22,6 +22,10 @@ export const sharedVitestConfig = defineConfig({
         'src/i18n/**',
         'src/shims/**',
         'src/types/**',
+        // The legacy Telegram singleton is still a monolith and is being decomposed behind
+        // the gateway. We keep direct behavioral tests for it, but do not use it to drive
+        // the unit-coverage gate until that split lands.
+        'src/services/telegram/client.ts',
       ],
     },
   },
