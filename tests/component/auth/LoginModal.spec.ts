@@ -52,6 +52,7 @@ vi.mock('@/services/telegram/bot-api', () => ({
 }))
 
 import LoginModal from '@/components/auth/LoginModal.vue'
+import { getBotInfo, isValidTokenFormat, maskBotToken } from '@/services/telegram/bot-api'
 import { telegramService } from '@/services/telegram/client'
 
 describe('LoginModal', () => {
@@ -59,6 +60,10 @@ describe('LoginModal', () => {
     vi.clearAllMocks()
     mockAccountsStore.apiCredentials = null
     mockAccountsStore.accounts = []
+    vi.mocked(isValidTokenFormat).mockImplementation((token: string) =>
+      /^\d+:[A-Za-z0-9_-]{20,}$/.test(token),
+    )
+    vi.mocked(maskBotToken).mockImplementation((value: string) => value)
   })
 
   afterEach(() => {
@@ -76,6 +81,94 @@ describe('LoginModal', () => {
     const dialog = wrapper.get('[role="dialog"]')
     expect(dialog.attributes('aria-modal')).toBe('true')
     expect(dialog.attributes('aria-labelledby')).toBe('login-modal-title')
+  })
+
+  it('moves focus into the first field when opened', async () => {
+    const wrapper = mount(LoginModal, {
+      attachTo: document.body,
+      props: { requiredType: 'user' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    await flushPromises()
+
+    expect(document.activeElement).toBe(wrapper.get('#login-modal-api-id').element)
+
+    wrapper.unmount()
+  })
+
+  it('traps keyboard focus inside the dialog', async () => {
+    const wrapper = mount(LoginModal, {
+      attachTo: document.body,
+      props: { requiredType: 'user' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    const dialog = wrapper.get('[role="dialog"]')
+    const closeButton = wrapper.get('button[aria-label="Close"]')
+    const submitButton = wrapper.get('button[type="submit"]')
+    const focusClose = vi.spyOn(closeButton.element as HTMLButtonElement, 'focus')
+    const focusSubmit = vi.spyOn(submitButton.element as HTMLButtonElement, 'focus')
+
+    ;(submitButton.element as HTMLButtonElement).focus()
+    await submitButton.trigger('keydown', { key: 'Tab' })
+    expect(focusClose).toHaveBeenCalled()
+
+    focusSubmit.mockClear()
+    ;(closeButton.element as HTMLButtonElement).focus()
+    await closeButton.trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(focusSubmit).toHaveBeenCalled()
+
+    focusClose.mockRestore()
+    focusSubmit.mockRestore()
+
+    wrapper.unmount()
+  })
+
+  it('closes on Escape', async () => {
+    const service = telegramService as any
+    service.abortCurrentUserAuth.mockResolvedValue(undefined)
+
+    const wrapper = mount(LoginModal, {
+      attachTo: document.body,
+      props: { requiredType: 'user' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+
+    expect(wrapper.emitted('close')).toHaveLength(1)
+    expect(service.abortCurrentUserAuth).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+  })
+
+  it('associates validation errors with the current field', async () => {
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    const apiIdInput = wrapper.get('#login-modal-api-id')
+    const apiIdLabel = wrapper.get(`label[for="${apiIdInput.attributes('id')}"]`)
+    const errorMessage = wrapper.get('#login-modal-credentials-error')
+
+    expect(apiIdLabel.text()).toBe('API ID')
+    expect(apiIdInput.attributes('aria-invalid')).toBe('true')
+    expect(apiIdInput.attributes('aria-errormessage')).toBe('login-modal-credentials-error')
+    expect(errorMessage.attributes('role')).toBe('alert')
   })
 
   it('emits close without directly popping the modal store', async () => {
@@ -402,5 +495,76 @@ describe('LoginModal', () => {
     expect(mockAccountsStore.setActiveAccount).toHaveBeenCalledWith('account-1')
 
     vi.runAllTimers()
+  })
+
+  it('ignores stale bot validation responses', async () => {
+    let resolveFirstValidation!: (value: {
+      id: number
+      is_bot: true
+      first_name: string
+      username: string
+    }) => void
+    let resolveSecondValidation!: (value: {
+      id: number
+      is_bot: true
+      first_name: string
+      username: string
+    }) => void
+
+    const firstValidation = new Promise<{
+      id: number
+      is_bot: true
+      first_name: string
+      username: string
+    }>((resolve) => {
+      resolveFirstValidation = resolve
+    })
+    const secondValidation = new Promise<{
+      id: number
+      is_bot: true
+      first_name: string
+      username: string
+    }>((resolve) => {
+      resolveSecondValidation = resolve
+    })
+
+    vi.mocked(getBotInfo)
+      .mockImplementationOnce(() => firstValidation)
+      .mockImplementationOnce(() => secondValidation)
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'any' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    await wrapper.get('[data-testid="tab-bot"]').trigger('click')
+
+    const botTokenInput = wrapper.get('#login-modal-bot-token')
+    await botTokenInput.setValue('123456:AAAAAAAAAAAAAAAAAAAAAA')
+    await botTokenInput.setValue('654321:BBBBBBBBBBBBBBBBBBBBBB')
+
+    resolveSecondValidation({
+      id: 654321,
+      is_bot: true,
+      first_name: 'Second Bot',
+      username: 'second_bot',
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Second Bot')
+    expect(wrapper.text()).not.toContain('Failed to validate bot token')
+
+    resolveFirstValidation({
+      id: 123456,
+      is_bot: true,
+      first_name: 'First Bot',
+      username: 'first_bot',
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Second Bot')
+    expect(wrapper.text()).not.toContain('First Bot')
   })
 })
