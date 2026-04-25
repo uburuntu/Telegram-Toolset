@@ -36,6 +36,17 @@ Current risks and hotspots:
 - Tests are good at the pure-service layer, but the Telegram integration itself is mostly mocked rather than directly covered.
 - Public docs lag behind the real product direction. They still describe a narrower feature set than the app actually targets.
 
+## Progress Update
+
+Completed on this branch so far:
+
+- Documentation was aligned around the modular product direction.
+- Dependency versions were pinned and local/CI installs were moved to deterministic `npm ci`.
+- Node/tooling policy files were added (`.nvmrc`, `.node-version`, `.npmrc`, `engines.node`).
+- CI now enforces coverage and bundle-budget checks and gates preview/deploy paths behind the main quality bar.
+- A typed Telegram gateway scaffold now wraps the legacy singleton behind explicit domains.
+- Service-layer consumers for export, resend, scheduled messages, and LLM export now use the gateway instead of importing the legacy singleton directly.
+
 ## Definition Of Done
 
 The productionization effort is done only when all of the following are true:
@@ -94,14 +105,14 @@ Goal: make the repo reproducible before large refactors begin.
 
 Tasks:
 
-- [ ] Replace `"latest"` dependency ranges in `package.json` with exact versions.
-- [ ] Switch CI workflows from `npm install` to `npm ci`.
-- [ ] Add an explicit Node version policy (`.nvmrc`, `.node-version`, or `engines`).
-- [ ] Add dependency update automation with review gates.
-- [ ] Add a bundle-size reporting step.
-- [ ] Add coverage thresholds for unit/component tests.
-- [ ] Make `build` depend on the same deterministic install path used in CI.
-- [ ] Review preview/deploy workflows to ensure they do not bypass failing gates.
+- [x] Replace `"latest"` dependency ranges in `package.json` with exact versions.
+- [x] Switch CI workflows from `npm install` to `npm ci`.
+- [x] Add an explicit Node version policy (`.nvmrc`, `.node-version`, or `engines`).
+- [x] Add dependency update automation with review gates.
+- [x] Add a bundle-size reporting step.
+- [x] Add coverage thresholds for unit/component tests.
+- [x] Make `build` depend on the same deterministic install path used in CI.
+- [x] Review preview/deploy workflows to ensure they do not bypass failing gates.
 
 Exit criteria:
 
@@ -115,7 +126,7 @@ Goal: replace the monolithic Telegram service with explicit boundaries.
 
 Tasks:
 
-- [ ] Define gateway interfaces for:
+- [x] Define gateway interfaces for:
   - auth/session
   - dialogs/chat discovery
   - admin log export
