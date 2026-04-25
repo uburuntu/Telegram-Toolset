@@ -42,8 +42,7 @@ class ZipGenerator {
       if (mediaFolder) {
         for (const [messageId, blob] of backup.mediaBlobs) {
           const msg = backup.messages.find((m) => m.id === messageId)
-          const ext = this.getExtensionFromMimeType(blob.type)
-          const filename = msg?.mediaFilename || `${messageId}${ext}`
+          const filename = this.getMediaArchiveFilename(messageId, msg?.mediaFilename, blob.type)
           mediaFolder.file(filename, blob)
         }
       }
@@ -114,6 +113,32 @@ class ZipGenerator {
       .replace(/[<>:"/\\|?*]/g, '_')
       .replace(/\s+/g, '_')
       .slice(0, 100)
+  }
+
+  private getMediaArchiveFilename(
+    messageId: number,
+    originalFilename: string | undefined,
+    mimeType: string,
+  ): string {
+    const sanitized = this.sanitizeArchiveEntryFilename(originalFilename || '')
+    if (sanitized) {
+      return sanitized
+    }
+
+    return `${messageId}${this.getExtensionFromMimeType(mimeType)}`
+  }
+
+  private sanitizeArchiveEntryFilename(name: string): string {
+    const sanitized = Array.from(name, (character) => {
+      const isControlCharacter = character.charCodeAt(0) < 32
+      return isControlCharacter || /[<>:"/\\|?*]/.test(character) ? '_' : character
+    })
+      .join('')
+      .replace(/\s+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 120)
+
+    return sanitized === '.' || sanitized === '..' ? '' : sanitized
   }
 
   private formatDate(date: Date): string {

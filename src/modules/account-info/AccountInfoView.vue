@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { type BotApiUser, getBotInfo } from '@/services/telegram/bot-api'
 import { type AccountStats, type FullUserInfo, telegramService } from '@/services/telegram/client'
 import { useAccountsStore, useUiStore } from '@/stores'
+import { formatDateWithLocale } from '@/utils/locale-format'
 
 const { t } = useI18n()
 const accountsStore = useAccountsStore()
@@ -137,6 +138,14 @@ const displayPhone = computed(() => {
   return fullUserInfo.value?.phone || account.value?.phone
 })
 
+function formatAbsoluteDate(date: Date | string): string {
+  return formatDateWithLocale(new Date(date), {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 // Get initials for avatar fallback
 const initials = computed(() => {
   const name = displayName.value
@@ -167,7 +176,7 @@ const initials = computed(() => {
     </div>
 
     <!-- Error -->
-    <div v-else-if="error" class="text-center py-12">
+    <div v-else-if="error" class="text-center py-12" role="alert" aria-live="assertive">
       <div class="text-3xl mb-3">❌</div>
       <p class="text-red-600">{{ error }}</p>
     </div>
@@ -283,6 +292,7 @@ const initials = computed(() => {
               v-if="telegramLink"
               :href="telegramLink"
               target="_blank"
+              rel="noopener noreferrer"
               class="text-sm text-blue-600 hover:underline"
             >
               @{{ displayUsername }}
@@ -448,6 +458,7 @@ const initials = computed(() => {
           <a
             :href="telegramLink"
             target="_blank"
+            rel="noopener noreferrer"
             class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-100"
           >
             <span class="text-lg">💬</span>
@@ -460,6 +471,7 @@ const initials = computed(() => {
             v-if="isBot"
             href="https://t.me/BotFather"
             target="_blank"
+            rel="noopener noreferrer"
             class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-100"
           >
             <span class="text-lg">⚙️</span>
@@ -472,6 +484,7 @@ const initials = computed(() => {
             v-if="isUser"
             href="https://my.telegram.org/"
             target="_blank"
+            rel="noopener noreferrer"
             class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-100"
           >
             <span class="text-lg">🔑</span>
@@ -484,6 +497,7 @@ const initials = computed(() => {
             v-if="isUser"
             href="https://web.telegram.org/"
             target="_blank"
+            rel="noopener noreferrer"
             class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-100"
           >
             <span class="text-lg">🌐</span>
@@ -505,11 +519,11 @@ const initials = computed(() => {
         <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
           <p>
             <strong>{{ t('accountInfo.added') }}:</strong>
-            {{ new Date(account.createdAt).toLocaleDateString() }}
+            {{ formatAbsoluteDate(account.createdAt) }}
           </p>
           <p>
             <strong>{{ t('accountInfo.lastUsed') }}:</strong>
-            {{ new Date(account.lastUsedAt).toLocaleDateString() }}
+            {{ formatAbsoluteDate(account.lastUsedAt) }}
           </p>
         </div>
       </div>
