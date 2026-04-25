@@ -90,11 +90,21 @@ jobs:
           retention-days: 7
 
   e2e-tests:
-    name: E2E Tests
+    name: E2E Tests (${{ matrix.project }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        browser: [chromium, firefox, webkit, mobile-chrome, mobile-safari]
+        include:
+          - project: chromium
+            install_browser: chromium
+          - project: firefox
+            install_browser: firefox
+          - project: webkit
+            install_browser: webkit
+          - project: mobile-chrome
+            install_browser: chromium
+          - project: mobile-safari
+            install_browser: webkit
     steps:
       - uses: actions/checkout@v6.0.2
 
@@ -108,16 +118,16 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps ${{ matrix.browser }}
+        run: npx playwright install --with-deps ${{ matrix.install_browser }}
 
       - name: Run E2E tests
-        run: npx playwright test --project=${{ matrix.browser }}
+        run: npx playwright test --project=${{ matrix.project }}
 
       - name: Upload test results
         uses: actions/upload-artifact@v7.0.1
         if: failure()
         with:
-          name: playwright-report-${{ matrix.browser }}
+          name: playwright-report-${{ matrix.project }}
           path: playwright-report/
           retention-days: 7
 
