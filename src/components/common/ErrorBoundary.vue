@@ -15,7 +15,7 @@ interface Props {
 
 const props = defineProps<Props>()
 const { t } = useI18n()
-const fallbackMessage = computed(() => props.fallbackMessage || t('common.error'))
+const resolvedFallbackMessage = computed(() => props.fallbackMessage || t('common.error'))
 
 const emit = defineEmits<{
   error: [error: Error]
@@ -63,7 +63,7 @@ function reset() {
       </div>
       <div class="flex-1">
         <h3 class="font-semibold text-red-800 dark:text-red-200">
-          {{ fallbackMessage }}
+          {{ resolvedFallbackMessage }}
         </h3>
         <p class="mt-1 text-sm text-red-700 dark:text-red-300">
           {{ error.message }}
