@@ -17,6 +17,7 @@ import type {
   FormatConfig,
   MediaType,
 } from '@/types'
+import type { TelegramMessageHandle } from '../telegram/gateway'
 import { telegramGateway } from '../telegram/gateway'
 import {
   formatDuration,
@@ -100,7 +101,7 @@ class ChatArchiveBuildTask implements ChatArchiveTask {
       this.callbacks.onProgress?.({ ...progress })
       this.throwIfCancelled(progress)
 
-      let rawMessages = new Map<number, unknown>()
+      let rawMessages = new Map<number, TelegramMessageHandle>()
       if (mediaMessages.length > 0) {
         progress.phase = 'fetching_messages'
         this.callbacks.onProgress?.({ ...progress })
@@ -208,7 +209,7 @@ class ChatArchiveBuildTask implements ChatArchiveTask {
 
   private async downloadMediaEntries(
     messages: ChatMessage[],
-    rawMessages: Map<number, unknown>,
+    rawMessages: Map<number, TelegramMessageHandle>,
     mediaEntries: Map<number, ArchiveMediaEntry>,
     failures: ChatArchiveFailure[],
     progress: ChatArchiveProgress,
