@@ -56,6 +56,13 @@ interface TelegramToolsetDB {
 const DB_NAME = 'telegram-toolset'
 const DB_VERSION = 2
 
+export interface BackupMediaEntry {
+  messageId: number
+  blob: Blob
+  filename: string
+  mimeType: string
+}
+
 let dbPromise: Promise<IDBPDatabase<TelegramToolsetDB>> | null = null
 
 async function getDB(): Promise<IDBPDatabase<TelegramToolsetDB>> {
@@ -111,6 +118,36 @@ async function getDB(): Promise<IDBPDatabase<TelegramToolsetDB>> {
 export async function saveBackup(backup: Backup): Promise<void> {
   const db = await getDB()
   await db.put('backups', backup)
+}
+
+export async function saveBackupBundle(
+  backup: Backup,
+  messages: DeletedMessage[],
+  mediaEntries: BackupMediaEntry[],
+): Promise<void> {
+  const db = await getDB()
+  const tx = db.transaction(['backups', 'messages', 'media'], 'readwrite')
+
+  await tx.objectStore('backups').put(backup)
+
+  const messageStore = tx.objectStore('messages')
+  for (const message of messages) {
+    const sanitized = stripRawMessage(message)
+    await messageStore.put({ ...sanitized, backupId: backup.id })
+  }
+
+  const mediaStore = tx.objectStore('media')
+  for (const mediaEntry of mediaEntries) {
+    await mediaStore.put({
+      backupId: backup.id,
+      messageId: mediaEntry.messageId,
+      blob: mediaEntry.blob,
+      filename: mediaEntry.filename,
+      mimeType: mediaEntry.mimeType,
+    })
+  }
+
+  await tx.done
 }
 
 export async function getBackup(id: string): Promise<Backup | undefined> {

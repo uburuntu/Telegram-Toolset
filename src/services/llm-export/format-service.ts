@@ -684,7 +684,6 @@ export function formatMessages(
       return formatAsMarkdown(messages, chatExport, config)
     case 'custom':
       return formatAsCustom(messages, chatExport, config)
-    case 'plain':
     default:
       return formatAsPlain(messages, chatExport, config)
   }

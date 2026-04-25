@@ -77,7 +77,14 @@ watch(
       return
     }
 
-    if (!account || account.type !== 'user') return
+    if (!account || account.type !== 'user') {
+      try {
+        await telegramService.disconnect()
+      } catch {
+        // Ignore best-effort cleanup when leaving a user session.
+      }
+      return
+    }
     const creds = accountsStore.apiCredentials
     if (!creds) return
 

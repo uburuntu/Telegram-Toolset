@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloodWaitIndicator from '@/components/common/FloodWaitIndicator.vue'
 import { useFloodWait } from '@/composables'
@@ -9,11 +9,13 @@ import {
   scheduledService,
 } from '@/services/scheduled/scheduled-service'
 import { telegramService } from '@/services/telegram/client'
-import { useUiStore } from '@/stores'
+import { useAccountsStore, useUiStore } from '@/stores'
 import type { ChatInfo } from '@/types'
 import { toUserFriendlyError } from '@/utils/error-messages'
+import { formatDateWithLocale } from '@/utils/locale-format'
 
 const { t } = useI18n()
+const accountsStore = useAccountsStore()
 const uiStore = useUiStore()
 
 // State
@@ -40,6 +42,7 @@ const floodWait = useFloodWait()
 
 // Selection for deletion
 const selectedMessages = ref<Set<string>>(new Set())
+let chatsRequestId = 0
 
 // Computed
 const filteredChats = computed(() => {
@@ -67,23 +70,35 @@ const allSelected = computed(() => {
   return allIds.length > 0 && allIds.every((id) => selectedMessages.value.has(id))
 })
 
-// Lifecycle
-onMounted(async () => {
-  isLoading.value = true
-  try {
-    chats.value = await telegramService.getDialogs(100)
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to load chats'
-  } finally {
-    isLoading.value = false
-  }
-})
-
 onUnmounted(() => {
   if (scheduledService.isLoading) {
     scheduledService.cancel()
   }
 })
+
+watch(
+  () => accountsStore.activeAccountId,
+  async () => {
+    scheduledService.cancel()
+    mode.value = 'single'
+    step.value = 'select-mode'
+    chats.value = []
+    selectedChat.value = null
+    searchQuery.value = ''
+    scheduledData.value = []
+    selectedMessages.value.clear()
+    error.value = ''
+    currentProgress.value = null
+    floodWait.reset()
+
+    if (accountsStore.activeAccount?.type !== 'user') {
+      return
+    }
+
+    await loadChats()
+  },
+  { immediate: true },
+)
 
 // Actions
 function selectMode(selectedMode: 'single' | 'all') {
@@ -102,6 +117,31 @@ async function startAllChatsScan() {
 function selectChat(chat: ChatInfo) {
   selectedChat.value = chat
   loadChatScheduledMessages(chat)
+}
+
+async function loadChats() {
+  const requestId = ++chatsRequestId
+  isLoading.value = true
+  error.value = ''
+
+  try {
+    const loadedChats = await telegramService.getDialogs(100)
+    if (requestId !== chatsRequestId) {
+      return
+    }
+
+    chats.value = loadedChats
+  } catch (loadError) {
+    if (requestId !== chatsRequestId) {
+      return
+    }
+
+    error.value = loadError instanceof Error ? loadError.message : t('common.error')
+  } finally {
+    if (requestId === chatsRequestId) {
+      isLoading.value = false
+    }
+  }
 }
 
 async function loadChatScheduledMessages(chat: ChatInfo) {
@@ -123,8 +163,12 @@ async function loadChatScheduledMessages(chat: ChatInfo) {
     ]
     step.value = 'view-messages'
   } catch (e) {
-    const friendlyError = toUserFriendlyError(e)
-    error.value = friendlyError.message
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      uiStore.showToast('info', t('scheduled.cancelled'))
+    } else {
+      const friendlyError = toUserFriendlyError(e)
+      error.value = friendlyError.message
+    }
     step.value = 'select-chat'
   } finally {
     isLoading.value = false
@@ -264,12 +308,12 @@ function exportToJson() {
 }
 
 function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDateWithLocale(date, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(date)
+  })
 }
 
 function formatScheduledDate(date: Date): string {

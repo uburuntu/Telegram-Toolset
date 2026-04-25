@@ -21,7 +21,10 @@
     "openSource": "Открытый код",
     "account": "аккаунт",
     "accounts": "аккаунтов",
-    "rateLimited": "Ограничение. Ожидание {seconds}с..."
+    "rateLimited": "Ограничение. Ожидание {seconds}с...",
+    "dismiss": "Dismiss",
+    "goHome": "Go Home",
+    "tryAgain": "Try Again"
   },
   "landing": {
     "title": "Telegram Power Toolset",
@@ -144,7 +147,22 @@
     },
     "success": "Аккаунт добавлен!",
     "redirecting": "Перенаправление...",
-    "privacyNote": "Ваши учётные данные хранятся локально в браузере и никогда не отправляются на сервер."
+    "privacyNote": "Ваши учётные данные хранятся локально в браузере и никогда не отправляются на сервер.",
+    "validation": {
+      "apiId": "API ID must be a positive number",
+      "apiHash": "API Hash must be at least 10 characters",
+      "phone": "Please enter a valid phone number",
+      "code": "Please enter the verification code",
+      "password": "Please enter your 2FA password",
+      "botToken": "Please enter a valid bot token"
+    },
+    "errors": {
+      "authenticationFailed": "Authentication failed",
+      "sendCodeFailed": "Failed to send code",
+      "verifyCodeFailed": "Failed to verify code",
+      "incorrectPassword": "Incorrect password",
+      "addBotFailed": "Failed to add bot"
+    }
   },
   "modules": {
     "accountInfo": {
@@ -276,7 +294,10 @@
     "generating": "Генерация...",
     "downloadZipBtn": "Скачать ZIP",
     "viewBackups": "Просмотр бэкапов",
-    "exportAnother": "Экспортировать ещё"
+    "exportAnother": "Экспортировать ещё",
+    "reconnectSuccess": "Reconnected successfully!",
+    "largeExportWarning": "Large export detected. Consider downloading as ZIP.",
+    "zipDownloaded": "ZIP downloaded successfully!"
   },
   "backups": {
     "title": "Ваши бэкапы",
@@ -293,7 +314,8 @@
     "noBackupsHint": "Экспортируйте удалённые сообщения из ваших каналов",
     "photos": "фото",
     "videos": "видео",
-    "docs": "документов"
+    "docs": "документов",
+    "confirmDelete": "Are you sure you want to delete this backup?"
   },
   "privacy": {
     "footer": "100% на устройстве. Данные не покидают ваш браузер.",
@@ -372,7 +394,8 @@
     "successMessage": "Успешно отправлено {count} сообщений в {chat}",
     "failedMessage": "{count} сообщений не удалось отправить",
     "backToHome": "На главную",
-    "resendAnother": "Переслать ещё"
+    "resendAnother": "Переслать ещё",
+    "chooseContent": "Choose at least one content type to send."
   },
   "scheduled": {
     "title": "Отложенные сообщения",
@@ -494,6 +517,8 @@
       "json": "JSON-формат для программной обработки или интеграции с API",
       "markdown": "Markdown-формат с заголовками и форматированием, подходит для документации",
       "custom": "Определите свой шаблон с переменными sender, text, date"
-    }
+    },
+    "contentSection": "Content",
+    "structureSection": "Structure"
   }
 }

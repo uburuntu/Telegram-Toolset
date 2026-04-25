@@ -1,4 +1,4 @@
-import type { ChatInfo, ChatExport } from '@/types'
+import type { ChatExport, ChatInfo } from '@/types'
 
 export type TelegramPeerKind = 'user' | 'chat' | 'channel'
 

@@ -82,7 +82,7 @@ test.describe('Resend Flow', () => {
     await page.evaluate(() => {
       localStorage.clear()
       sessionStorage.clear()
-      indexedDB.deleteDatabase('telegram-toolset-db')
+      indexedDB.deleteDatabase('telegram-toolset')
     })
   })
 

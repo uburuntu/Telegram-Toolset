@@ -4,6 +4,7 @@
 
 import { v4 as uuidv4 } from 'uuid'
 import type { Backup, BackupWithMessages, DeletedMessage, ExportConfig } from '@/types'
+import { safeJsonStringify, stripRawMessage } from '@/utils/message-serialization'
 import { zipGenerator } from '../export/zip-generator'
 import * as db from './indexed-db'
 
@@ -37,18 +38,19 @@ class BackupManager {
 
     // Calculate media stats
     const mediaTypes = await db.countMediaTypes(id, messages)
+    const mediaEntries = Array.from(mediaBlobs.entries()).map(([messageId, blob]) => {
+      const message = messages.find((item) => item.id === messageId)
 
-    // Save messages first
-    await db.saveMessages(id, messages)
-
-    // Save media blobs
-    for (const [messageId, blob] of mediaBlobs) {
-      const msg = messages.find((m) => m.id === messageId)
-      await db.saveMedia(id, messageId, blob, msg?.mediaFilename || `media_${messageId}`, blob.type)
-    }
-
-    // Calculate storage size
-    const storageSize = await db.calculateBackupSize(id)
+      return {
+        messageId,
+        blob,
+        filename: message?.mediaFilename || `media_${messageId}`,
+        mimeType: blob.type,
+      }
+    })
+    const storageSize =
+      mediaEntries.reduce((total, entry) => total + entry.blob.size, 0) +
+      safeJsonStringify(messages.map((message) => stripRawMessage(message))).length
 
     const backup: Backup = {
       id,
@@ -64,7 +66,7 @@ class BackupManager {
       exportMode: config.exportMode,
     }
 
-    await db.saveBackup(backup)
+    await db.saveBackupBundle(backup, messages, mediaEntries)
 
     return backup
   }

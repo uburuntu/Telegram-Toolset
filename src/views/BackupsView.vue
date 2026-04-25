@@ -3,10 +3,12 @@ import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { backupManager } from '@/services/storage/backup-manager'
 import { quotaManager } from '@/services/storage/quota'
-import { useBackupsStore } from '@/stores'
+import { useBackupsStore, useUiStore } from '@/stores'
+import { formatDateWithLocale } from '@/utils/locale-format'
 
 const { t } = useI18n()
 const backupsStore = useBackupsStore()
+const uiStore = useUiStore()
 
 onMounted(async () => {
   backupsStore.setLoading(true)
@@ -33,15 +35,15 @@ function formatBytes(bytes: number): string {
 }
 
 function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDateWithLocale(date, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  }).format(date)
+  })
 }
 
 async function handleDelete(id: string) {
-  if (!confirm('Are you sure you want to delete this backup?')) return
+  if (!confirm(t('backups.confirmDelete'))) return
 
   try {
     await backupManager.deleteBackup(id)
@@ -50,6 +52,7 @@ async function handleDelete(id: string) {
     backupsStore.setStorageEstimate(estimate)
   } catch (e) {
     console.error('Failed to delete backup:', e)
+    uiStore.showToast('error', t('common.error'))
   }
 }
 
@@ -58,6 +61,7 @@ async function handleDownload(id: string) {
     await backupManager.exportBackupToZip(id)
   } catch (e) {
     console.error('Failed to export backup:', e)
+    uiStore.showToast('error', t('common.error'))
   }
 }
 </script>
@@ -68,7 +72,7 @@ async function handleDownload(id: string) {
       <div>
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('backups.title') }}</h1>
         <p class="text-gray-600 dark:text-gray-400 text-sm">
-          {{ backupsStore.backupCount }} backup{{ backupsStore.backupCount !== 1 ? 's' : '' }}
+          {{ t('backups.count', { count: backupsStore.backupCount }) }}
         </p>
       </div>
       <router-link

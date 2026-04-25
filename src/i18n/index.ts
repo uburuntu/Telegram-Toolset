@@ -32,13 +32,19 @@ const SUPPORTED_LOCALES: SupportedLocale[] = [
 ]
 
 function getStoredLocale(): SupportedLocale {
-  const stored = localStorage.getItem(LOCALE_STORAGE_KEY)
+  const stored =
+    typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function'
+      ? localStorage.getItem(LOCALE_STORAGE_KEY)
+      : null
   if (stored && SUPPORTED_LOCALES.includes(stored as SupportedLocale)) {
     return stored as SupportedLocale
   }
 
   // Detect browser language
-  const browserLang = navigator.language.split('-')[0]
+  const browserLang =
+    typeof navigator !== 'undefined' && typeof navigator.language === 'string'
+      ? navigator.language.split('-')[0]
+      : null
   if (SUPPORTED_LOCALES.includes(browserLang as SupportedLocale)) {
     return browserLang as SupportedLocale
   }
@@ -47,14 +53,16 @@ function getStoredLocale(): SupportedLocale {
 }
 
 export function setLocale(locale: SupportedLocale): void {
-  localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+  if (typeof localStorage !== 'undefined' && typeof localStorage.setItem === 'function') {
+    localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+  }
   i18n.global.locale.value = locale
 
   // Handle RTL languages
   const rtlLanguages = ['ar', 'fa']
-  if (rtlLanguages.includes(locale)) {
+  if (typeof document !== 'undefined' && rtlLanguages.includes(locale)) {
     document.documentElement.dir = 'rtl'
-  } else {
+  } else if (typeof document !== 'undefined') {
     document.documentElement.dir = 'ltr'
   }
 }
@@ -80,7 +88,7 @@ export const i18n = createI18n({
 // Initialize direction on load
 const initialLocale = getStoredLocale()
 const rtlLanguages = ['ar', 'fa']
-if (rtlLanguages.includes(initialLocale)) {
+if (typeof document !== 'undefined' && rtlLanguages.includes(initialLocale)) {
   document.documentElement.dir = 'rtl'
 }
 

@@ -2,6 +2,7 @@
  * Backup management type definitions
  */
 
+import { getActiveLocale } from '@/utils/locale-format'
 import type { DeletedMessage } from './telegram'
 
 export interface MediaTypeStats {
@@ -107,14 +108,11 @@ export function getBrowserTimezone(): string {
  */
 export function getTimezoneLabel(timezone: string): string {
   try {
-    const now = new Date()
-    const formatter = new Intl.DateTimeFormat('en-US', {
+    const parts = new Intl.DateTimeFormat(getActiveLocale(), {
       timeZone: timezone,
       timeZoneName: 'short',
-    })
-    const parts = formatter.formatToParts(now)
-    const tzPart = parts.find((p) => p.type === 'timeZoneName')
-    return tzPart?.value || timezone
+    }).formatToParts(new Date())
+    return parts.find((part) => part.type === 'timeZoneName')?.value || timezone
   } catch {
     return timezone
   }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { exportService } from '@/services/export/export-service'
@@ -8,12 +8,15 @@ import { backupManager } from '@/services/storage/backup-manager'
 import { quotaManager } from '@/services/storage/quota'
 import { telegramService } from '@/services/telegram/client'
 import { formatDuration } from '@/services/telegram/rate-limiter'
-import { useBackupsStore, useUiStore } from '@/stores'
+import { useAccountsStore, useBackupsStore, useUiStore } from '@/stores'
 import type { BackupWithMessages, ChatInfo, ExportConfig, ExportProgress } from '@/types'
+import { formatDateInputValue, parseDateInputBoundary } from '@/utils/date-input'
 import { toUserFriendlyError } from '@/utils/error-messages'
+import { formatDateWithLocale } from '@/utils/locale-format'
 
 const { t } = useI18n()
 const router = useRouter()
+const accountsStore = useAccountsStore()
 const backupsStore = useBackupsStore()
 const uiStore = useUiStore()
 
@@ -47,35 +50,35 @@ function applyDatePreset(preset: (typeof datePresets)[number]) {
     case '7days': {
       const sevenDaysAgo = new Date(now)
       sevenDaysAgo.setDate(now.getDate() - 7)
-      minDate.value = sevenDaysAgo.toISOString().split('T')[0] || ''
-      maxDate.value = now.toISOString().split('T')[0] || ''
+      minDate.value = formatDateInputValue(sevenDaysAgo)
+      maxDate.value = formatDateInputValue(now)
       break
     }
     case '30days': {
       const thirtyDaysAgo = new Date(now)
       thirtyDaysAgo.setDate(now.getDate() - 30)
-      minDate.value = thirtyDaysAgo.toISOString().split('T')[0] || ''
-      maxDate.value = now.toISOString().split('T')[0] || ''
+      minDate.value = formatDateInputValue(thirtyDaysAgo)
+      maxDate.value = formatDateInputValue(now)
       break
     }
     case '90days': {
       const ninetyDaysAgo = new Date(now)
       ninetyDaysAgo.setDate(now.getDate() - 90)
-      minDate.value = ninetyDaysAgo.toISOString().split('T')[0] || ''
-      maxDate.value = now.toISOString().split('T')[0] || ''
+      minDate.value = formatDateInputValue(ninetyDaysAgo)
+      maxDate.value = formatDateInputValue(now)
       break
     }
     case 'thisMonth': {
       const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-      minDate.value = firstOfMonth.toISOString().split('T')[0] || ''
-      maxDate.value = now.toISOString().split('T')[0] || ''
+      minDate.value = formatDateInputValue(firstOfMonth)
+      maxDate.value = formatDateInputValue(now)
       break
     }
     case 'lastMonth': {
       const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
       const lastOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
-      minDate.value = firstOfLastMonth.toISOString().split('T')[0] || ''
-      maxDate.value = lastOfLastMonth.toISOString().split('T')[0] || ''
+      minDate.value = formatDateInputValue(firstOfLastMonth)
+      maxDate.value = formatDateInputValue(lastOfLastMonth)
       break
     }
     default:
@@ -94,6 +97,7 @@ const floodWaitRemaining = ref(0)
 
 // Store last export result for ZIP download
 const lastExportResult = ref<BackupWithMessages | null>(null)
+let chatsRequestId = 0
 
 // Computed
 const filteredChats = computed(() => {
@@ -141,18 +145,6 @@ const phaseLabel = computed(() => {
   }
 })
 
-// Lifecycle
-onMounted(async () => {
-  isLoading.value = true
-  try {
-    chats.value = await telegramService.getDialogs(100)
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to load chats'
-  } finally {
-    isLoading.value = false
-  }
-})
-
 onUnmounted(() => {
   // Cancel any in-progress export on unmount
   if (exportService.isExporting) {
@@ -160,10 +152,61 @@ onUnmounted(() => {
   }
 })
 
+watch(
+  () => accountsStore.activeAccountId,
+  async () => {
+    if (exportService.isExporting) {
+      exportService.cancel()
+    }
+
+    step.value = 'select-chat'
+    selectedChat.value = null
+    currentProgress.value = null
+    floodWaitSeconds.value = 0
+    floodWaitRemaining.value = 0
+    lastExportResult.value = null
+    searchQuery.value = ''
+    error.value = ''
+
+    if (accountsStore.activeAccount?.type !== 'user') {
+      chats.value = []
+      return
+    }
+
+    await loadChats()
+  },
+  { immediate: true },
+)
+
 // Actions
 function selectChat(chat: ChatInfo) {
   selectedChat.value = chat
   step.value = 'configure'
+}
+
+async function loadChats() {
+  const requestId = ++chatsRequestId
+  isLoading.value = true
+  error.value = ''
+
+  try {
+    const loadedChats = await telegramService.getDialogs(100)
+    if (requestId !== chatsRequestId) {
+      return
+    }
+
+    chats.value = loadedChats
+  } catch (loadError) {
+    if (requestId !== chatsRequestId) {
+      return
+    }
+
+    error.value = loadError instanceof Error ? loadError.message : t('common.error')
+  } finally {
+    if (requestId === chatsRequestId) {
+      isLoading.value = false
+    }
+  }
 }
 
 function goBack() {
@@ -203,7 +246,7 @@ async function handleManualReconnect() {
 
   try {
     await telegramService.manualReconnect()
-    uiStore.showToast('success', 'Reconnected successfully!')
+    uiStore.showToast('success', t('export.reconnectSuccess'))
 
     // Go back to configure step to retry
     step.value = 'configure'
@@ -230,17 +273,14 @@ async function startExport() {
     exportMode: exportMode.value,
     storageStrategy: 'indexeddb',
     // Date filters
-    minDate: useDateFilter.value && minDate.value ? new Date(minDate.value) : undefined,
-    maxDate:
-      useDateFilter.value && maxDate.value
-        ? new Date(`${maxDate.value}T23:59:59`) // Include the entire day
-        : undefined,
+    minDate: useDateFilter.value ? parseDateInputBoundary(minDate.value, 'start') : undefined,
+    maxDate: useDateFilter.value ? parseDateInputBoundary(maxDate.value, 'end') : undefined,
   }
 
   // Check storage
   const strategy = await quotaManager.determineExportStrategy(100_000_000) // Estimate
   if (strategy.warnUser) {
-    uiStore.showToast('warning', 'Large export detected. Consider downloading as ZIP.')
+    uiStore.showToast('warning', t('export.largeExportWarning'))
   }
 
   try {
@@ -261,7 +301,7 @@ async function startExport() {
       onFloodWait: (seconds) => {
         floodWaitSeconds.value = seconds
         floodWaitRemaining.value = seconds
-        uiStore.showToast('warning', `Rate limited. Waiting ${seconds} seconds...`)
+        uiStore.showToast('warning', t('export.rateLimited', { seconds }))
       },
       onFloodWaitCountdown: (remaining) => {
         floodWaitRemaining.value = remaining
@@ -296,7 +336,7 @@ async function startExport() {
     }
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
-      uiStore.showToast('info', 'Export cancelled')
+      uiStore.showToast('info', t('export.cancelled'))
       step.value = 'configure'
     } else {
       console.error('[ExportView] Export failed:', e)
@@ -318,7 +358,7 @@ async function downloadAsZip() {
   isDownloadingZip.value = true
   try {
     await zipGenerator.generateAndDownload(lastExportResult.value)
-    uiStore.showToast('success', 'ZIP downloaded successfully!')
+    uiStore.showToast('success', t('export.zipDownloaded'))
   } catch (e) {
     const friendlyError = toUserFriendlyError(e)
     uiStore.showToast('error', friendlyError.message)
@@ -329,10 +369,10 @@ async function downloadAsZip() {
 
 function formatDate(date?: Date): string {
   if (!date) return ''
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDateWithLocale(date, {
     month: 'short',
     day: 'numeric',
-  }).format(date)
+  })
 }
 </script>
 

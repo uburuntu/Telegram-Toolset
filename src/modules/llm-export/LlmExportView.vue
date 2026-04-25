@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
+import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloodWaitIndicator from '@/components/common/FloodWaitIndicator.vue'
 import { useFloodWait } from '@/composables'
@@ -11,7 +11,7 @@ import {
   getFormatMimeType,
 } from '@/services/llm-export/format-service'
 import { telegramService } from '@/services/telegram/client'
-import { useUiStore } from '@/stores'
+import { useAccountsStore, useUiStore } from '@/stores'
 import type {
   ChatArchiveProgress,
   ChatArchiveResult,
@@ -24,13 +24,15 @@ import type {
   FormatConfig,
 } from '@/types'
 import { DEFAULT_FORMAT_CONFIG } from '@/types'
+import { parseDateInputBoundary } from '@/utils/date-input'
 import { toUserFriendlyError } from '@/utils/error-messages'
 import ChatSelector from './components/ChatSelector.vue'
 import DownloadOptionsCard from './components/DownloadOptionsCard.vue'
-import ExportWorkspace from './components/ExportWorkspace.vue'
 import ExportsList from './components/ExportsList.vue'
+import ExportWorkspace from './components/ExportWorkspace.vue'
 
 const { t } = useI18n()
+const accountsStore = useAccountsStore()
 const uiStore = useUiStore()
 
 const activeTab = ref<'new' | 'exports'>('new')
@@ -61,6 +63,8 @@ const downloadMaxDate = ref('')
 const floodWait = useFloodWait()
 
 const error = ref('')
+let chatsRequestId = 0
+let exportSelectionRequestId = 0
 
 const isDownloading = computed(() => downloadTask.value !== null)
 const isDownloadingArchive = computed(() => archiveTask.value !== null)
@@ -87,25 +91,61 @@ const archiveStatusText = computed(() => {
   }
 })
 
-onMounted(async () => {
-  await Promise.all([loadChats(), loadCachedExports()])
-})
-
 onUnmounted(() => {
   downloadTask.value?.cancel()
   archiveTask.value?.cancel()
 })
 
+watch(
+  () => accountsStore.activeAccountId,
+  async () => {
+    downloadTask.value?.cancel()
+    archiveTask.value?.cancel()
+    downloadTask.value = null
+    archiveTask.value = null
+    downloadProgress.value = null
+    archiveProgress.value = null
+    activeTab.value = 'new'
+    selectedChat.value = null
+    selectedExport.value = null
+    exportMessages.value = []
+    error.value = ''
+    exportsError.value = ''
+    floodWait.reset()
+
+    if (accountsStore.activeAccount?.type !== 'user') {
+      chats.value = []
+      cachedExports.value = []
+      return
+    }
+
+    await Promise.all([loadChats(), loadCachedExports()])
+  },
+  { immediate: true },
+)
+
 async function loadChats() {
+  const requestId = ++chatsRequestId
   isLoadingChats.value = true
   error.value = ''
 
   try {
-    chats.value = await telegramService.getDialogs()
+    const loadedChats = await telegramService.getDialogs()
+    if (requestId !== chatsRequestId) {
+      return
+    }
+
+    chats.value = loadedChats
   } catch (loadError) {
-    error.value = loadError instanceof Error ? loadError.message : 'Failed to load chats'
+    if (requestId !== chatsRequestId) {
+      return
+    }
+
+    error.value = loadError instanceof Error ? loadError.message : t('common.error')
   } finally {
-    isLoadingChats.value = false
+    if (requestId === chatsRequestId) {
+      isLoadingChats.value = false
+    }
   }
 }
 
@@ -136,23 +176,6 @@ async function loadCachedExports() {
 
 function handleChatSelect(chat: ChatInfo) {
   selectedChat.value = chat
-}
-
-function parseDateInputBoundary(value: string, boundary: 'start' | 'end'): Date | undefined {
-  if (!value) {
-    return undefined
-  }
-
-  const [year, month, day] = value.split('-').map(Number)
-  if (!year || !month || !day) {
-    return undefined
-  }
-
-  if (boundary === 'start') {
-    return new Date(year, month - 1, day, 0, 0, 0, 0)
-  }
-
-  return new Date(year, month - 1, day, 23, 59, 59, 999)
 }
 
 async function startDownload() {
@@ -216,19 +239,30 @@ function stopAndSaveDownload() {
 }
 
 async function handleExportSelect(chatExport: ChatExport) {
+  const requestId = ++exportSelectionRequestId
   isLoadingSelectedExport.value = true
   error.value = ''
 
   try {
     const result = await chatHistoryService.loadChatExport(chatExport.id)
+    if (requestId !== exportSelectionRequestId) {
+      return
+    }
+
     if (result) {
       selectedExport.value = result.chatExport
       exportMessages.value = result.messages
     }
   } catch (loadError) {
-    error.value = loadError instanceof Error ? loadError.message : 'Failed to load export'
+    if (requestId !== exportSelectionRequestId) {
+      return
+    }
+
+    error.value = loadError instanceof Error ? loadError.message : t('common.error')
   } finally {
-    isLoadingSelectedExport.value = false
+    if (requestId === exportSelectionRequestId) {
+      isLoadingSelectedExport.value = false
+    }
   }
 }
 

@@ -95,16 +95,28 @@ describe('ResendService', () => {
       expect(result.sentCount).toBe(1)
     })
 
-    it('should send text when media blob not found', async () => {
+    it('should send text but count a failure when media blob is missing', async () => {
       const messages = [createMessage({ hasMedia: true, text: 'Caption text' })]
       const mediaBlobs = new Map<number, Blob>() // No blob for this message
 
       const result = await resendService.resendMessages(messages, mediaBlobs, baseConfig)
 
-      // Falls back to sending just text
       expect(telegramService.sendFile).not.toHaveBeenCalled()
       expect(telegramService.sendMessage).toHaveBeenCalledTimes(1)
       expect(result.sentCount).toBe(1)
+      expect(result.failedCount).toBe(1)
+    })
+
+    it('should fail media-only messages when media blob is missing', async () => {
+      const messages = [createMessage({ hasMedia: true, text: '', mediaFilename: 'photo.jpg' })]
+      const mediaBlobs = new Map<number, Blob>()
+
+      const result = await resendService.resendMessages(messages, mediaBlobs, baseConfig)
+
+      expect(telegramService.sendFile).not.toHaveBeenCalled()
+      expect(telegramService.sendMessage).not.toHaveBeenCalled()
+      expect(result.sentCount).toBe(0)
+      expect(result.failedCount).toBe(1)
     })
 
     it('should sort messages by date (oldest first)', async () => {
@@ -426,4 +438,3 @@ describe('ResendService', () => {
     })
   })
 })
-

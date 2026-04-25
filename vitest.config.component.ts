@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [vue()],
   test: {
     include: ['tests/component/**/*.spec.ts'],
-    passWithNoTests: true,
+    passWithNoTests: false,
     environment: 'jsdom',
     globals: true,
   },
@@ -16,4 +16,3 @@ export default defineConfig({
     },
   },
 })
-

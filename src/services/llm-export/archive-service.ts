@@ -344,8 +344,11 @@ class ChatArchiveBuildTask implements ChatArchiveTask {
   }
 
   private sanitizeFilename(name: string): string {
-    return name
-      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')
+    return Array.from(name, (character) => {
+      const isControlCharacter = character.charCodeAt(0) < 32
+      return isControlCharacter || /[<>:"/\\|?*]/.test(character) ? '_' : character
+    })
+      .join('')
       .replace(/\s+/g, '_')
       .replace(/^_+|_+$/g, '')
       .slice(0, 120)

@@ -21,7 +21,10 @@
     "openSource": "Código Abierto",
     "account": "cuenta",
     "accounts": "cuentas",
-    "rateLimited": "Rate limited. Waiting {seconds}s..."
+    "rateLimited": "Rate limited. Waiting {seconds}s...",
+    "dismiss": "Dismiss",
+    "goHome": "Go Home",
+    "tryAgain": "Try Again"
   },
   "landing": {
     "title": "Telegram Power Toolset",
@@ -144,7 +147,22 @@
     },
     "success": "¡Cuenta Añadida!",
     "redirecting": "Redirigiendo...",
-    "privacyNote": "Sus credenciales se almacenan localmente en su navegador y nunca se envían a ningún servidor."
+    "privacyNote": "Sus credenciales se almacenan localmente en su navegador y nunca se envían a ningún servidor.",
+    "validation": {
+      "apiId": "API ID must be a positive number",
+      "apiHash": "API Hash must be at least 10 characters",
+      "phone": "Please enter a valid phone number",
+      "code": "Please enter the verification code",
+      "password": "Please enter your 2FA password",
+      "botToken": "Please enter a valid bot token"
+    },
+    "errors": {
+      "authenticationFailed": "Authentication failed",
+      "sendCodeFailed": "Failed to send code",
+      "verifyCodeFailed": "Failed to verify code",
+      "incorrectPassword": "Incorrect password",
+      "addBotFailed": "Failed to add bot"
+    }
   },
   "modules": {
     "accountInfo": {
@@ -276,7 +294,10 @@
     "generating": "Generando...",
     "downloadZipBtn": "Descargar ZIP",
     "viewBackups": "Ver Copias de Seguridad",
-    "exportAnother": "Exportar Otro"
+    "exportAnother": "Exportar Otro",
+    "reconnectSuccess": "Reconnected successfully!",
+    "largeExportWarning": "Large export detected. Consider downloading as ZIP.",
+    "zipDownloaded": "ZIP downloaded successfully!"
   },
   "backups": {
     "title": "Sus Copias de Seguridad",
@@ -293,7 +314,8 @@
     "noBackupsHint": "Export deleted messages from your channels to get started",
     "photos": "photos",
     "videos": "videos",
-    "docs": "docs"
+    "docs": "docs",
+    "confirmDelete": "Are you sure you want to delete this backup?"
   },
   "privacy": {
     "footer": "100% en el dispositivo. Ningún dato sale de su navegador.",
@@ -372,7 +394,8 @@
     "successMessage": "Se enviaron exitosamente {count} mensajes a {chat}",
     "failedMessage": "{count} mensaje(s) fallaron al enviar",
     "backToHome": "Volver al Inicio",
-    "resendAnother": "Reenviar Otro"
+    "resendAnother": "Reenviar Otro",
+    "chooseContent": "Choose at least one content type to send."
   },
   "scheduled": {
     "title": "Mensajes Programados",
@@ -494,6 +517,8 @@
       "json": "Formato JSON para procesamiento programático o integración con API",
       "markdown": "Formato Markdown con encabezados y formato, ideal para documentación",
       "custom": "Define tu propia plantilla con variables como sender, text, date"
-    }
+    },
+    "contentSection": "Content",
+    "structureSection": "Structure"
   }
 }

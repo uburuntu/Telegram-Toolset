@@ -68,6 +68,7 @@ class TelegramService {
 
   // Race-free initialization orchestrator: if an account switch/init is in-flight, callers can await this.
   private _activeAccountInitPromise: Promise<boolean> | null = null
+  private _activeAccountInitKey: string | null = null
 
   constructor() {
     // IMPORTANT: This service supports multiple accounts. We intentionally do NOT
@@ -319,10 +320,18 @@ class TelegramService {
     apiId: number
     apiHash: string
   }): Promise<boolean> {
-    // If there's already an in-flight init for the same session, just return that promise.
-    // (Avoids duplicate connects on rapid watcher triggers.)
-    if (this._activeAccountInitPromise) {
-      return this._activeAccountInitPromise
+    const sessionKey = `${data.apiId}:${data.sessionString}`
+
+    while (this._activeAccountInitPromise) {
+      if (this._activeAccountInitKey === sessionKey) {
+        return this._activeAccountInitPromise
+      }
+
+      try {
+        await this._activeAccountInitPromise
+      } catch {
+        // Ignore a failed previous switch and continue applying the requested account.
+      }
     }
 
     const initPromise = (async () => {
@@ -336,9 +345,11 @@ class TelegramService {
       } finally {
         // Clear the promise once done so future switches can proceed.
         this._activeAccountInitPromise = null
+        this._activeAccountInitKey = null
       }
     })()
 
+    this._activeAccountInitKey = sessionKey
     this._activeAccountInitPromise = initPromise
     return initPromise
   }
@@ -360,6 +371,7 @@ class TelegramService {
   async resetForNewUserLogin(): Promise<void> {
     // Cancel any in-flight account init to avoid race conditions with the App.vue watcher.
     this._activeAccountInitPromise = null
+    this._activeAccountInitKey = null
 
     await this.disconnect()
     this.currentUser = null
@@ -625,7 +637,6 @@ class TelegramService {
       const peerId = this.getMarkedPeerId(entity)
       let type: ChatInfo['type'] = 'user'
       let canExport = false
-      const canSend = true
 
       // Check for admin rights or creator status
       const hasAdminRights = !!(entity as any).adminRights
@@ -643,6 +654,8 @@ class TelegramService {
       } else if ('title' in entity) {
         type = 'group'
       }
+
+      const canSend = this.canSendToEntity(entity)
 
       chats.push({
         id,
@@ -1222,48 +1235,47 @@ class TelegramService {
    * Matches Python's can_send_to_chat pattern
    */
   async canSendToChat(chatId: bigint): Promise<boolean> {
-    if (!this.client) return false
-
     try {
+      const client = await this.getConnectedClient()
       // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-      const entity = await this.client.getEntity(chatId)
+      const entity = await client.getEntity(chatId)
       if (!entity) return false
-
-      // User chats - can always send
-      if ('firstName' in entity) {
-        return true
-      }
-
-      // For channels/groups, check permissions
-      if ('broadcast' in entity && entity.broadcast) {
-        // Broadcast channel - need post_messages right
-        // @ts-expect-error - adminRights may exist
-        return !!entity.adminRights?.postMessages
-      }
-
-      // For groups/supergroups, check if we can send
-      // @ts-expect-error - defaultBannedRights may exist
-      const banned = entity.defaultBannedRights
-      if (banned?.sendMessages) {
-        return false
-      }
-
-      return true
+      return this.canSendToEntity(entity)
     } catch {
       return false
     }
+  }
+
+  private canSendToEntity(entity: unknown): boolean {
+    if (!entity || typeof entity !== 'object') {
+      return false
+    }
+
+    if ('firstName' in entity) {
+      return true
+    }
+
+    if ('broadcast' in entity && entity.broadcast) {
+      const channel = entity as { adminRights?: { postMessages?: boolean }; creator?: boolean }
+      return !!channel.creator || !!channel.adminRights?.postMessages
+    }
+
+    const group = entity as { defaultBannedRights?: { sendMessages?: boolean } }
+    if (group.defaultBannedRights?.sendMessages) {
+      return false
+    }
+
+    return true
   }
 
   /**
    * Send a message to a chat
    */
   async sendMessage(chatId: bigint, text: string, parseMode?: 'html' | 'md'): Promise<void> {
-    if (!this.client) {
-      throw new Error('Client not connected')
-    }
+    const client = await this.getConnectedClient()
 
     // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-    await this.client.sendMessage(chatId, {
+    await client.sendMessage(chatId, {
       message: text,
       parseMode: parseMode,
       silent: true,
@@ -1284,9 +1296,7 @@ class TelegramService {
       filename?: string
     } = {},
   ): Promise<void> {
-    if (!this.client) {
-      throw new Error('Client not connected')
-    }
+    const client = await this.getConnectedClient()
 
     // Convert Blob to Buffer for GramJS
     const buffer = Buffer.from(await file.arrayBuffer())
@@ -1295,7 +1305,7 @@ class TelegramService {
     const filename = options.filename || (file instanceof File ? file.name : `file_${Date.now()}`)
 
     // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-    await this.client.sendFile(chatId, {
+    await client.sendFile(chatId, {
       file: buffer,
       caption: options.caption,
       parseMode: options.parseMode,

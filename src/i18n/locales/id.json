@@ -21,7 +21,10 @@
     "openSource": "Open Source",
     "account": "akun",
     "accounts": "akun",
-    "rateLimited": "Rate limited. Waiting {seconds}s..."
+    "rateLimited": "Rate limited. Waiting {seconds}s...",
+    "dismiss": "Dismiss",
+    "goHome": "Go Home",
+    "tryAgain": "Try Again"
   },
   "landing": {
     "title": "Telegram Power Toolset",
@@ -144,7 +147,22 @@
     },
     "success": "Akun Ditambahkan!",
     "redirecting": "Mengalihkan...",
-    "privacyNote": "Kredensial Anda disimpan secara lokal di browser Anda dan tidak pernah dikirim ke server mana pun."
+    "privacyNote": "Kredensial Anda disimpan secara lokal di browser Anda dan tidak pernah dikirim ke server mana pun.",
+    "validation": {
+      "apiId": "API ID must be a positive number",
+      "apiHash": "API Hash must be at least 10 characters",
+      "phone": "Please enter a valid phone number",
+      "code": "Please enter the verification code",
+      "password": "Please enter your 2FA password",
+      "botToken": "Please enter a valid bot token"
+    },
+    "errors": {
+      "authenticationFailed": "Authentication failed",
+      "sendCodeFailed": "Failed to send code",
+      "verifyCodeFailed": "Failed to verify code",
+      "incorrectPassword": "Incorrect password",
+      "addBotFailed": "Failed to add bot"
+    }
   },
   "modules": {
     "accountInfo": {
@@ -276,7 +294,10 @@
     "generating": "Membuat...",
     "downloadZipBtn": "Unduh ZIP",
     "viewBackups": "Lihat Cadangan",
-    "exportAnother": "Ekspor Lainnya"
+    "exportAnother": "Ekspor Lainnya",
+    "reconnectSuccess": "Reconnected successfully!",
+    "largeExportWarning": "Large export detected. Consider downloading as ZIP.",
+    "zipDownloaded": "ZIP downloaded successfully!"
   },
   "backups": {
     "title": "Cadangan Anda",
@@ -293,7 +314,8 @@
     "noBackupsHint": "Export deleted messages from your channels to get started",
     "photos": "photos",
     "videos": "videos",
-    "docs": "docs"
+    "docs": "docs",
+    "confirmDelete": "Are you sure you want to delete this backup?"
   },
   "privacy": {
     "footer": "100% pada perangkat. Tidak ada data yang meninggalkan browser Anda.",
@@ -372,7 +394,8 @@
     "successMessage": "Berhasil mengirim {count} pesan ke {chat}",
     "failedMessage": "{count} pesan gagal dikirim",
     "backToHome": "Kembali ke Beranda",
-    "resendAnother": "Kirim Ulang Lainnya"
+    "resendAnother": "Kirim Ulang Lainnya",
+    "chooseContent": "Choose at least one content type to send."
   },
   "scheduled": {
     "title": "Pesan Terjadwal",
@@ -494,6 +517,8 @@
       "json": "Format JSON untuk pemrosesan programatis atau integrasi API",
       "markdown": "Format Markdown dengan header dan pemformatan, cocok untuk dokumentasi",
       "custom": "Tentukan template Anda sendiri dengan variabel seperti sender, text, date"
-    }
+    },
+    "contentSection": "Content",
+    "structureSection": "Structure"
   }
 }

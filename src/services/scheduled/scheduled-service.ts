@@ -8,6 +8,7 @@
  */
 
 import type { ChatInfo, ScheduledMessage } from '@/types'
+import { formatRelativeTimeFromNow } from '@/utils/locale-format'
 import { safeJsonStringify } from '@/utils/message-serialization'
 import { telegramService } from '../telegram/client'
 import { createFloodWaitSubscription, withRetry } from '../telegram/rate-limiter'
@@ -61,16 +62,26 @@ class ScheduledService {
     chatId: bigint,
     callbacks: Pick<ScheduledMessagesCallbacks, 'onFloodWait' | 'onFloodWaitCountdown'> = {},
   ): Promise<ScheduledMessage[]> {
-    const controller = new AbortController()
-    const signal = controller.signal
+    this.abortController = new AbortController()
+    const signal = this.abortController.signal
 
     // Subscribe to global flood wait events from GramJS (it handles flood wait internally)
     const unsubscribeFloodWait = createFloodWaitSubscription(telegramService, callbacks, signal)
 
     try {
-      return await telegramService.getScheduledMessages(chatId)
+      return await Promise.race([
+        telegramService.getScheduledMessages(chatId),
+        new Promise<ScheduledMessage[]>((_, reject) => {
+          signal.addEventListener(
+            'abort',
+            () => reject(new DOMException('Scheduled messages cancelled', 'AbortError')),
+            { once: true },
+          )
+        }),
+      ])
     } finally {
       unsubscribeFloodWait()
+      this.abortController = null
     }
   }
 
@@ -232,28 +243,7 @@ class ScheduledService {
    * Format scheduled date for display
    */
   formatScheduledDate(date: Date): string {
-    const now = new Date()
-    const diff = date.getTime() - now.getTime()
-
-    // If in the past, show "Overdue"
-    if (diff < 0) {
-      return 'Overdue'
-    }
-
-    const minutes = Math.floor(diff / 60000)
-    const hours = Math.floor(minutes / 60)
-    const days = Math.floor(hours / 24)
-
-    if (days > 0) {
-      return `In ${days} day${days > 1 ? 's' : ''}`
-    }
-    if (hours > 0) {
-      return `In ${hours} hour${hours > 1 ? 's' : ''}`
-    }
-    if (minutes > 0) {
-      return `In ${minutes} minute${minutes > 1 ? 's' : ''}`
-    }
-    return 'Soon'
+    return formatRelativeTimeFromNow(date)
   }
 }
 

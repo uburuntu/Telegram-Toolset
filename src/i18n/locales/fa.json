@@ -21,7 +21,10 @@
     "openSource": "متن‌باز",
     "account": "حساب",
     "accounts": "حساب‌ها",
-    "rateLimited": "Rate limited. Waiting {seconds}s..."
+    "rateLimited": "Rate limited. Waiting {seconds}s...",
+    "dismiss": "Dismiss",
+    "goHome": "Go Home",
+    "tryAgain": "Try Again"
   },
   "landing": {
     "title": "Telegram Power Toolset",
@@ -144,7 +147,22 @@
     },
     "success": "حساب اضافه شد!",
     "redirecting": "در حال تغییر مسیر...",
-    "privacyNote": "اعتبارنامه‌های شما به صورت محلی در مرورگرتان ذخیره شده و هرگز به هیچ سروری ارسال نمی‌شوند."
+    "privacyNote": "اعتبارنامه‌های شما به صورت محلی در مرورگرتان ذخیره شده و هرگز به هیچ سروری ارسال نمی‌شوند.",
+    "validation": {
+      "apiId": "API ID must be a positive number",
+      "apiHash": "API Hash must be at least 10 characters",
+      "phone": "Please enter a valid phone number",
+      "code": "Please enter the verification code",
+      "password": "Please enter your 2FA password",
+      "botToken": "Please enter a valid bot token"
+    },
+    "errors": {
+      "authenticationFailed": "Authentication failed",
+      "sendCodeFailed": "Failed to send code",
+      "verifyCodeFailed": "Failed to verify code",
+      "incorrectPassword": "Incorrect password",
+      "addBotFailed": "Failed to add bot"
+    }
   },
   "modules": {
     "accountInfo": {
@@ -276,7 +294,10 @@
     "generating": "در حال تولید...",
     "downloadZipBtn": "دانلود ZIP",
     "viewBackups": "مشاهده پشتیبان‌ها",
-    "exportAnother": "خروجی دیگر"
+    "exportAnother": "خروجی دیگر",
+    "reconnectSuccess": "Reconnected successfully!",
+    "largeExportWarning": "Large export detected. Consider downloading as ZIP.",
+    "zipDownloaded": "ZIP downloaded successfully!"
   },
   "backups": {
     "title": "پشتیبان‌های شما",
@@ -293,7 +314,8 @@
     "noBackupsHint": "Export deleted messages from your channels to get started",
     "photos": "photos",
     "videos": "videos",
-    "docs": "docs"
+    "docs": "docs",
+    "confirmDelete": "Are you sure you want to delete this backup?"
   },
   "privacy": {
     "footer": "۱۰۰٪ روی دستگاه. هیچ داده‌ای از مرورگر شما خارج نمی‌شود.",
@@ -372,7 +394,8 @@
     "successMessage": "با موفقیت {count} پیام به {chat} ارسال شد",
     "failedMessage": "{count} پیام ارسال نشد",
     "backToHome": "بازگشت به خانه",
-    "resendAnother": "ارسال مجدد دیگر"
+    "resendAnother": "ارسال مجدد دیگر",
+    "chooseContent": "Choose at least one content type to send."
   },
   "scheduled": {
     "title": "پیام‌های زمان‌بندی شده",
@@ -494,6 +517,8 @@
       "json": "فرمت JSON برای پردازش برنامه‌نویسی یا یکپارچه‌سازی با API",
       "markdown": "فرمت Markdown با عناوین و قالب‌بندی، مناسب برای مستندسازی",
       "custom": "قالب خود را با متغیرهایی مانند sender, text, date تعریف کنید"
-    }
+    },
+    "contentSection": "Content",
+    "structureSection": "Structure"
   }
 }

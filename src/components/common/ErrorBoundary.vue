@@ -6,15 +6,16 @@
  * Logs errors for debugging and provides recovery options.
  */
 
-import { onErrorCaptured, ref } from 'vue'
+import { computed, onErrorCaptured, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 interface Props {
   fallbackMessage?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  fallbackMessage: 'Something went wrong',
-})
+const props = defineProps<Props>()
+const { t } = useI18n()
+const fallbackMessage = computed(() => props.fallbackMessage || t('common.error'))
 
 const emit = defineEmits<{
   error: [error: Error]
@@ -62,7 +63,7 @@ function reset() {
       </div>
       <div class="flex-1">
         <h3 class="font-semibold text-red-800 dark:text-red-200">
-          {{ props.fallbackMessage }}
+          {{ fallbackMessage }}
         </h3>
         <p class="mt-1 text-sm text-red-700 dark:text-red-300">
           {{ error.message }}
@@ -72,13 +73,13 @@ function reset() {
             @click="reset"
             class="px-3 py-1.5 rounded-md text-sm font-medium bg-red-100 dark:bg-red-800/50 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800 transition-colors duration-100"
           >
-            Try Again
+            {{ t('common.tryAgain') }}
           </button>
           <button
             @click="$router.push('/')"
             class="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100"
           >
-            Go Home
+            {{ t('common.goHome') }}
           </button>
         </div>
       </div>

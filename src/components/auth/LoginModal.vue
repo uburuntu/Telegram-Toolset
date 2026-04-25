@@ -27,6 +27,7 @@ const uiStore = useUiStore()
 
 // Track what was active before opening the modal so we can restore the session if user cancels.
 const previousActiveAccountId = accountsStore.activeAccountId
+const dialogTitleId = 'login-modal-title'
 
 // State - initialize step based on required type and existing credentials
 const activeTab = ref<AccountType>(props.requiredType === 'bot' ? 'bot' : 'user')
@@ -143,7 +144,7 @@ async function validateBotToken(token: string): Promise<void> {
       existingBotAccount.value = existing
     }
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'Invalid bot token'
+    const message = e instanceof Error ? e.message : t('auth.validation.botToken')
     // Validation must succeed before adding a bot. No "add without validation" path.
     error.value = message
     tokenValidated.value = false
@@ -169,12 +170,12 @@ async function handleCredentialsSubmit(): Promise<void> {
 
   const id = parseInt(apiId.value, 10)
   if (Number.isNaN(id) || id <= 0) {
-    error.value = 'API ID must be a positive number'
+    error.value = t('auth.validation.apiId')
     return
   }
 
   if (!apiHash.value || apiHash.value.length < 10) {
-    error.value = 'API Hash must be at least 10 characters'
+    error.value = t('auth.validation.apiHash')
     return
   }
 
@@ -186,7 +187,7 @@ async function handleCredentialsSubmit(): Promise<void> {
 async function handlePhoneSubmit(): Promise<void> {
   error.value = ''
   if (!phone.value || phone.value.length < 5) {
-    error.value = 'Please enter a valid phone number'
+    error.value = t('auth.validation.phone')
     return
   }
 
@@ -231,7 +232,7 @@ async function handlePhoneSubmit(): Promise<void> {
         })
         accountsStore.setActiveAccount(newAccount.id)
         step.value = 'success'
-        uiStore.showToast('success', 'Account added successfully!')
+        uiStore.showToast('success', t('auth.success'))
         setTimeout(() => {
           handleClose()
           if (props.targetRoute) {
@@ -243,14 +244,14 @@ async function handlePhoneSubmit(): Promise<void> {
         if (e.errorMessage === 'SESSION_PASSWORD_NEEDED') {
           step.value = 'password'
         } else {
-          error.value = e.message || 'Authentication failed'
+          error.value = e.message || t('auth.errors.authenticationFailed')
         }
       })
 
     // Move to code entry step - GramJS is waiting for the code
     step.value = 'code'
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to send code'
+    error.value = e instanceof Error ? e.message : t('auth.errors.sendCodeFailed')
   } finally {
     isLoading.value = false
   }
@@ -259,7 +260,7 @@ async function handlePhoneSubmit(): Promise<void> {
 async function handleCodeSubmit(): Promise<void> {
   error.value = ''
   if (!code.value || code.value.length < 4) {
-    error.value = 'Please enter the verification code'
+    error.value = t('auth.validation.code')
     return
   }
 
@@ -276,7 +277,7 @@ async function handleCodeSubmit(): Promise<void> {
     if (e.errorMessage === 'SESSION_PASSWORD_NEEDED') {
       step.value = 'password'
     } else {
-      error.value = e instanceof Error ? e.message : 'Failed to verify code'
+      error.value = e instanceof Error ? e.message : t('auth.errors.verifyCodeFailed')
     }
   } finally {
     isLoading.value = false
@@ -286,7 +287,7 @@ async function handleCodeSubmit(): Promise<void> {
 async function handlePasswordSubmit(): Promise<void> {
   error.value = ''
   if (!password.value) {
-    error.value = 'Please enter your 2FA password'
+    error.value = t('auth.validation.password')
     return
   }
 
@@ -300,7 +301,7 @@ async function handlePasswordSubmit(): Promise<void> {
       await authPromise
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Incorrect password'
+    error.value = e instanceof Error ? e.message : t('auth.errors.incorrectPassword')
   } finally {
     isLoading.value = false
   }
@@ -308,7 +309,7 @@ async function handlePasswordSubmit(): Promise<void> {
 
 async function handleBotTokenSubmit(): Promise<void> {
   if (!tokenValidated.value || !botInfo.value) {
-    error.value = 'Please enter a valid bot token'
+    error.value = t('auth.validation.botToken')
     return
   }
 
@@ -329,7 +330,7 @@ async function handleBotTokenSubmit(): Promise<void> {
         hasMainWebApp: botInfo.value.has_main_web_app,
       })
       accountId = existingBotAccount.value.id
-      uiStore.showToast('success', `${botInfo.value.first_name} updated successfully!`)
+      uiStore.showToast('success', t('auth.success'))
     } else {
       // Add new bot account
       const newAccount = accountsStore.addAccount({
@@ -346,7 +347,7 @@ async function handleBotTokenSubmit(): Promise<void> {
         sessionString: `bot_session_${Date.now()}`,
       })
       accountId = newAccount.id
-      uiStore.showToast('success', `${botInfo.value.first_name} added successfully!`)
+      uiStore.showToast('success', t('auth.success'))
     }
 
     accountsStore.setActiveAccount(accountId)
@@ -359,7 +360,7 @@ async function handleBotTokenSubmit(): Promise<void> {
       }
     }, 1000)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to add bot'
+    error.value = e instanceof Error ? e.message : t('auth.errors.addBotFailed')
   } finally {
     isLoading.value = false
   }
@@ -368,7 +369,6 @@ async function handleBotTokenSubmit(): Promise<void> {
 function handleClose(): void {
   accountsStore.resetAuthFlow()
   emit('close')
-  uiStore.closeModal()
 
   // If user cancels mid-flow, restore previous active user session (best-effort).
   // This prevents leaving the app in a "disconnected" state after attempting to add another account.
@@ -418,13 +418,20 @@ function goBack(): void {
     @click.self="handleClose"
   >
     <div
+      role="dialog"
+      aria-modal="true"
+      :aria-labelledby="dialogTitleId"
+      tabindex="-1"
       class="bg-white dark:bg-gray-900 rounded-xl shadow-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
     >
       <!-- Header -->
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('accounts.addAccountTitle') }}</h2>
+        <h2 :id="dialogTitleId" class="text-lg font-semibold text-gray-900 dark:text-white">
+          {{ t('auth.addAccount') }}
+        </h2>
         <button
           @click="handleClose"
+          :aria-label="t('common.close')"
           class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-100"
         >
           ✕
@@ -470,10 +477,10 @@ function goBack(): void {
             class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-sm"
           >
             <p class="text-blue-800 dark:text-blue-300 mb-2">
-              <strong>{{ t('accounts.credentialsFound') }}</strong>
+              <strong>{{ t('auth.apiCredentials.found') }}</strong>
             </p>
             <p class="text-blue-700 dark:text-blue-400 text-xs">
-              {{ t('accounts.credentialsFoundHint') }}
+              {{ t('auth.apiCredentials.foundDescription') }}
             </p>
           </div>
 
@@ -491,7 +498,7 @@ function goBack(): void {
                 </div>
                 <div>
                   <p class="font-medium text-gray-900 dark:text-white text-sm">
-                    {{ t('accounts.useSavedCredentials') }}
+                    {{ t('auth.apiCredentials.useSaved') }}
                   </p>
                   <p class="text-xs text-gray-500 dark:text-gray-400">
                     API ID: {{ accountsStore.apiCredentials?.apiId }}
@@ -513,10 +520,10 @@ function goBack(): void {
                 </div>
                 <div>
                   <p class="font-medium text-gray-900 dark:text-white text-sm">
-                    {{ t('accounts.enterDifferentCredentials') }}
+                    {{ t('auth.apiCredentials.enterNew') }}
                   </p>
                   <p class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ t('accounts.useDifferentApiHint') }}
+                    {{ t('auth.apiCredentials.enterNewDescription') }}
                   </p>
                 </div>
               </div>
@@ -539,10 +546,10 @@ function goBack(): void {
             class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-sm"
           >
             <p class="text-blue-800 dark:text-blue-300 mb-2">
-              <strong>{{ t('accounts.whyCredentials') }}</strong>
+              <strong>{{ t('auth.apiCredentials.title') }}</strong>
             </p>
             <p class="text-blue-700 dark:text-blue-400 text-xs">
-              {{ t('accounts.credentialsExplanation') }}
+              {{ t('auth.apiCredentials.description') }}
               <a href="https://my.telegram.org/auth" target="_blank" class="underline"
                 >my.telegram.org</a
               >.
@@ -552,7 +559,7 @@ function goBack(): void {
           <form @submit.prevent="handleCredentialsSubmit" class="space-y-3">
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >API ID</label
+                >{{ t('auth.apiCredentials.apiId') }}</label
               >
               <input
                 v-model="apiId"
@@ -567,7 +574,7 @@ function goBack(): void {
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                >API Hash</label
+                >{{ t('auth.apiCredentials.apiHash') }}</label
               >
               <input
                 v-model="apiHash"
@@ -598,7 +605,7 @@ function goBack(): void {
             ← {{ t('accounts.back') }}
           </button>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            {{ t('accounts.phoneHint') }}
+            {{ t('auth.phone.description') }}
           </p>
 
           <form @submit.prevent="handlePhoneSubmit" class="space-y-3">
@@ -609,7 +616,7 @@ function goBack(): void {
               <input
                 v-model="phone"
                 type="tel"
-                placeholder="+1234567890"
+                :placeholder="t('auth.phone.placeholder')"
                 class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
                 required
                 autofocus
@@ -621,7 +628,7 @@ function goBack(): void {
               class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
               :disabled="isLoading"
             >
-              {{ isLoading ? t('accounts.sending') : t('accounts.sendCode') }}
+              {{ isLoading ? t('auth.phone.sending') : t('auth.phone.sendCode') }}
             </button>
           </form>
         </template>
@@ -635,7 +642,7 @@ function goBack(): void {
             ← {{ t('accounts.back') }}
           </button>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Enter the code sent to {{ phone }}
+            {{ t('auth.code.description', { phone }) }}
           </p>
 
           <form @submit.prevent="handleCodeSubmit" class="space-y-3">
@@ -647,7 +654,7 @@ function goBack(): void {
                 v-model="code"
                 type="text"
                 inputmode="numeric"
-                placeholder="12345"
+                :placeholder="t('auth.code.placeholder')"
                 class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center text-xl tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
                 required
                 autofocus
@@ -659,7 +666,7 @@ function goBack(): void {
               class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
               :disabled="isLoading"
             >
-              {{ isLoading ? t('accounts.verifying') : t('accounts.verify') }}
+              {{ isLoading ? t('auth.code.verifying') : t('auth.code.verify') }}
             </button>
           </form>
         </template>
@@ -673,7 +680,7 @@ function goBack(): void {
             ← {{ t('accounts.back') }}
           </button>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            {{ t('accounts.twoFaHint') }}
+            {{ t('auth.password.description') }}
           </p>
 
           <form @submit.prevent="handlePasswordSubmit" class="space-y-3">
@@ -687,6 +694,7 @@ function goBack(): void {
               <input
                 v-model="password"
                 type="password"
+                :placeholder="t('auth.password.placeholder')"
                 class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
                 required
                 autofocus
@@ -698,7 +706,7 @@ function goBack(): void {
               class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
               :disabled="isLoading"
             >
-              {{ isLoading ? t('accounts.signingIn') : t('accounts.signIn') }}
+              {{ isLoading ? t('auth.password.signingIn') : t('auth.password.signIn') }}
             </button>
           </form>
         </template>
@@ -707,7 +715,7 @@ function goBack(): void {
       <!-- Bot Token Flow -->
       <template v-if="activeTab === 'bot' && step === 'token'">
         <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          {{ t('accounts.botTokenHint') }}
+          {{ t('auth.bot.description') }}
           <a href="https://t.me/BotFather" target="_blank" class="text-purple-600 hover:underline">
             @BotFather
           </a>
@@ -791,7 +799,7 @@ function goBack(): void {
             class="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-sm"
           >
             <p class="text-amber-700 dark:text-amber-300">
-              ⚠️ {{ t('accounts.duplicateBotWarning') }}
+              ⚠️ {{ t('auth.bot.alreadyAdded') }}
             </p>
           </div>
 
@@ -803,12 +811,12 @@ function goBack(): void {
             :disabled="isLoading || !tokenValidated"
           >
             <template v-if="isLoading">{{
-              existingBotAccount ? t('accounts.updating') : t('accounts.adding')
+              existingBotAccount ? t('auth.bot.updating') : t('accounts.adding')
             }}</template>
             <template v-else-if="tokenValidated && existingBotAccount"
-              >Update {{ botInfo?.first_name }}</template
+              >{{ t('auth.bot.update') }}</template
             >
-            <template v-else-if="tokenValidated">Add {{ botInfo?.first_name }}</template>
+            <template v-else-if="tokenValidated">{{ t('auth.bot.addBot') }}</template>
             <template v-else>{{ t('accounts.enterValidToken') }}</template>
           </button>
         </form>
@@ -818,8 +826,8 @@ function goBack(): void {
       <template v-if="step === 'success'">
         <div class="text-center py-6">
           <div class="text-4xl mb-3">✅</div>
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">{{ t('accounts.accountAdded') }}</h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400">{{ t('accounts.redirecting') }}</p>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">{{ t('auth.success') }}</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">{{ t('auth.redirecting') }}</p>
         </div>
       </template>
 
@@ -828,7 +836,7 @@ function goBack(): void {
         v-if="step !== 'success'"
         class="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded text-xs text-gray-500 dark:text-gray-400"
       >
-        🔒 {{ t('accounts.privacyNote') }}
+        🔒 {{ t('auth.privacyNote') }}
       </div>
     </div>
   </div>

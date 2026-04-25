@@ -6,6 +6,9 @@
  * Consistent styling for all error states.
  */
 
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
 interface Props {
   message: string
   title?: string
@@ -13,11 +16,12 @@ interface Props {
   showDismiss?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
-  title: 'Error',
+const props = withDefaults(defineProps<Props>(), {
   showRetry: false,
   showDismiss: false,
 })
+const { t } = useI18n()
+const title = computed(() => props.title || t('common.error'))
 
 const emit = defineEmits<{
   retry: []
@@ -45,27 +49,27 @@ const emit = defineEmits<{
           {{ title }}
         </h4>
         <p class="mt-0.5 text-sm text-red-700 dark:text-red-300">
-          {{ message }}
+          {{ props.message }}
         </p>
-        <div v-if="showRetry || showDismiss" class="mt-3 flex gap-2">
+        <div v-if="props.showRetry || props.showDismiss" class="mt-3 flex gap-2">
           <button
-            v-if="showRetry"
+            v-if="props.showRetry"
             @click="emit('retry')"
             class="px-3 py-1 rounded text-xs font-medium bg-red-100 dark:bg-red-800/50 text-red-800 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800 transition-colors duration-100"
           >
-            Try Again
+            {{ t('common.tryAgain') }}
           </button>
           <button
-            v-if="showDismiss"
+            v-if="props.showDismiss"
             @click="emit('dismiss')"
             class="px-3 py-1 rounded text-xs font-medium text-red-700 dark:text-red-300 hover:text-red-800 dark:hover:text-red-200 transition-colors duration-100"
           >
-            Dismiss
+            {{ t('common.dismiss') }}
           </button>
         </div>
       </div>
       <button
-        v-if="showDismiss"
+        v-if="props.showDismiss"
         @click="emit('dismiss')"
         class="flex-shrink-0 text-red-400 hover:text-red-600 dark:hover:text-red-200 transition-colors duration-100"
       >

@@ -15,6 +15,8 @@ import type {
   ChatInfo,
   ChatMessage,
 } from '@/types'
+import { telegramService } from '../telegram/client'
+import { createFloodWaitSubscription } from '../telegram/rate-limiter'
 import {
   deleteChatExport,
   getChatMessages,
@@ -23,8 +25,6 @@ import {
   loadChatExportBundle,
   saveChatExportBundle,
 } from './store'
-import { telegramService } from '../telegram/client'
-import { createFloodWaitSubscription } from '../telegram/rate-limiter'
 
 class ChatHistoryDownloadTask implements ChatHistoryTask {
   private readonly abortController = new AbortController()

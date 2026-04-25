@@ -176,7 +176,9 @@ function getMediaLabel(option: MediaPlaceholderOption): string {
 
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
       <fieldset class="space-y-3">
-        <legend class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Content</legend>
+        <legend class="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+          {{ t('llmExport.contentSection') }}
+        </legend>
 
         <label for="llm-export-sender-name" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           <input
@@ -233,7 +235,9 @@ function getMediaLabel(option: MediaPlaceholderOption): string {
       </fieldset>
 
       <fieldset class="space-y-3">
-        <legend class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Structure</legend>
+        <legend class="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+          {{ t('llmExport.structureSection') }}
+        </legend>
 
         <label for="llm-export-include-date" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
           <input

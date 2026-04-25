@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { type BotApiUser, getBotInfo } from '@/services/telegram/bot-api'
 import { type AccountStats, type FullUserInfo, telegramService } from '@/services/telegram/client'
@@ -19,43 +19,72 @@ const botApiInfo = ref<BotApiUser | null>(null)
 const fullUserInfo = ref<FullUserInfo | null>(null)
 const accountStats = ref<AccountStats | null>(null)
 const profilePhotoUrl = ref<string | null>(null)
+let accountLoadRequestId = 0
 
 const account = computed(() => accountsStore.activeAccount)
 const isBot = computed(() => account.value?.type === 'bot')
 const isUser = computed(() => account.value?.type === 'user')
 
-onMounted(async () => {
-  if (!account.value) {
-    error.value = t('accountInfo.noAccountSelected')
-    isLoading.value = false
-    return
-  }
+watch(
+  () => account.value?.id,
+  async () => {
+    const requestId = ++accountLoadRequestId
 
-  try {
-    if (isBot.value && account.value.botToken) {
-      // Fetch fresh bot info from API
-      botApiInfo.value = await getBotInfo(account.value.botToken)
-    } else if (isUser.value) {
-      // Fetch extended user info
-      const [fullInfo, stats, photoBlob] = await Promise.all([
-        telegramService.getFullMe(),
-        telegramService.getAccountStats(),
-        telegramService.downloadMyProfilePhoto(),
-      ])
+    if (profilePhotoUrl.value) {
+      URL.revokeObjectURL(profilePhotoUrl.value)
+      profilePhotoUrl.value = null
+    }
 
-      fullUserInfo.value = fullInfo
-      accountStats.value = stats
+    botApiInfo.value = null
+    fullUserInfo.value = null
+    accountStats.value = null
+    error.value = ''
+    isLoading.value = true
 
-      if (photoBlob) {
-        profilePhotoUrl.value = URL.createObjectURL(photoBlob)
+    if (!account.value) {
+      error.value = t('accountInfo.noAccountSelected')
+      isLoading.value = false
+      return
+    }
+
+    try {
+      if (isBot.value && account.value.botToken) {
+        const info = await getBotInfo(account.value.botToken)
+        if (requestId !== accountLoadRequestId) {
+          return
+        }
+
+        botApiInfo.value = info
+      } else if (isUser.value) {
+        const [fullInfo, stats, photoBlob] = await Promise.all([
+          telegramService.getFullMe(),
+          telegramService.getAccountStats(),
+          telegramService.downloadMyProfilePhoto(),
+        ])
+
+        if (requestId !== accountLoadRequestId) {
+          return
+        }
+
+        fullUserInfo.value = fullInfo
+        accountStats.value = stats
+
+        if (photoBlob) {
+          profilePhotoUrl.value = URL.createObjectURL(photoBlob)
+        }
+      }
+    } catch (e) {
+      if (requestId === accountLoadRequestId) {
+        error.value = e instanceof Error ? e.message : t('common.error')
+      }
+    } finally {
+      if (requestId === accountLoadRequestId) {
+        isLoading.value = false
       }
     }
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : t('common.error')
-  } finally {
-    isLoading.value = false
-  }
-})
+  },
+  { immediate: true },
+)
 
 onUnmounted(() => {
   if (profilePhotoUrl.value) {

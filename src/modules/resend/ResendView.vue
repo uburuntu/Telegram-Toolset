@@ -5,12 +5,14 @@ import { useRouter } from 'vue-router'
 import { resendService } from '@/services/resend/resend-service'
 import { backupManager } from '@/services/storage/backup-manager'
 import { telegramService } from '@/services/telegram/client'
-import { useBackupsStore, useUiStore } from '@/stores'
+import { useAccountsStore, useBackupsStore, useUiStore } from '@/stores'
 import type { Backup, ChatInfo, DeletedMessage, ExportProgress, ResendConfig } from '@/types'
 import { getBrowserTimezone, getTimezoneLabel } from '@/types/backup'
+import { formatDateWithLocale } from '@/utils/locale-format'
 
 const { t } = useI18n()
 const router = useRouter()
+const accountsStore = useAccountsStore()
 const backupsStore = useBackupsStore()
 const uiStore = useUiStore()
 
@@ -49,6 +51,8 @@ const floodWaitRemaining = ref(0)
 
 // Preview sample messages
 const sampleMessages = ref<DeletedMessage[]>([])
+let sampleBackupRequestId = 0
+let chatsRequestId = 0
 
 // Generate preview HTML based on current config
 const previewHtml = computed(() => {
@@ -74,6 +78,7 @@ const previewHtml = computed(() => {
 watch(
   () => selectedBackup.value,
   async (backup) => {
+    const requestId = ++sampleBackupRequestId
     if (!backup) {
       sampleMessages.value = []
       return
@@ -81,13 +86,21 @@ watch(
 
     try {
       const fullBackup = await backupManager.getBackup(backup.id)
+      if (requestId !== sampleBackupRequestId) {
+        return
+      }
+
       if (fullBackup && fullBackup.messages.length > 0) {
         // Pick up to 2 sample messages with text
         const samples = fullBackup.messages.filter((m) => m.text || m.senderName).slice(0, 2)
         sampleMessages.value = samples.length > 0 ? samples : fullBackup.messages.slice(0, 2)
+      } else {
+        sampleMessages.value = []
       }
     } catch {
-      // Silently ignore - preview is optional
+      if (requestId === sampleBackupRequestId) {
+        sampleMessages.value = []
+      }
     }
   },
   { immediate: true },
@@ -113,6 +126,8 @@ const sentCount = computed(() => {
   return currentProgress.value.exportedTextMessages + currentProgress.value.exportedMediaMessages
 })
 
+const hasSendableContent = computed(() => includeMedia.value || includeText.value)
+
 // Lifecycle
 onMounted(async () => {
   backupsStore.setLoading(true)
@@ -133,6 +148,30 @@ onUnmounted(() => {
   }
 })
 
+watch(
+  () => accountsStore.activeAccountId,
+  async () => {
+    if (resendService.isResending) {
+      resendService.cancel()
+    }
+
+    step.value = selectedBackup.value ? 'select-target' : 'select-backup'
+    selectedTarget.value = null
+    chats.value = []
+    searchQuery.value = ''
+    error.value = ''
+    currentProgress.value = null
+    floodWaitSeconds.value = 0
+    floodWaitRemaining.value = 0
+
+    if (accountsStore.activeAccount?.type !== 'user' || !selectedBackup.value) {
+      return
+    }
+
+    await loadChats()
+  },
+)
+
 // Actions
 function selectBackup(backup: Backup) {
   selectedBackup.value = backup
@@ -141,13 +180,26 @@ function selectBackup(backup: Backup) {
 }
 
 async function loadChats() {
+  const requestId = ++chatsRequestId
   isLoading.value = true
+  error.value = ''
   try {
-    chats.value = await telegramService.getDialogs(100)
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Failed to load chats'
+    const loadedChats = await telegramService.getDialogs(100)
+    if (requestId !== chatsRequestId) {
+      return
+    }
+
+    chats.value = loadedChats
+  } catch (loadError) {
+    if (requestId !== chatsRequestId) {
+      return
+    }
+
+    error.value = loadError instanceof Error ? loadError.message : t('common.error')
   } finally {
-    isLoading.value = false
+    if (requestId === chatsRequestId) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -173,6 +225,11 @@ function goBack() {
 }
 
 function showConfirmation() {
+  if (!hasSendableContent.value) {
+    error.value = t('resend.chooseContent')
+    return
+  }
+
   step.value = 'confirm'
   showConfirmDialog.value = true
 }
@@ -187,7 +244,7 @@ function cancelResend() {
 }
 
 async function startResend() {
-  if (!selectedBackup.value || !selectedTarget.value) return
+  if (!selectedBackup.value || !selectedTarget.value || !hasSendableContent.value) return
 
   step.value = 'sending'
   error.value = ''
@@ -258,11 +315,11 @@ async function startResend() {
 }
 
 function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDateWithLocale(date, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-  }).format(date)
+  })
 }
 
 function formatBytes(bytes: number): string {
@@ -321,7 +378,7 @@ function formatBytes(bytes: number): string {
               {{ formatDate(backup.createdAt) }} • {{ backup.messageCount }} •
               {{ formatBytes(backup.storageSize) }}
               <span v-if="backup.mediaCount > 0" class="text-blue-600">
-                • {{ backup.mediaCount }} media
+                • {{ backup.mediaCount }} {{ t('resend.mediaFilesCount').toLowerCase() }}
               </span>
             </div>
           </div>
@@ -458,7 +515,7 @@ function formatBytes(bytes: number): string {
                 t('resend.showReplyLink')
               }}</span>
             </label>
-            <label v-if="showReplyLink" class="flex items-center gap-3 cursor-pointer ml-6">
+            <label v-if="showReplyLink" class="ml-6 flex items-center gap-3">
               <input v-model="useHiddenReplyLinks" type="checkbox" class="rounded text-blue-600" />
               <span class="text-sm text-gray-600 dark:text-gray-400">{{
                 t('resend.hiddenReplyLink')
@@ -588,7 +645,8 @@ function formatBytes(bytes: number): string {
 
         <button
           @click="showConfirmation"
-          class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
+          :disabled="!hasSendableContent"
+          class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
         >
           {{ t('common.continue') }}
         </button>
@@ -701,7 +759,8 @@ function formatBytes(bytes: number): string {
           </button>
           <button
             @click="confirmAndStart"
-            class="flex-1 px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
+            :disabled="!hasSendableContent"
+            class="flex-1 px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
           >
             {{ t('common.startResending') }}
           </button>

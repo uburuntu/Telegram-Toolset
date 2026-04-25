@@ -13,6 +13,7 @@
 
 import type { DeletedMessage, ExportProgress, ResendConfig } from '@/types'
 import { getBrowserTimezone } from '@/types/backup'
+import { formatDateWithLocale } from '@/utils/locale-format'
 import { telegramService } from '../telegram/client'
 import { formatDuration, sleep, startFloodWaitCountdown, withRetry } from '../telegram/rate-limiter'
 
@@ -313,6 +314,7 @@ class ResendService {
 
     try {
       const messageText = this.buildMessageText(message, config)
+      const hasFallbackText = Boolean(message.text?.trim())
       let sentMedia = false
 
       // Send media if present and configured
@@ -338,11 +340,19 @@ class ResendService {
 
           sentMedia = true
           progress.exportedMediaMessages++
+        } else {
+          callbacks.onError?.(new Error('Media file is missing from the local backup'), message.id)
+          progress.failedMessages++
         }
       }
 
       // Send text message if media wasn't sent and we have text
-      if (!sentMedia && config.includeText && messageText) {
+      if (
+        !sentMedia &&
+        config.includeText &&
+        messageText &&
+        (!message.hasMedia || hasFallbackText)
+      ) {
         await this.sendMessageWithRetry(config.targetChatId, messageText, callbacks, signal)
         progress.exportedTextMessages++
       }
@@ -507,7 +517,7 @@ class ResendService {
   private formatDate(date: Date, timezone?: string): string {
     const tz = timezone || getBrowserTimezone()
     try {
-      return new Intl.DateTimeFormat('en-US', {
+      return formatDateWithLocale(date, {
         year: 'numeric',
         month: 'short',
         day: '2-digit',
@@ -515,10 +525,10 @@ class ResendService {
         minute: '2-digit',
         hour12: false,
         timeZone: tz,
-      }).format(date)
+      })
     } catch {
       // Fallback if timezone is invalid
-      return date.toLocaleString('en-US', {
+      return formatDateWithLocale(date, {
         year: 'numeric',
         month: 'short',
         day: '2-digit',
