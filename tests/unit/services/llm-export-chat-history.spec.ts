@@ -14,11 +14,18 @@ vi.mock('@/services/llm-export/store', () => ({
   saveChatExportBundle,
 }))
 
-vi.mock('@/services/telegram/client', () => ({
-  telegramService: {
-    getChatMessageCount: vi.fn(),
-    iterChatMessages: vi.fn(),
-    resolveSenderInfo: vi.fn(),
+vi.mock('@/services/telegram/gateway', () => ({
+  telegramGateway: {
+    auth: {
+      onFloodWait: vi.fn(() => () => {}),
+    },
+    history: {
+      getChatMessageCount: vi.fn(),
+      iterChatMessages: vi.fn(),
+    },
+    entities: {
+      resolveSenderInfo: vi.fn(),
+    },
   },
 }))
 
@@ -27,7 +34,7 @@ vi.mock('@/services/telegram/rate-limiter', () => ({
 }))
 
 import { chatHistoryService } from '@/services/llm-export/chat-history-service'
-import { telegramService } from '@/services/telegram/client'
+import { telegramGateway } from '@/services/telegram/gateway'
 
 const chatInfo: ChatInfo = {
   id: BigInt('1234567890'),
@@ -57,8 +64,8 @@ describe('chatHistoryService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    vi.mocked(telegramService.getChatMessageCount).mockResolvedValue(2)
-    vi.mocked(telegramService.resolveSenderInfo).mockResolvedValue({
+    vi.mocked(telegramGateway.history.getChatMessageCount).mockResolvedValue(2)
+    vi.mocked(telegramGateway.entities.resolveSenderInfo).mockResolvedValue({
       name: 'Alice',
       username: 'alice',
     })
@@ -71,13 +78,13 @@ describe('chatHistoryService', () => {
   })
 
   it('persists chat and sender peer identifiers via the bundle store', async () => {
-    vi.mocked(telegramService.iterChatMessages).mockImplementation(async function* () {
+    vi.mocked(telegramGateway.history.iterChatMessages).mockImplementation(async function* () {
       yield makeMessage()
     })
 
     const result = await chatHistoryService.downloadChatHistory(chatInfo)
 
-    expect(telegramService.getChatMessageCount).toHaveBeenCalledWith(chatInfo.peerId)
+    expect(telegramGateway.history.getChatMessageCount).toHaveBeenCalledWith(chatInfo.peerId)
     expect(saveChatExportBundle).toHaveBeenCalledTimes(1)
     expect(saveChatExportBundle.mock.calls[0]?.[0]).toMatchObject({
       chatId: chatInfo.id,
@@ -94,7 +101,7 @@ describe('chatHistoryService', () => {
   })
 
   it('supports stop-and-save on a request-scoped task', async () => {
-    vi.mocked(telegramService.iterChatMessages).mockImplementation(async function* () {
+    vi.mocked(telegramGateway.history.iterChatMessages).mockImplementation(async function* () {
       yield makeMessage({ id: 1, text: 'First' })
       yield makeMessage({ id: 2, text: 'Second', date: new Date('2024-03-10T10:01:00Z') })
     })

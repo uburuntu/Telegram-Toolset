@@ -14,7 +14,7 @@
 import type { DeletedMessage, ExportProgress, ResendConfig } from '@/types'
 import { getBrowserTimezone } from '@/types/backup'
 import { formatDateWithLocale } from '@/utils/locale-format'
-import { telegramService } from '../telegram/client'
+import { telegramGateway } from '../telegram/gateway'
 import { formatDuration, sleep, startFloodWaitCountdown, withRetry } from '../telegram/rate-limiter'
 
 // Constants matching Python implementation
@@ -548,7 +548,7 @@ class ResendService {
     callbacks: ResendCallbacks,
     signal: AbortSignal,
   ): Promise<void> {
-    await withRetry(() => telegramService.sendMessage(chatId, text, 'html'), {
+    await withRetry(() => telegramGateway.send.sendMessage(chatId, text, 'html'), {
       maxRetries: MAX_SEND_RETRIES,
       signal,
       onFloodWait: (seconds) => {
@@ -577,7 +577,7 @@ class ResendService {
   ): Promise<void> {
     await withRetry(
       () =>
-        telegramService.sendFile(chatId, file, {
+        telegramGateway.send.sendFile(chatId, file, {
           caption: options.caption,
           parseMode: options.parseMode,
           filename: options.filename,

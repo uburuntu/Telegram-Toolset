@@ -15,7 +15,7 @@ import type {
   ChatInfo,
   ChatMessage,
 } from '@/types'
-import { telegramService } from '../telegram/client'
+import { telegramGateway } from '../telegram/gateway'
 import { createFloodWaitSubscription } from '../telegram/rate-limiter'
 import {
   deleteChatExport,
@@ -53,7 +53,7 @@ class ChatHistoryDownloadTask implements ChatHistoryTask {
 
   private async run(): Promise<ChatHistoryResult> {
     const unsubscribeFloodWait = createFloodWaitSubscription(
-      telegramService,
+      telegramGateway.auth,
       this.callbacks,
       this.signal,
     )
@@ -72,7 +72,7 @@ class ChatHistoryDownloadTask implements ChatHistoryTask {
       this.callbacks.onProgress?.({ ...progress })
 
       try {
-        const estimatedCount = await telegramService.getChatMessageCount(
+        const estimatedCount = await telegramGateway.history.getChatMessageCount(
           this.chatInfo.peerId || this.chatInfo.id,
         )
         progress.totalEstimate = this.options.limit
@@ -85,7 +85,7 @@ class ChatHistoryDownloadTask implements ChatHistoryTask {
       progress.phase = 'fetching'
       this.callbacks.onProgress?.({ ...progress })
 
-      for await (const message of telegramService.iterChatMessages(
+      for await (const message of telegramGateway.history.iterChatMessages(
         this.chatInfo.peerId || this.chatInfo.id,
         this.options,
       )) {
@@ -177,7 +177,7 @@ class ChatHistoryDownloadTask implements ChatHistoryTask {
     }
 
     try {
-      const senderInfo = await telegramService.resolveSenderInfo(senderRef)
+      const senderInfo = await telegramGateway.entities.resolveSenderInfo(senderRef)
       return {
         ...message,
         senderName: senderInfo.name,
