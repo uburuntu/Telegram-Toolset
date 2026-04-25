@@ -163,6 +163,7 @@
     },
     "errors": {
       "authenticationFailed": "Authentication failed",
+      "loginFlowExpired": "This login attempt expired. Send the code again.",
       "sendCodeFailed": "Failed to send code",
       "verifyCodeFailed": "Failed to verify code",
       "incorrectPassword": "Incorrect password",

@@ -1,5 +1,5 @@
-import { mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { i18n } from '@/i18n'
 
 const mockAccountsStore = {
@@ -8,10 +8,14 @@ const mockAccountsStore = {
   accounts: [],
   findBotByTelegramId: vi.fn(),
   setAuthFlowApiCredentials: vi.fn(),
+  setAuthFlowPhone: vi.fn(),
   setApiCredentials: vi.fn(),
   addAccount: vi.fn(),
   setActiveAccount: vi.fn(),
   updateAccount: vi.fn(),
+  markAccountSessionReady: vi.fn(),
+  setAuthFlowNeedsPassword: vi.fn(),
+  setAuthFlowComplete: vi.fn(),
   resetAuthFlow: vi.fn(),
 }
 
@@ -52,12 +56,17 @@ vi.mock('@/services/telegram/bot-api', () => ({
 }))
 
 import LoginModal from '@/components/auth/LoginModal.vue'
+import { telegramService } from '@/services/telegram/client'
 
 describe('LoginModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAccountsStore.apiCredentials = null
     mockAccountsStore.accounts = []
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders with dialog semantics', () => {
@@ -86,5 +95,100 @@ describe('LoginModal', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
     expect(mockAccountsStore.resetAuthFlow).toHaveBeenCalledTimes(1)
     expect(mockUiStore.closeModal).not.toHaveBeenCalled()
+  })
+
+  it('keeps the re-login password flow alive after a recoverable 2FA error', async () => {
+    vi.useFakeTimers()
+
+    mockAccountsStore.apiCredentials = {
+      apiId: 123456,
+      apiHash: '0123456789abcdef',
+    }
+    mockAccountsStore.accounts = [
+      {
+        id: 'account-1',
+        type: 'user',
+        label: 'Ramzan',
+        firstName: 'Ramzan',
+        phone: '+79261247596',
+        sessionString: 'expired-session',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]
+
+    const service = telegramService as any
+    let authOptions:
+      | {
+          onPasswordNeeded?: (hint?: string) => void
+          onRecoverableError?: (error: unknown, stage: 'code' | 'password') => void
+        }
+      | undefined
+    let resolveAuth!: (user: { firstName: string; username: string }) => void
+    const authPromise = new Promise<{ firstName: string; username: string }>((resolve) => {
+      resolveAuth = resolve
+    })
+    let passwordAttempts = 0
+
+    service.resetForNewUserLogin.mockResolvedValue(undefined)
+    service.initClient.mockResolvedValue(undefined)
+    service.startUserAuth.mockImplementation((_phone: string, options: typeof authOptions) => {
+      authOptions = options
+      return authPromise
+    })
+    service.provideCode.mockImplementation(() => {
+      authOptions?.onPasswordNeeded?.('mambo')
+    })
+    service.providePassword.mockImplementation(() => {
+      passwordAttempts += 1
+      if (passwordAttempts === 1) {
+        authOptions?.onRecoverableError?.(new Error('Incorrect password'), 'password')
+        return
+      }
+
+      resolveAuth({ firstName: 'Ramzan', username: 'ramzan' })
+    })
+    service.getSessionString.mockReturnValue('fresh-session')
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user', replaceAccountId: 'account-1' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    await wrapper.get('input[type="text"]').setValue('12345')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('2FA Password')
+
+    await wrapper.get('input[type="password"]').setValue('wrong-password')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Incorrect password')
+    expect(service.providePassword).toHaveBeenCalledTimes(1)
+
+    await wrapper.get('input[type="password"]').setValue('correct-password')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(mockAccountsStore.updateAccount).toHaveBeenCalledWith(
+      'account-1',
+      expect.objectContaining({
+        firstName: 'Ramzan',
+        username: 'ramzan',
+        phone: '+79261247596',
+        sessionString: 'fresh-session',
+      }),
+    )
+    expect(mockAccountsStore.markAccountSessionReady).toHaveBeenCalledWith('account-1')
+    expect(mockAccountsStore.setActiveAccount).toHaveBeenCalledWith('account-1')
+
+    vi.runAllTimers()
   })
 })

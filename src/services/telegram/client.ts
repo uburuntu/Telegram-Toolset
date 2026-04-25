@@ -32,6 +32,13 @@ interface DeferredPromise<T> {
   reject: (reason?: unknown) => void
 }
 
+type RecoverableAuthStage = 'code' | 'password'
+
+interface StartUserAuthOptions {
+  onPasswordNeeded?: (hint?: string) => void
+  onRecoverableError?: (error: unknown, stage: RecoverableAuthStage) => void
+}
+
 function createDeferred<T>(): DeferredPromise<T> {
   let resolve!: (value: T) => void
   let reject!: (reason?: unknown) => void
@@ -77,6 +84,47 @@ class TelegramService {
     //
     // The canonical session persistence is `SavedAccount.sessionString` inside `telegram_accounts`.
     this.session = new StringSession('')
+  }
+
+  private cancelInteractiveAuth(reason = 'AUTH_FLOW_CANCELLED'): void {
+    const error = new Error(reason)
+
+    this.phoneDeferred?.reject(error)
+    this.codeDeferred?.reject(error)
+    this.passwordDeferred?.reject(error)
+
+    this.phoneDeferred = null
+    this.codeDeferred = null
+    this.passwordDeferred = null
+    this.onPasswordNeeded = null
+  }
+
+  private getRecoverableAuthStage(error: unknown): RecoverableAuthStage | null {
+    const message =
+      typeof error === 'object' && error !== null
+        ? (error as { errorMessage?: string; message?: string }).errorMessage ||
+          (error as { errorMessage?: string; message?: string }).message ||
+          ''
+        : ''
+
+    if (
+      message === 'PHONE_CODE_EMPTY' ||
+      message === 'PHONE_CODE_INVALID' ||
+      message === 'PHONE_CODE_EXPIRED' ||
+      message === 'Code is empty'
+    ) {
+      return 'code'
+    }
+
+    if (
+      message === 'PASSWORD_HASH_INVALID' ||
+      message === 'SRP_ID_INVALID' ||
+      message === 'Password is empty'
+    ) {
+      return 'password'
+    }
+
+    return null
   }
 
   get isConnected(): boolean {
@@ -398,10 +446,7 @@ class TelegramService {
     this.apiId = null
     this.apiHash = null
 
-    // Also clear any lingering auth deferreds from a previous login attempt.
-    this.phoneDeferred = null
-    this.codeDeferred = null
-    this.passwordDeferred = null
+    this.cancelInteractiveAuth()
   }
 
   /**
@@ -493,18 +538,15 @@ class TelegramService {
    * @param options - Optional callbacks for auth flow events
    * @param options.onPasswordNeeded - Called when 2FA password is required (with optional hint)
    */
-  async startUserAuth(
-    phone: string,
-    options?: { onPasswordNeeded?: (hint?: string) => void },
-  ): Promise<UserInfo> {
+  async startUserAuth(phone: string, options?: StartUserAuthOptions): Promise<UserInfo> {
     if (!this.client) {
       throw new Error('Client not initialized')
     }
 
     // Create deferreds for interactive flow
     this.phoneDeferred = createDeferred<string>()
-    this.codeDeferred = createDeferred<string>()
-    this.passwordDeferred = createDeferred<string>()
+    this.codeDeferred = null
+    this.passwordDeferred = null
     this.onPasswordNeeded = options?.onPasswordNeeded || null
 
     // Resolve phone immediately since we already have it
@@ -516,17 +558,26 @@ class TelegramService {
           return this.phoneDeferred!.promise
         },
         phoneCode: async () => {
+          this.codeDeferred = createDeferred<string>()
           return this.codeDeferred!.promise
         },
         password: async (hint?: string) => {
+          this.passwordDeferred = createDeferred<string>()
           // Notify UI that password is needed before waiting
           if (this.onPasswordNeeded) {
             this.onPasswordNeeded(hint)
           }
           return this.passwordDeferred!.promise
         },
-        onError: (err) => {
+        onError: async (err) => {
           console.error('Auth error:', err)
+
+          const recoverableStage = this.getRecoverableAuthStage(err)
+          if (recoverableStage) {
+            options?.onRecoverableError?.(err, recoverableStage)
+            return false
+          }
+
           throw err
         },
       })
@@ -544,10 +595,7 @@ class TelegramService {
       }
       throw new Error('Failed to get user info')
     } finally {
-      this.phoneDeferred = null
-      this.codeDeferred = null
-      this.passwordDeferred = null
-      this.onPasswordNeeded = null
+      this.cancelInteractiveAuth()
     }
   }
 
@@ -599,6 +647,7 @@ class TelegramService {
    * Disconnect and logout
    */
   async disconnect(): Promise<void> {
+    this.cancelInteractiveAuth()
     if (this.client) {
       await this.client.disconnect()
       this.client = null

@@ -6,10 +6,7 @@ import type { BotApiUser } from '@/services/telegram/bot-api'
 import { getBotInfo, isValidTokenFormat, maskBotToken } from '@/services/telegram/bot-api'
 import { telegramService } from '@/services/telegram/client'
 import { useAccountsStore, useUiStore } from '@/stores'
-import type { AccountType, SavedAccount } from '@/types'
-
-// Auth flow promise - resolves when full auth completes
-let authPromise: Promise<void> | null = null
+import type { AccountType, SavedAccount, UserInfo } from '@/types'
 
 const props = defineProps<{
   requiredType?: 'user' | 'bot' | 'any'
@@ -44,16 +41,19 @@ const replacementAccountLabel = computed(
 const previousActiveAccountId = accountsStore.activeAccountId
 const dialogTitleId = 'login-modal-title'
 
-// State - initialize step based on required type and existing credentials
-const activeTab = ref<AccountType>(props.requiredType === 'bot' ? 'bot' : 'user')
-const getInitialStep = ():
+type LoginStep =
   | 'credentials-choice'
   | 'credentials'
   | 'phone'
   | 'code'
   | 'password'
   | 'token'
-  | 'success' => {
+  | 'success'
+type RecoverableAuthStage = 'code' | 'password'
+
+// State - initialize step based on required type and existing credentials
+const activeTab = ref<AccountType>(props.requiredType === 'bot' ? 'bot' : 'user')
+const getInitialStep = (): LoginStep => {
   if (props.requiredType === 'bot') return 'token'
   if (replacementUserAccount.value) {
     return accountsStore.apiCredentials ? 'phone' : 'credentials'
@@ -62,9 +62,7 @@ const getInitialStep = ():
   if (accountsStore.apiCredentials) return 'credentials-choice'
   return 'credentials'
 }
-const step = ref<
-  'credentials-choice' | 'credentials' | 'phone' | 'code' | 'password' | 'token' | 'success'
->(getInitialStep())
+const step = ref<LoginStep>(getInitialStep())
 const isLoading = ref(false)
 const error = ref('')
 
@@ -84,6 +82,8 @@ const isValidatingToken = ref(false)
 const tokenValidated = ref(false)
 // NOTE: "tokenValidationWarning" path removed per issue #4 - bot tokens must validate successfully.
 const existingBotAccount = ref<SavedAccount | null>(null)
+const userAuthPromise = ref<Promise<UserInfo> | null>(null)
+let userAuthAttemptId = 0
 
 function seedReplacementUserFields(): void {
   if (activeTab.value !== 'user' || !replacementUserAccount.value) {
@@ -101,7 +101,18 @@ function seedReplacementUserFields(): void {
 seedReplacementUserFields()
 
 // Computed
-const canSwitchTabs = computed(() => props.requiredType === 'any' || !props.requiredType)
+const canSwitchTabs = computed(() => {
+  if (props.requiredType && props.requiredType !== 'any') {
+    return false
+  }
+
+  return (
+    step.value === 'credentials-choice' ||
+    step.value === 'credentials' ||
+    step.value === 'phone' ||
+    step.value === 'token'
+  )
+})
 
 // Watch tab changes
 watch(activeTab, () => {
@@ -109,11 +120,13 @@ watch(activeTab, () => {
 })
 
 function resetForm(): void {
+  invalidateUserAuth()
   if (activeTab.value === 'user') {
     step.value = getInitialStep()
   } else {
     step.value = 'token'
   }
+  isLoading.value = false
   error.value = ''
   apiId.value = ''
   apiHash.value = ''
@@ -127,6 +140,128 @@ function resetForm(): void {
   tokenValidated.value = false
   existingBotAccount.value = null
   seedReplacementUserFields()
+}
+
+function getErrorMessage(authError: unknown, fallbackKey: string): string {
+  if (authError && typeof authError === 'object') {
+    const candidate = authError as { message?: string; errorMessage?: string }
+    return candidate.message || candidate.errorMessage || t(fallbackKey)
+  }
+
+  return t(fallbackKey)
+}
+
+function invalidateUserAuth(): void {
+  userAuthAttemptId += 1
+  userAuthPromise.value = null
+}
+
+function restartUserAuthFlow(): void {
+  invalidateUserAuth()
+  isLoading.value = false
+  error.value = ''
+  code.value = ''
+  password.value = ''
+  passwordHint.value = undefined
+  step.value = 'phone'
+
+  const svc: any = telegramService as any
+  if (typeof svc.resetForNewUserLogin === 'function') {
+    svc.resetForNewUserLogin().catch(() => {
+      // Ignore best-effort cleanup.
+    })
+  }
+}
+
+function handleRecoverableAuthError(authError: unknown, stage: RecoverableAuthStage): void {
+  error.value = getErrorMessage(
+    authError,
+    stage === 'password' ? 'auth.errors.incorrectPassword' : 'auth.errors.verifyCodeFailed',
+  )
+  isLoading.value = false
+
+  if (stage === 'password') {
+    password.value = ''
+    step.value = 'password'
+    accountsStore.setAuthFlowNeedsPassword()
+    return
+  }
+
+  code.value = ''
+  step.value = 'code'
+}
+
+async function finalizeUserAuth(user: UserInfo): Promise<void> {
+  const sessionString = telegramService.getSessionString()
+  let accountId: string
+
+  if (replacementUserAccount.value) {
+    accountsStore.updateAccount(replacementUserAccount.value.id, {
+      label:
+        user.firstName || replacementUserAccount.value.label || `User ${phone.value.slice(-4)}`,
+      firstName: user.firstName || replacementUserAccount.value.firstName,
+      username: user.username,
+      phone: phone.value,
+      sessionString,
+    })
+    accountId = replacementUserAccount.value.id
+    uiStore.showToast('success', t('auth.reloginSuccess'))
+  } else {
+    const newAccount = accountsStore.addAccount({
+      type: 'user',
+      label: user.firstName || `User ${phone.value.slice(-4)}`,
+      firstName: user.firstName,
+      username: user.username,
+      phone: phone.value,
+      sessionString,
+    })
+    accountId = newAccount.id
+    uiStore.showToast('success', t('auth.success'))
+  }
+
+  accountsStore.markAccountSessionReady(accountId)
+  accountsStore.setActiveAccount(accountId)
+  accountsStore.setAuthFlowComplete()
+  isLoading.value = false
+  step.value = 'success'
+
+  setTimeout(() => {
+    handleClose()
+    if (props.targetRoute) {
+      router.push(props.targetRoute)
+    }
+  }, 1000)
+}
+
+async function observeUserAuth(pendingAuth: Promise<UserInfo>, attemptId: number): Promise<void> {
+  try {
+    const user = await pendingAuth
+    if (userAuthPromise.value !== pendingAuth || userAuthAttemptId !== attemptId) {
+      return
+    }
+
+    invalidateUserAuth()
+    await finalizeUserAuth(user)
+  } catch (authError) {
+    if (userAuthPromise.value !== pendingAuth || userAuthAttemptId !== attemptId) {
+      return
+    }
+
+    invalidateUserAuth()
+    isLoading.value = false
+    error.value = getErrorMessage(authError, 'auth.errors.authenticationFailed')
+  }
+}
+
+function ensureActiveUserAuth(): boolean {
+  if (userAuthPromise.value) {
+    return true
+  }
+
+  isLoading.value = false
+  error.value = t('auth.errors.loginFlowExpired')
+  step.value = 'phone'
+  return false
 }
 
 // Handle bot token input with auto-validation
@@ -250,70 +385,37 @@ async function handlePhoneSubmit(): Promise<void> {
 
     // Start auth flow - client.start() handles connect + sendCode + waitForCode internally
     // We run this in the background and move to code step
-    authPromise = telegramService
-      .startUserAuth(phone.value, {
-        onPasswordNeeded: (hint) => {
-          // GramJS is now waiting for 2FA password - transition to password step
-          passwordHint.value = hint
-          step.value = 'password'
-          isLoading.value = false
-        },
-      })
-      .then((user) => {
-        // Auth completed successfully
-        const sessionString = telegramService.getSessionString()
-        let accountId: string
+    passwordHint.value = undefined
+    code.value = ''
+    password.value = ''
 
-        if (replacementUserAccount.value) {
-          accountsStore.updateAccount(replacementUserAccount.value.id, {
-            label:
-              user.firstName ||
-              replacementUserAccount.value.label ||
-              `User ${phone.value.slice(-4)}`,
-            firstName: user.firstName || replacementUserAccount.value.firstName,
-            username: user.username,
-            phone: phone.value,
-            sessionString,
-          })
-          accountId = replacementUserAccount.value.id
-          uiStore.showToast('success', t('auth.reloginSuccess'))
-        } else {
-          const newAccount = accountsStore.addAccount({
-            type: 'user',
-            label: user.firstName || `User ${phone.value.slice(-4)}`,
-            firstName: user.firstName,
-            username: user.username,
-            phone: phone.value,
-            sessionString,
-          })
-          accountId = newAccount.id
-          uiStore.showToast('success', t('auth.success'))
-        }
+    const pendingAuth = telegramService.startUserAuth(phone.value, {
+      onPasswordNeeded: (hint) => {
+        passwordHint.value = hint
+        password.value = ''
+        error.value = ''
+        step.value = 'password'
+        accountsStore.setAuthFlowNeedsPassword()
+        isLoading.value = false
+      },
+      onRecoverableError: (authError, stage) => {
+        handleRecoverableAuthError(authError, stage)
+      },
+    })
 
-        accountsStore.markAccountSessionReady(accountId)
-        accountsStore.setActiveAccount(accountId)
-        step.value = 'success'
-        setTimeout(() => {
-          handleClose()
-          if (props.targetRoute) {
-            router.push(props.targetRoute)
-          }
-        }, 1000)
-      })
-      .catch((e: any) => {
-        if (e.errorMessage === 'SESSION_PASSWORD_NEEDED') {
-          step.value = 'password'
-        } else {
-          error.value = e.message || t('auth.errors.authenticationFailed')
-        }
-      })
+    const attemptId = ++userAuthAttemptId
+    userAuthPromise.value = pendingAuth
+    void observeUserAuth(pendingAuth, attemptId)
 
     // Move to code entry step - GramJS is waiting for the code
+    accountsStore.setAuthFlowPhone(phone.value, '')
     step.value = 'code'
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('auth.errors.sendCodeFailed')
   } finally {
-    isLoading.value = false
+    if (step.value !== 'code' && step.value !== 'password') {
+      isLoading.value = false
+    }
   }
 }
 
@@ -324,24 +426,15 @@ async function handleCodeSubmit(): Promise<void> {
     return
   }
 
-  isLoading.value = true
-  try {
-    // Provide the code to the waiting auth flow
-    telegramService.provideCode(code.value)
-
-    // Wait for the auth promise to complete
-    if (authPromise) {
-      await authPromise
-    }
-  } catch (e: any) {
-    if (e.errorMessage === 'SESSION_PASSWORD_NEEDED') {
-      step.value = 'password'
-    } else {
-      error.value = e instanceof Error ? e.message : t('auth.errors.verifyCodeFailed')
-    }
-  } finally {
-    isLoading.value = false
+  if (!ensureActiveUserAuth()) {
+    return
   }
+
+  isLoading.value = true
+
+  // Provide the code to the waiting auth flow. Completion is observed separately so the UI
+  // can stay responsive while GramJS waits for either the next prompt or final success.
+  telegramService.provideCode(code.value)
 }
 
 async function handlePasswordSubmit(): Promise<void> {
@@ -351,20 +444,14 @@ async function handlePasswordSubmit(): Promise<void> {
     return
   }
 
-  isLoading.value = true
-  try {
-    // Provide the password to the waiting auth flow
-    telegramService.providePassword(password.value)
-
-    // Wait for the auth promise to complete
-    if (authPromise) {
-      await authPromise
-    }
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : t('auth.errors.incorrectPassword')
-  } finally {
-    isLoading.value = false
+  if (!ensureActiveUserAuth()) {
+    return
   }
+
+  isLoading.value = true
+
+  // Provide the password to the waiting auth flow. Completion is observed separately.
+  telegramService.providePassword(password.value)
 }
 
 async function handleBotTokenSubmit(): Promise<void> {
@@ -427,12 +514,14 @@ async function handleBotTokenSubmit(): Promise<void> {
 }
 
 function handleClose(): void {
+  const didAuthenticate = step.value === 'success'
+  invalidateUserAuth()
   accountsStore.resetAuthFlow()
   emit('close')
 
   // If user cancels mid-flow, restore previous active user session (best-effort).
   // This prevents leaving the app in a "disconnected" state after attempting to add another account.
-  if (step.value === 'success') {
+  if (didAuthenticate) {
     return
   }
 
@@ -470,9 +559,9 @@ function goBack(): void {
       step.value = 'credentials'
     }
   } else if (step.value === 'code') {
-    step.value = 'phone'
+    restartUserAuthFlow()
   } else if (step.value === 'password') {
-    step.value = 'code'
+    restartUserAuthFlow()
   }
 }
 </script>

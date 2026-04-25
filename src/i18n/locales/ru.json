@@ -163,6 +163,7 @@
     },
     "errors": {
       "authenticationFailed": "Authentication failed",
+      "loginFlowExpired": "Этот вход устарел. Отправьте код ещё раз.",
       "sendCodeFailed": "Failed to send code",
       "verifyCodeFailed": "Failed to verify code",
       "incorrectPassword": "Incorrect password",
