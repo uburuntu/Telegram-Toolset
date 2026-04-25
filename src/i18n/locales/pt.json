@@ -17,17 +17,17 @@
     "continue": "Continuar",
     "startExport": "Iniciar Exportação",
     "startResending": "Iniciar Reenvio",
-    "admin": "Admin",
+    "admin": "Administrador",
     "openSource": "Código Aberto",
     "account": "conta",
     "accounts": "contas",
-    "rateLimited": "Rate limited. Waiting {seconds}s...",
-    "dismiss": "Dismiss",
-    "goHome": "Go Home",
-    "tryAgain": "Try Again"
+    "rateLimited": "Limite de taxa. Aguardando {seconds}s...",
+    "dismiss": "Fechar",
+    "goHome": "Ir para o Início",
+    "tryAgain": "Tentar Novamente"
   },
   "landing": {
-    "title": "Telegram Power Toolset",
+    "title": "Kit Avançado de Ferramentas do Telegram",
     "subtitle": "Recursos avançados para Telegram não disponíveis nos aplicativos oficiais. 100% no dispositivo, código aberto e focado na privacidade.",
     "welcome": "Bem-vindo!",
     "welcomeText": "Clique em qualquer ferramenta abaixo para começar. Será solicitado que você conecte sua conta do Telegram.",
@@ -66,45 +66,45 @@
     "addAccount": "Adicionar um {type} para usar",
     "active": "Ativo",
     "removeAccount": "Remover conta",
-    "credentialsFound": "API credentials found",
-    "credentialsFoundHint": "You have API credentials saved from a previous login. The same credentials can be used for multiple Telegram accounts.",
-    "useSavedCredentials": "Use saved credentials",
-    "enterDifferentCredentials": "Enter different credentials",
-    "useDifferentApiHint": "Use a different API ID & Hash",
-    "whyCredentials": "Why do I need API credentials?",
-    "credentialsExplanation": "To connect as a user (not a bot), you need your own app credentials from Telegram. This is like a developer key that identifies your connection. Get them free at",
-    "phoneNumber": "Phone Number",
+    "credentialsFound": "Credenciais da API encontradas",
+    "credentialsFoundHint": "Você tem credenciais da API salvas de um login anterior. As mesmas credenciais podem ser usadas para várias contas do Telegram.",
+    "useSavedCredentials": "Usar credenciais salvas",
+    "enterDifferentCredentials": "Inserir credenciais diferentes",
+    "useDifferentApiHint": "Usar um API ID e Hash diferentes",
+    "whyCredentials": "Por que preciso de credenciais da API?",
+    "credentialsExplanation": "Para se conectar como usuário (não como bot), você precisa das credenciais do seu próprio aplicativo do Telegram. Isso funciona como uma chave de desenvolvedor que identifica sua conexão. Obtenha-as gratuitamente em",
+    "phoneNumber": "Número de Telefone",
     "phonePlaceholder": "+1234567890",
-    "phoneHint": "Enter your phone number to receive a verification code",
-    "sendCode": "Send Code",
-    "sending": "Sending...",
-    "verificationCode": "Verification Code",
-    "verify": "Verify",
-    "verifying": "Verifying...",
-    "twoFaPassword": "2FA Password",
-    "twoFaHint": "Your account has two-factor authentication enabled. Enter your password to continue.",
-    "hint": "Hint",
-    "signingIn": "Signing in...",
-    "signIn": "Sign In",
-    "botTokenHint": "Get your bot token from",
-    "pasteTokenHint": "Paste your bot token here",
-    "tokenMaskedHint": "Token is masked for your privacy when screen sharing",
-    "enterValidToken": "Enter a valid token",
-    "accountAdded": "Account Added!",
-    "redirecting": "Redirecting...",
-    "privacyNote": "Your credentials are stored locally in your browser and never sent to any server.",
-    "continue": "Continue",
-    "back": "Back",
-    "botTokenTab": "Bot Token",
-    "updating": "Updating...",
-    "adding": "Adding...",
-    "duplicateBotWarning": "This bot is already added. Proceeding will update the existing token.",
+    "phoneHint": "Digite seu número de telefone para receber um código de verificação",
+    "sendCode": "Enviar Código",
+    "sending": "Enviando...",
+    "verificationCode": "Código de Verificação",
+    "verify": "Verificar",
+    "verifying": "Verificando...",
+    "twoFaPassword": "Senha da autenticação em dois fatores",
+    "twoFaHint": "Sua conta tem a autenticação em dois fatores ativada. Digite sua senha para continuar.",
+    "hint": "Dica",
+    "signingIn": "Entrando...",
+    "signIn": "Entrar",
+    "botTokenHint": "Obtenha seu token de bot em",
+    "pasteTokenHint": "Cole seu token aqui",
+    "tokenMaskedHint": "O token fica mascarado para sua privacidade durante o compartilhamento de tela",
+    "enterValidToken": "Digite um token válido",
+    "accountAdded": "Conta Adicionada!",
+    "redirecting": "Redirecionando...",
+    "privacyNote": "Suas credenciais são armazenadas localmente no navegador e nunca enviadas para nenhum servidor.",
+    "continue": "Continuar",
+    "back": "Voltar",
+    "botTokenTab": "Token de Bot",
+    "updating": "Atualizando...",
+    "adding": "Adicionando...",
+    "duplicateBotWarning": "Este bot já foi adicionado. Prosseguir atualizará o token existente.",
     "addAccountTitle": "Adicionar Conta",
-    "selected": "Selected",
-    "needsLogin": "Needs login",
-    "logInAgain": "Log In Again",
-    "sessionExpiredTitle": "{name} needs to log in again",
-    "sessionExpiredDescription": "This account is still selected, but its saved Telegram session is no longer valid. Telegram actions will not work until you sign in again."
+    "selected": "Selecionado",
+    "needsLogin": "Precisa entrar",
+    "logInAgain": "Entrar Novamente",
+    "sessionExpiredTitle": "{name} precisa entrar novamente",
+    "sessionExpiredDescription": "Esta conta ainda está selecionada, mas a sessão salva do Telegram não é mais válida. As ações do Telegram não funcionarão até que você entre novamente."
   },
   "auth": {
     "addAccount": "Adicionar Conta",
@@ -154,25 +154,125 @@
     "redirecting": "Redirecionando...",
     "privacyNote": "Suas credenciais são armazenadas localmente no navegador e nunca enviadas para nenhum servidor.",
     "validation": {
-      "apiId": "API ID must be a positive number",
-      "apiHash": "API Hash must be at least 10 characters",
-      "phone": "Please enter a valid phone number",
-      "code": "Please enter the verification code",
-      "password": "Please enter your 2FA password",
-      "botToken": "Please enter a valid bot token"
+      "apiId": "O API ID deve ser um número positivo",
+      "apiHash": "O API Hash deve ter pelo menos 10 caracteres",
+      "phone": "Digite um número de telefone válido",
+      "code": "Digite o código de verificação",
+      "password": "Digite sua senha da autenticação em dois fatores",
+      "botToken": "Digite um token de bot válido"
     },
     "errors": {
-      "authenticationFailed": "Authentication failed",
-      "loginFlowExpired": "This login attempt expired. Send the code again.",
-      "sendCodeFailed": "Failed to send code",
-      "verifyCodeFailed": "Failed to verify code",
-      "incorrectPassword": "Incorrect password",
-      "addBotFailed": "Failed to add bot"
+      "authenticationFailed": "Falha na autenticação",
+      "loginFlowExpired": "Esta tentativa de login expirou. Envie o código novamente.",
+      "sendCodeFailed": "Falha ao enviar o código",
+      "verifyCodeFailed": "Falha ao verificar o código",
+      "incorrectPassword": "Senha incorreta",
+      "addBotFailed": "Falha ao adicionar o bot"
     },
-    "logInAgain": "Log In Again",
-    "reloginAccountTitle": "Reconnect {name}",
-    "reloginAccountDescription": "We'll keep this saved account and replace its expired session after you sign in.",
-    "reloginSuccess": "Account reconnected."
+    "logInAgain": "Entrar Novamente",
+    "reloginAccountTitle": "Reconectar {name}",
+    "reloginAccountDescription": "Manteremos esta conta salva e substituiremos sua sessão expirada depois que você entrar.",
+    "reloginSuccess": "Conta reconectada."
+  },
+  "errors": {
+    "unexpected": {
+      "message": "An unexpected error occurred. Please try again."
+    },
+    "invalidPhoneNumber": {
+      "title": "Invalid Phone Number",
+      "message": "The phone number entered is invalid. Please check and try again."
+    },
+    "invalidCode": {
+      "title": "Invalid Code",
+      "message": "The verification code is incorrect. Please check and try again."
+    },
+    "codeExpired": {
+      "title": "Code Expired",
+      "message": "The verification code has expired. Please request a new one."
+    },
+    "invalidPassword": {
+      "title": "Invalid Password",
+      "message": "The password is incorrect. Please try again."
+    },
+    "twoFactorRequired": {
+      "title": "2FA Required",
+      "message": "Two-factor authentication is enabled. Please enter your password."
+    },
+    "rateLimited": {
+      "title": "Rate Limited",
+      "message": "Too many requests. Please wait a moment and try again.",
+      "messageWithDuration": "Too many requests. Please wait {duration} and try again."
+    },
+    "slowModeActive": {
+      "title": "Slow Mode Active",
+      "message": "Slow mode is enabled. Please wait before sending another message."
+    },
+    "adminRequired": {
+      "title": "Admin Required",
+      "message": "You need admin rights to perform this action."
+    },
+    "cannotSend": {
+      "title": "Cannot Send",
+      "message": "You don't have permission to send messages in this chat."
+    },
+    "banned": {
+      "title": "Banned",
+      "message": "You are banned from this channel."
+    },
+    "privateChannel": {
+      "title": "Private Channel",
+      "message": "This channel is private. You need an invitation to join."
+    },
+    "connectionError": {
+      "title": "Connection Error",
+      "message": "Network connection failed. Please check your internet and try again."
+    },
+    "timeout": {
+      "title": "Timeout",
+      "message": "The request timed out. Please try again."
+    },
+    "sessionExpired": {
+      "title": "Session Expired",
+      "message": "Your session has expired. Please log in again."
+    },
+    "sessionRevoked": {
+      "title": "Session Revoked",
+      "message": "Your session was revoked. Please log in again."
+    },
+    "loginRequired": {
+      "title": "Login Required",
+      "message": "Your saved login is no longer valid. Log in again to reconnect this account."
+    },
+    "invalidBotToken": {
+      "title": "Invalid Bot Token",
+      "message": "The bot token is invalid. Please check and try again."
+    },
+    "fileExpired": {
+      "title": "File Expired",
+      "message": "The file reference has expired. Please refresh and try again."
+    },
+    "mediaNotFound": {
+      "title": "Media Not Found",
+      "message": "The media file could not be found or has been deleted."
+    },
+    "cancelled": {
+      "title": "Cancelled",
+      "message": "The operation was cancelled."
+    },
+    "waitTime": {
+      "seconds": {
+        "one": "{count} second",
+        "other": "{count} seconds"
+      },
+      "minutes": {
+        "one": "{count} minute",
+        "other": "{count} minutes"
+      },
+      "hours": {
+        "one": "{count} hour",
+        "other": "{count} hours"
+      }
+    }
   },
   "modules": {
     "accountInfo": {
@@ -305,9 +405,9 @@
     "downloadZipBtn": "Baixar ZIP",
     "viewBackups": "Ver Backups",
     "exportAnother": "Exportar Outro",
-    "reconnectSuccess": "Reconnected successfully!",
-    "largeExportWarning": "Large export detected. Consider downloading as ZIP.",
-    "zipDownloaded": "ZIP downloaded successfully!"
+    "reconnectSuccess": "Reconectado com sucesso!",
+    "largeExportWarning": "Exportação grande detectada. Considere baixar como ZIP.",
+    "zipDownloaded": "ZIP baixado com sucesso!"
   },
   "backups": {
     "title": "Seus Backups",
@@ -320,12 +420,12 @@
     "createFirst": "Criar Primeiro Backup",
     "downloadZip": "Baixar ZIP",
     "messages": "{count} mensagens",
-    "noBackups": "No backups yet",
-    "noBackupsHint": "Export deleted messages from your channels to get started",
-    "photos": "photos",
-    "videos": "videos",
-    "docs": "docs",
-    "confirmDelete": "Are you sure you want to delete this backup?"
+    "noBackups": "Nenhum backup ainda",
+    "noBackupsHint": "Exporte mensagens excluídas dos seus canais para começar",
+    "photos": "fotos",
+    "videos": "vídeos",
+    "docs": "documentos",
+    "confirmDelete": "Tem certeza de que deseja excluir este backup?"
   },
   "privacy": {
     "footer": "100% no dispositivo. Nenhum dado sai do seu navegador.",
@@ -405,7 +505,7 @@
     "failedMessage": "{count} mensagem(ns) falharam ao enviar",
     "backToHome": "Voltar ao Início",
     "resendAnother": "Reenviar Outro",
-    "chooseContent": "Choose at least one content type to send."
+    "chooseContent": "Escolha pelo menos um tipo de conteúdo para enviar."
   },
   "scheduled": {
     "title": "Mensagens Agendadas",
@@ -511,7 +611,7 @@
     "outputLimitHint": "0 = incluir todas as mensagens",
     "chars": "caracteres",
     "lines": "linhas",
-    "tokens": "tokens (est.)",
+    "tokens": "tokens (estim.)",
     "copy": "Copiar",
     "download": "Baixar",
     "copiedToClipboard": "Copiado para a área de transferência!",
@@ -528,7 +628,7 @@
       "custom": "Defina seu próprio modelo com variáveis como sender, text, date"
     },
     "downloadCancelled": "Download cancelado",
-    "contentSection": "Content",
-    "structureSection": "Structure"
+    "contentSection": "Conteúdo",
+    "structureSection": "Estrutura"
   }
 }

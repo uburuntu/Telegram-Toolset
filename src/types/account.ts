@@ -38,13 +38,3 @@ export interface SavedAccount {
   createdAt: Date
   lastUsedAt: Date
 }
-
-export interface AuthFlowState {
-  step: 'idle' | 'phone' | 'code' | 'password' | 'bot_token' | 'complete' | 'error'
-  accountType: AccountType
-  phone?: string
-  phoneCodeHash?: string
-  apiId?: number
-  apiHash?: string
-  error?: string
-}

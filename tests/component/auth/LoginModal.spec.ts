@@ -7,16 +7,11 @@ const mockAccountsStore = {
   apiCredentials: null,
   accounts: [],
   findBotByTelegramId: vi.fn(),
-  setAuthFlowApiCredentials: vi.fn(),
-  setAuthFlowPhone: vi.fn(),
   setApiCredentials: vi.fn(),
   addAccount: vi.fn(),
   setActiveAccount: vi.fn(),
   updateAccount: vi.fn(),
   markAccountSessionReady: vi.fn(),
-  setAuthFlowNeedsPassword: vi.fn(),
-  setAuthFlowComplete: vi.fn(),
-  resetAuthFlow: vi.fn(),
 }
 
 const mockUiStore = {
@@ -43,6 +38,7 @@ vi.mock('@/services/telegram/client', () => ({
     startUserAuth: vi.fn(),
     provideCode: vi.fn(),
     providePassword: vi.fn(),
+    abortCurrentUserAuth: vi.fn(),
     getSessionString: vi.fn(),
     resetForNewUserLogin: vi.fn(),
     useUserAccountSession: vi.fn(),
@@ -83,6 +79,9 @@ describe('LoginModal', () => {
   })
 
   it('emits close without directly popping the modal store', async () => {
+    const service = telegramService as any
+    service.abortCurrentUserAuth.mockResolvedValue(undefined)
+
     const wrapper = mount(LoginModal, {
       props: { requiredType: 'user' },
       global: {
@@ -91,10 +90,60 @@ describe('LoginModal', () => {
     })
 
     await wrapper.get('button[aria-label="Close"]').trigger('click')
+    await flushPromises()
 
     expect(wrapper.emitted('close')).toHaveLength(1)
-    expect(mockAccountsStore.resetAuthFlow).toHaveBeenCalledTimes(1)
+    expect(service.abortCurrentUserAuth).toHaveBeenCalledTimes(1)
     expect(mockUiStore.closeModal).not.toHaveBeenCalled()
+  })
+
+  it('enters the code step without showing a stuck verifying state', async () => {
+    mockAccountsStore.apiCredentials = {
+      apiId: 123456,
+      apiHash: '0123456789abcdef',
+    }
+    mockAccountsStore.accounts = [
+      {
+        id: 'account-1',
+        type: 'user',
+        label: 'Ramzan',
+        firstName: 'Ramzan',
+        phone: '+79261247596',
+        sessionString: 'expired-session',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]
+
+    const service = telegramService as any
+    service.resetForNewUserLogin.mockResolvedValue(undefined)
+    service.initClient.mockResolvedValue(undefined)
+    service.startUserAuth.mockImplementation(
+      (
+        _phone: string,
+        options?: {
+          onCodeNeeded?: () => void
+        },
+      ) => {
+        options?.onCodeNeeded?.()
+        return new Promise(() => {})
+      },
+    )
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user', replaceAccountId: 'account-1' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Verification Code')
+    const submitButton = wrapper.get('button[type="submit"]')
+    expect(submitButton.text()).toBe('Verify')
+    expect(submitButton.attributes('disabled')).toBeUndefined()
   })
 
   it('keeps the re-login password flow alive after a recoverable 2FA error', async () => {
@@ -134,19 +183,23 @@ describe('LoginModal', () => {
     service.initClient.mockResolvedValue(undefined)
     service.startUserAuth.mockImplementation((_phone: string, options: typeof authOptions) => {
       authOptions = options
+      options?.onCodeNeeded?.()
       return authPromise
     })
     service.provideCode.mockImplementation(() => {
       authOptions?.onPasswordNeeded?.('mambo')
+      return true
     })
     service.providePassword.mockImplementation(() => {
       passwordAttempts += 1
       if (passwordAttempts === 1) {
         authOptions?.onRecoverableError?.(new Error('Incorrect password'), 'password')
-        return
+        authOptions?.onPasswordNeeded?.('mambo')
+        return true
       }
 
       resolveAuth({ firstName: 'Ramzan', username: 'ramzan' })
+      return true
     })
     service.getSessionString.mockReturnValue('fresh-session')
 

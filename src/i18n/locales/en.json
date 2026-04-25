@@ -174,6 +174,106 @@
     "redirecting": "Redirecting...",
     "privacyNote": "Your credentials are stored locally in your browser and never sent to any server."
   },
+  "errors": {
+    "unexpected": {
+      "message": "An unexpected error occurred. Please try again."
+    },
+    "invalidPhoneNumber": {
+      "title": "Invalid Phone Number",
+      "message": "The phone number entered is invalid. Please check and try again."
+    },
+    "invalidCode": {
+      "title": "Invalid Code",
+      "message": "The verification code is incorrect. Please check and try again."
+    },
+    "codeExpired": {
+      "title": "Code Expired",
+      "message": "The verification code has expired. Please request a new one."
+    },
+    "invalidPassword": {
+      "title": "Invalid Password",
+      "message": "The password is incorrect. Please try again."
+    },
+    "twoFactorRequired": {
+      "title": "2FA Required",
+      "message": "Two-factor authentication is enabled. Please enter your password."
+    },
+    "rateLimited": {
+      "title": "Rate Limited",
+      "message": "Too many requests. Please wait a moment and try again.",
+      "messageWithDuration": "Too many requests. Please wait {duration} and try again."
+    },
+    "slowModeActive": {
+      "title": "Slow Mode Active",
+      "message": "Slow mode is enabled. Please wait before sending another message."
+    },
+    "adminRequired": {
+      "title": "Admin Required",
+      "message": "You need admin rights to perform this action."
+    },
+    "cannotSend": {
+      "title": "Cannot Send",
+      "message": "You don't have permission to send messages in this chat."
+    },
+    "banned": {
+      "title": "Banned",
+      "message": "You are banned from this channel."
+    },
+    "privateChannel": {
+      "title": "Private Channel",
+      "message": "This channel is private. You need an invitation to join."
+    },
+    "connectionError": {
+      "title": "Connection Error",
+      "message": "Network connection failed. Please check your internet and try again."
+    },
+    "timeout": {
+      "title": "Timeout",
+      "message": "The request timed out. Please try again."
+    },
+    "sessionExpired": {
+      "title": "Session Expired",
+      "message": "Your session has expired. Please log in again."
+    },
+    "sessionRevoked": {
+      "title": "Session Revoked",
+      "message": "Your session was revoked. Please log in again."
+    },
+    "loginRequired": {
+      "title": "Login Required",
+      "message": "Your saved login is no longer valid. Log in again to reconnect this account."
+    },
+    "invalidBotToken": {
+      "title": "Invalid Bot Token",
+      "message": "The bot token is invalid. Please check and try again."
+    },
+    "fileExpired": {
+      "title": "File Expired",
+      "message": "The file reference has expired. Please refresh and try again."
+    },
+    "mediaNotFound": {
+      "title": "Media Not Found",
+      "message": "The media file could not be found or has been deleted."
+    },
+    "cancelled": {
+      "title": "Cancelled",
+      "message": "The operation was cancelled."
+    },
+    "waitTime": {
+      "seconds": {
+        "one": "{count} second",
+        "other": "{count} seconds"
+      },
+      "minutes": {
+        "one": "{count} minute",
+        "other": "{count} minutes"
+      },
+      "hours": {
+        "one": "{count} hour",
+        "other": "{count} hours"
+      }
+    }
+  },
   "modules": {
     "accountInfo": {
       "name": "Account Info",

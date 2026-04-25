@@ -45,7 +45,6 @@ function openReloginModal(): void {
     return
   }
 
-  accountsStore.startAuthFlow('user')
   uiStore.openModal('LoginModal', {
     requiredType: 'user',
     replaceAccountId: activeAccount.id,
@@ -68,7 +67,6 @@ onMounted(() => {
   // Check if redirected here needing auth
   if (route.query.needsAuth === 'true') {
     const requiredType = (route.query.accountType as 'user' | 'bot' | 'any') || 'any'
-    accountsStore.startAuthFlow(requiredType === 'any' ? 'user' : requiredType)
     uiStore.openModal('LoginModal', {
       requiredType,
       targetRoute: route.query.redirect as string,
@@ -86,7 +84,6 @@ watch(
   (query) => {
     if (query.needsAuth === 'true' && !showLoginModal.value) {
       const requiredType = (query.accountType as 'user' | 'bot' | 'any') || 'any'
-      accountsStore.startAuthFlow(requiredType === 'any' ? 'user' : requiredType)
       uiStore.openModal('LoginModal', {
         requiredType,
         targetRoute: query.redirect as string,
@@ -96,19 +93,19 @@ watch(
 )
 
 // Keep Telegram client session in sync with the active user account (multi-account support).
-// Skip if an auth flow is in progress (LoginModal manages its own client lifecycle during login).
+// Skip while LoginModal owns the client lifecycle during login/relogin.
 watch(
   () => [
     accountsStore.activeAccount?.id ?? null,
     accountsStore.activeAccount?.type ?? null,
     accountsStore.apiCredentials?.apiId ?? null,
     accountsStore.apiCredentials?.apiHash ?? null,
+    showLoginModal.value,
   ],
   async () => {
     const account = accountsStore.activeAccount
 
-    // Don't interfere while a login flow is active.
-    if (accountsStore.authFlow.step !== 'idle' && accountsStore.authFlow.step !== 'complete') {
+    if (showLoginModal.value) {
       return
     }
 
@@ -120,6 +117,16 @@ watch(
       }
       return
     }
+
+    if (accountsStore.activeAccountNeedsLogin) {
+      try {
+        await telegramService.disconnect()
+      } catch {
+        // Ignore disconnect failures while surfacing the re-login state.
+      }
+      return
+    }
+
     const creds = accountsStore.apiCredentials
     if (!creds) return
 

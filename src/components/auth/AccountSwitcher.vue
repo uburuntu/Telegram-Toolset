@@ -25,20 +25,17 @@ function selectAccount(id: string): void {
 
 function addUserAccount(): void {
   closeDropdown()
-  accountsStore.startAuthFlow('user')
   uiStore.openModal('LoginModal', { requiredType: 'user' })
 }
 
 function addBotAccount(): void {
   closeDropdown()
-  accountsStore.startAuthFlow('bot')
   uiStore.openModal('LoginModal', { requiredType: 'bot' })
 }
 
 function reloginAccount(id: string): void {
   accountsStore.setActiveAccount(id)
   closeDropdown()
-  accountsStore.startAuthFlow('user')
   uiStore.openModal('LoginModal', {
     requiredType: 'user',
     replaceAccountId: id,

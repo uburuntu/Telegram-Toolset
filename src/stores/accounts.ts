@@ -5,7 +5,7 @@
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, ref } from 'vue'
-import type { AccountType, ApiCredentials, AuthFlowState, SavedAccount } from '@/types/account'
+import type { ApiCredentials, SavedAccount } from '@/types/account'
 
 const ACCOUNTS_STORAGE_KEY = 'telegram_accounts'
 const ACTIVE_ACCOUNT_KEY = 'telegram_active_account'
@@ -19,10 +19,6 @@ export const useAccountsStore = defineStore('accounts', () => {
   const activeAccountId = ref<string | null>(null)
   const apiCredentials = ref<ApiCredentials | null>(null)
   const sessionStateByAccountId = ref<Record<string, AccountSessionState>>({})
-  const authFlow = ref<AuthFlowState>({
-    step: 'idle',
-    accountType: 'user',
-  })
 
   // Getters
   const activeAccount = computed(
@@ -212,52 +208,12 @@ export const useAccountsStore = defineStore('accounts', () => {
     return activeAccount.value.type === requiredType
   }
 
-  // Auth flow management
-  function startAuthFlow(accountType: AccountType): void {
-    authFlow.value = {
-      step: accountType === 'user' ? 'phone' : 'bot_token',
-      accountType,
-    }
-  }
-
-  function setAuthFlowApiCredentials(apiId: number, apiHash: string): void {
-    authFlow.value.apiId = apiId
-    authFlow.value.apiHash = apiHash
-  }
-
-  function setAuthFlowPhone(phone: string, phoneCodeHash: string): void {
-    authFlow.value.phone = phone
-    authFlow.value.phoneCodeHash = phoneCodeHash
-    authFlow.value.step = 'code'
-  }
-
-  function setAuthFlowNeedsPassword(): void {
-    authFlow.value.step = 'password'
-  }
-
-  function setAuthFlowError(error: string): void {
-    authFlow.value.error = error
-    authFlow.value.step = 'error'
-  }
-
-  function setAuthFlowComplete(): void {
-    authFlow.value.step = 'complete'
-  }
-
-  function resetAuthFlow(): void {
-    authFlow.value = {
-      step: 'idle',
-      accountType: 'user',
-    }
-  }
-
   return {
     // State
     accounts,
     activeAccountId,
     apiCredentials,
     sessionStateByAccountId,
-    authFlow,
     // Getters
     activeAccount,
     userAccounts,
@@ -285,13 +241,5 @@ export const useAccountsStore = defineStore('accounts', () => {
     markAccountSessionReady,
     markAccountNeedsLogin,
     clearAccountSessionState,
-    // Auth flow
-    startAuthFlow,
-    setAuthFlowApiCredentials,
-    setAuthFlowPhone,
-    setAuthFlowNeedsPassword,
-    setAuthFlowError,
-    setAuthFlowComplete,
-    resetAuthFlow,
   }
 })

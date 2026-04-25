@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import type { BotApiUser } from '@/services/telegram/bot-api'
@@ -37,8 +37,6 @@ const replacementAccountLabel = computed(
   () => replacementUserAccount.value?.firstName || replacementUserAccount.value?.label || '',
 )
 
-// Track what was active before opening the modal so we can restore the session if user cancels.
-const previousActiveAccountId = accountsStore.activeAccountId
 const dialogTitleId = 'login-modal-title'
 
 type LoginStep =
@@ -63,8 +61,10 @@ const getInitialStep = (): LoginStep => {
   return 'credentials'
 }
 const step = ref<LoginStep>(getInitialStep())
-const isLoading = ref(false)
+const pendingSubmissionStep = ref<LoginStep | null>(null)
+const availableAuthInputStage = ref<RecoverableAuthStage | null>(null)
 const error = ref('')
+let successCloseTimer: ReturnType<typeof setTimeout> | null = null
 
 // User account fields
 const apiId = ref('')
@@ -113,6 +113,13 @@ const canSwitchTabs = computed(() => {
     step.value === 'token'
   )
 })
+const isSubmittingPhone = computed(() => pendingSubmissionStep.value === 'phone')
+const isSubmittingCode = computed(() => pendingSubmissionStep.value === 'code')
+const isSubmittingPassword = computed(() => pendingSubmissionStep.value === 'password')
+const isSubmittingBot = computed(() => pendingSubmissionStep.value === 'token')
+const isBusy = computed(() => pendingSubmissionStep.value !== null)
+const isCodePromptReady = computed(() => availableAuthInputStage.value === 'code')
+const isPasswordPromptReady = computed(() => availableAuthInputStage.value === 'password')
 
 // Watch tab changes
 watch(activeTab, () => {
@@ -126,7 +133,8 @@ function resetForm(): void {
   } else {
     step.value = 'token'
   }
-  isLoading.value = false
+  pendingSubmissionStep.value = null
+  availableAuthInputStage.value = null
   error.value = ''
   apiId.value = ''
   apiHash.value = ''
@@ -154,11 +162,12 @@ function getErrorMessage(authError: unknown, fallbackKey: string): string {
 function invalidateUserAuth(): void {
   userAuthAttemptId += 1
   userAuthPromise.value = null
+  availableAuthInputStage.value = null
 }
 
 function restartUserAuthFlow(): void {
   invalidateUserAuth()
-  isLoading.value = false
+  pendingSubmissionStep.value = null
   error.value = ''
   code.value = ''
   password.value = ''
@@ -178,12 +187,12 @@ function handleRecoverableAuthError(authError: unknown, stage: RecoverableAuthSt
     authError,
     stage === 'password' ? 'auth.errors.incorrectPassword' : 'auth.errors.verifyCodeFailed',
   )
-  isLoading.value = false
+  pendingSubmissionStep.value = null
+  availableAuthInputStage.value = null
 
   if (stage === 'password') {
     password.value = ''
     step.value = 'password'
-    accountsStore.setAuthFlowNeedsPassword()
     return
   }
 
@@ -221,11 +230,11 @@ async function finalizeUserAuth(user: UserInfo): Promise<void> {
 
   accountsStore.markAccountSessionReady(accountId)
   accountsStore.setActiveAccount(accountId)
-  accountsStore.setAuthFlowComplete()
-  isLoading.value = false
+  pendingSubmissionStep.value = null
   step.value = 'success'
 
-  setTimeout(() => {
+  clearSuccessCloseTimer()
+  successCloseTimer = setTimeout(() => {
     handleClose()
     if (props.targetRoute) {
       router.push(props.targetRoute)
@@ -248,7 +257,7 @@ async function observeUserAuth(pendingAuth: Promise<UserInfo>, attemptId: number
     }
 
     invalidateUserAuth()
-    isLoading.value = false
+    pendingSubmissionStep.value = null
     error.value = getErrorMessage(authError, 'auth.errors.authenticationFailed')
   }
 }
@@ -258,11 +267,25 @@ function ensureActiveUserAuth(): boolean {
     return true
   }
 
-  isLoading.value = false
+  pendingSubmissionStep.value = null
   error.value = t('auth.errors.loginFlowExpired')
   step.value = 'phone'
   return false
 }
+
+function clearSuccessCloseTimer(): void {
+  if (successCloseTimer !== null) {
+    clearTimeout(successCloseTimer)
+    successCloseTimer = null
+  }
+}
+
+onUnmounted(() => {
+  clearSuccessCloseTimer()
+  if (step.value !== 'success') {
+    void telegramService.abortCurrentUserAuth()
+  }
+})
 
 // Handle bot token input with auto-validation
 async function handleTokenInput(event: Event): Promise<void> {
@@ -326,10 +349,6 @@ function useSavedCredentials(): void {
   if (accountsStore.apiCredentials) {
     apiId.value = String(accountsStore.apiCredentials.apiId)
     apiHash.value = accountsStore.apiCredentials.apiHash
-    accountsStore.setAuthFlowApiCredentials(
-      accountsStore.apiCredentials.apiId,
-      accountsStore.apiCredentials.apiHash,
-    )
     step.value = 'phone'
     if (replacementUserAccount.value?.phone) {
       phone.value = replacementUserAccount.value.phone
@@ -352,7 +371,6 @@ async function handleCredentialsSubmit(): Promise<void> {
   }
 
   accountsStore.setApiCredentials({ apiId: id, apiHash: apiHash.value })
-  accountsStore.setAuthFlowApiCredentials(id, apiHash.value)
   step.value = 'phone'
 }
 
@@ -363,7 +381,7 @@ async function handlePhoneSubmit(): Promise<void> {
     return
   }
 
-  isLoading.value = true
+  pendingSubmissionStep.value = 'phone'
   try {
     // IMPORTANT: Always start a *fresh* session for a new phone login.
     // Otherwise we can accidentally reuse another account's existing session and appear "already logged in".
@@ -390,13 +408,17 @@ async function handlePhoneSubmit(): Promise<void> {
     password.value = ''
 
     const pendingAuth = telegramService.startUserAuth(phone.value, {
+      onCodeNeeded: () => {
+        availableAuthInputStage.value = 'code'
+        step.value = 'code'
+        pendingSubmissionStep.value = null
+      },
       onPasswordNeeded: (hint) => {
         passwordHint.value = hint
         password.value = ''
-        error.value = ''
+        availableAuthInputStage.value = 'password'
         step.value = 'password'
-        accountsStore.setAuthFlowNeedsPassword()
-        isLoading.value = false
+        pendingSubmissionStep.value = null
       },
       onRecoverableError: (authError, stage) => {
         handleRecoverableAuthError(authError, stage)
@@ -406,15 +428,11 @@ async function handlePhoneSubmit(): Promise<void> {
     const attemptId = ++userAuthAttemptId
     userAuthPromise.value = pendingAuth
     void observeUserAuth(pendingAuth, attemptId)
-
-    // Move to code entry step - GramJS is waiting for the code
-    accountsStore.setAuthFlowPhone(phone.value, '')
-    step.value = 'code'
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('auth.errors.sendCodeFailed')
   } finally {
-    if (step.value !== 'code' && step.value !== 'password') {
-      isLoading.value = false
+    if (pendingSubmissionStep.value === 'phone') {
+      pendingSubmissionStep.value = null
     }
   }
 }
@@ -430,11 +448,20 @@ async function handleCodeSubmit(): Promise<void> {
     return
   }
 
-  isLoading.value = true
+  if (!isCodePromptReady.value) {
+    error.value = t('auth.errors.loginFlowExpired')
+    return
+  }
+
+  availableAuthInputStage.value = null
+  pendingSubmissionStep.value = 'code'
 
   // Provide the code to the waiting auth flow. Completion is observed separately so the UI
   // can stay responsive while GramJS waits for either the next prompt or final success.
-  telegramService.provideCode(code.value)
+  if (!telegramService.provideCode(code.value)) {
+    pendingSubmissionStep.value = null
+    error.value = t('auth.errors.loginFlowExpired')
+  }
 }
 
 async function handlePasswordSubmit(): Promise<void> {
@@ -448,10 +475,19 @@ async function handlePasswordSubmit(): Promise<void> {
     return
   }
 
-  isLoading.value = true
+  if (!isPasswordPromptReady.value) {
+    error.value = t('auth.errors.loginFlowExpired')
+    return
+  }
+
+  availableAuthInputStage.value = null
+  pendingSubmissionStep.value = 'password'
 
   // Provide the password to the waiting auth flow. Completion is observed separately.
-  telegramService.providePassword(password.value)
+  if (!telegramService.providePassword(password.value)) {
+    pendingSubmissionStep.value = null
+    error.value = t('auth.errors.loginFlowExpired')
+  }
 }
 
 async function handleBotTokenSubmit(): Promise<void> {
@@ -460,7 +496,7 @@ async function handleBotTokenSubmit(): Promise<void> {
     return
   }
 
-  isLoading.value = true
+  pendingSubmissionStep.value = 'token'
   try {
     let accountId: string
 
@@ -500,7 +536,8 @@ async function handleBotTokenSubmit(): Promise<void> {
     accountsStore.setActiveAccount(accountId)
     step.value = 'success'
 
-    setTimeout(() => {
+    clearSuccessCloseTimer()
+    successCloseTimer = setTimeout(() => {
       handleClose()
       if (props.targetRoute) {
         router.push(props.targetRoute)
@@ -509,42 +546,31 @@ async function handleBotTokenSubmit(): Promise<void> {
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('auth.errors.addBotFailed')
   } finally {
-    isLoading.value = false
-  }
-}
-
-function handleClose(): void {
-  const didAuthenticate = step.value === 'success'
-  invalidateUserAuth()
-  accountsStore.resetAuthFlow()
-  emit('close')
-
-  // If user cancels mid-flow, restore previous active user session (best-effort).
-  // This prevents leaving the app in a "disconnected" state after attempting to add another account.
-  if (didAuthenticate) {
-    return
-  }
-
-  const prev = accountsStore.accounts.find((a) => a.id === previousActiveAccountId)
-  const creds = accountsStore.apiCredentials
-  if (prev?.type === 'user' && creds) {
-    const svc: any = telegramService as any
-    if (typeof svc.useUserAccountSession === 'function') {
-      svc
-        .useUserAccountSession({
-          accountId: prev.id,
-          sessionString: prev.sessionString,
-          apiId: creds.apiId,
-          apiHash: creds.apiHash,
-        })
-        .catch(() => {
-          // ignore
-        })
+    if (pendingSubmissionStep.value === 'token') {
+      pendingSubmissionStep.value = null
     }
   }
 }
 
+async function handleClose(): Promise<void> {
+  const didAuthenticate = step.value === 'success'
+  clearSuccessCloseTimer()
+  invalidateUserAuth()
+  if (!didAuthenticate) {
+    await telegramService.abortCurrentUserAuth()
+  }
+  emit('close')
+
+  if (didAuthenticate) {
+    return
+  }
+}
+
 function goBack(): void {
+  if (isBusy.value) {
+    return
+  }
+
   error.value = ''
   if (step.value === 'credentials') {
     // If we have stored creds, go back to choice screen
@@ -609,14 +635,15 @@ function goBack(): void {
         v-if="canSwitchTabs && step !== 'success'"
         class="flex mb-5 gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg"
       >
-        <button
-          data-testid="tab-user"
-          @click="activeTab = 'user'"
-          :class="[
-            'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-100',
-            activeTab === 'user'
-              ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
+          <button
+            data-testid="tab-user"
+            @click="activeTab = 'user'"
+            :disabled="isBusy"
+            :class="[
+              'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-100 disabled:opacity-50',
+              activeTab === 'user'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
           ]"
         >
           👤 {{ t('accounts.userAccount') }}
@@ -624,8 +651,9 @@ function goBack(): void {
         <button
           data-testid="tab-bot"
           @click="activeTab = 'bot'"
+          :disabled="isBusy"
           :class="[
-            'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-100',
+            'flex-1 py-2 text-sm font-medium rounded-md transition-all duration-100 disabled:opacity-50',
             activeTab === 'bot'
               ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
               : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
@@ -702,6 +730,7 @@ function goBack(): void {
           <button
             v-if="accountsStore.apiCredentials"
             @click="goBack"
+            :disabled="isBusy"
             class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-100"
           >
             ← {{ t('accounts.back') }}
@@ -766,6 +795,7 @@ function goBack(): void {
         <template v-else-if="step === 'phone'">
           <button
             @click="goBack"
+            :disabled="isBusy"
             class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-100"
           >
             ← {{ t('accounts.back') }}
@@ -792,9 +822,9 @@ function goBack(): void {
             <button
               type="submit"
               class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
-              :disabled="isLoading"
+              :disabled="isSubmittingPhone"
             >
-              {{ isLoading ? t('auth.phone.sending') : t('auth.phone.sendCode') }}
+              {{ isSubmittingPhone ? t('auth.phone.sending') : t('auth.phone.sendCode') }}
             </button>
           </form>
         </template>
@@ -803,6 +833,7 @@ function goBack(): void {
         <template v-else-if="step === 'code'">
           <button
             @click="goBack"
+            :disabled="isBusy"
             class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-100"
           >
             ← {{ t('accounts.back') }}
@@ -830,9 +861,9 @@ function goBack(): void {
             <button
               type="submit"
               class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
-              :disabled="isLoading"
+              :disabled="isSubmittingCode || !isCodePromptReady"
             >
-              {{ isLoading ? t('auth.code.verifying') : t('auth.code.verify') }}
+              {{ isSubmittingCode ? t('auth.code.verifying') : t('auth.code.verify') }}
             </button>
           </form>
         </template>
@@ -841,6 +872,7 @@ function goBack(): void {
         <template v-else-if="step === 'password'">
           <button
             @click="goBack"
+            :disabled="isBusy"
             class="text-sm text-gray-500 hover:text-gray-700 mb-3 transition-colors duration-100"
           >
             ← {{ t('accounts.back') }}
@@ -870,9 +902,9 @@ function goBack(): void {
             <button
               type="submit"
               class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
-              :disabled="isLoading"
+              :disabled="isSubmittingPassword || !isPasswordPromptReady"
             >
-              {{ isLoading ? t('auth.password.signingIn') : t('auth.password.signIn') }}
+              {{ isSubmittingPassword ? t('auth.password.signingIn') : t('auth.password.signIn') }}
             </button>
           </form>
         </template>
@@ -974,9 +1006,9 @@ function goBack(): void {
           <button
             type="submit"
             class="w-full px-4 py-2 rounded-md font-medium text-sm bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors duration-100"
-            :disabled="isLoading || !tokenValidated"
+            :disabled="isSubmittingBot || !tokenValidated"
           >
-            <template v-if="isLoading">{{
+            <template v-if="isSubmittingBot">{{
               existingBotAccount ? t('auth.bot.updating') : t('accounts.adding')
             }}</template>
             <template v-else-if="tokenValidated && existingBotAccount"

@@ -35,8 +35,18 @@ interface DeferredPromise<T> {
 type RecoverableAuthStage = 'code' | 'password'
 
 interface StartUserAuthOptions {
+  onCodeNeeded?: () => void
   onPasswordNeeded?: (hint?: string) => void
   onRecoverableError?: (error: unknown, stage: RecoverableAuthStage) => void
+}
+
+interface UserAuthAttempt {
+  id: number
+  phoneDeferred: DeferredPromise<string>
+  codeDeferred: DeferredPromise<string> | null
+  passwordDeferred: DeferredPromise<string> | null
+  onCodeNeeded: (() => void) | null
+  onPasswordNeeded: ((hint?: string) => void) | null
 }
 
 function createDeferred<T>(): DeferredPromise<T> {
@@ -56,11 +66,9 @@ class TelegramService {
   private apiHash: string | null = null
 
   // Auth flow state
-  private phoneDeferred: DeferredPromise<string> | null = null
-  private codeDeferred: DeferredPromise<string> | null = null
-  private passwordDeferred: DeferredPromise<string> | null = null
+  private activeUserAuthAttempt: UserAuthAttempt | null = null
+  private userAuthAttemptId = 0
   private currentUser: UserInfo | null = null
-  private onPasswordNeeded: ((hint?: string) => void) | null = null
 
   // Entity cache for sender resolution (like Python's _entity_cache)
   private entityCache: Map<string, unknown> = new Map()
@@ -88,15 +96,34 @@ class TelegramService {
 
   private cancelInteractiveAuth(reason = 'AUTH_FLOW_CANCELLED'): void {
     const error = new Error(reason)
+    const attempt = this.activeUserAuthAttempt
+    if (!attempt) {
+      return
+    }
 
-    this.phoneDeferred?.reject(error)
-    this.codeDeferred?.reject(error)
-    this.passwordDeferred?.reject(error)
+    attempt.phoneDeferred.reject(error)
+    attempt.codeDeferred?.reject(error)
+    attempt.passwordDeferred?.reject(error)
+    this.activeUserAuthAttempt = null
+  }
 
-    this.phoneDeferred = null
-    this.codeDeferred = null
-    this.passwordDeferred = null
-    this.onPasswordNeeded = null
+  private requireActiveUserAuthAttempt(attemptId: number): UserAuthAttempt {
+    const attempt = this.activeUserAuthAttempt
+    if (!attempt || attempt.id !== attemptId) {
+      throw new Error('AUTH_FLOW_CANCELLED')
+    }
+    return attempt
+  }
+
+  private async getActiveUserAccountId(): Promise<string | undefined> {
+    try {
+      const { useAccountsStore } = await import('@/stores/accounts')
+      const accountsStore = useAccountsStore()
+      const activeAccount = accountsStore.activeAccount
+      return activeAccount?.type === 'user' ? activeAccount.id : undefined
+    } catch {
+      return undefined
+    }
   }
 
   private getRecoverableAuthStage(error: unknown): RecoverableAuthStage | null {
@@ -247,7 +274,7 @@ class TelegramService {
   /**
    * Connect and check if already authorized
    */
-  async connect(): Promise<boolean> {
+  async connect(accountId?: string): Promise<boolean> {
     if (!this.client) {
       throw new Error('Client not initialized. Call initClient first.')
     }
@@ -268,7 +295,7 @@ class TelegramService {
             username: me.username || undefined,
           }
           this.saveSession()
-          await this.persistActiveUserSession()
+          await this.persistUserSession(accountId)
           this.setConnectionState('connected')
           return true
         }
@@ -296,7 +323,7 @@ class TelegramService {
     }
 
     if (!this.client.connected) {
-      const isAuthorized = await this.connect()
+      const isAuthorized = await this.connect(await this.getActiveUserAccountId())
       if (!isAuthorized) {
         await this.disconnect()
         await this.markActiveAccountNeedsLogin()
@@ -400,7 +427,7 @@ class TelegramService {
         this.entityCache.clear()
         this.session = new StringSession(data.sessionString || '')
         await this.initClient(data.apiId, data.apiHash)
-        const isAuthorized = await this.connect()
+        const isAuthorized = await this.connect(data.accountId)
         if (!isAuthorized) {
           await this.disconnect()
           await this.setAccountSessionState('needs_login', data.accountId)
@@ -435,18 +462,21 @@ class TelegramService {
    * Clears any existing session so we don't accidentally reuse another account's auth.
    */
   async resetForNewUserLogin(): Promise<void> {
-    // Cancel any in-flight account init to avoid race conditions with the App.vue watcher.
+    const pendingInit = this._activeAccountInitPromise
+    if (pendingInit) {
+      try {
+        await pendingInit
+      } catch {
+        // Ignore failed restoration/account-switch attempts; we only need them finished.
+      }
+    }
+
     this._activeAccountInitPromise = null
     this._activeAccountInitKey = null
 
-    await this.disconnect()
-    this.currentUser = null
-    this.entityCache.clear()
-    this.session = new StringSession('')
+    await this.abortCurrentUserAuth()
     this.apiId = null
     this.apiHash = null
-
-    this.cancelInteractiveAuth()
   }
 
   /**
@@ -471,7 +501,7 @@ class TelegramService {
 
     try {
       await this.initClient(this.apiId, this.apiHash)
-      const result = await this.connect()
+      const result = await this.connect(await this.getActiveUserAccountId())
       return result
     } catch (error) {
       console.error(`Reconnection attempt ${this.reconnectAttempts} failed:`, error)
@@ -509,11 +539,15 @@ class TelegramService {
 
       // Reinitialize and connect
       await this.initClient(this.apiId, this.apiHash)
-      const result = await this.connect()
+      const result = await this.connect(await this.getActiveUserAccountId())
 
       if (result) {
         this.setConnectionState('connected')
         await this.markActiveAccountSessionReady()
+      } else {
+        await this.disconnect()
+        await this.markActiveAccountNeedsLogin()
+        throw new Error('Saved session could not be restored. Please log in again.')
       }
 
       return result
@@ -543,37 +577,55 @@ class TelegramService {
       throw new Error('Client not initialized')
     }
 
-    // Create deferreds for interactive flow
-    this.phoneDeferred = createDeferred<string>()
-    this.codeDeferred = null
-    this.passwordDeferred = null
-    this.onPasswordNeeded = options?.onPasswordNeeded || null
+    this.cancelInteractiveAuth()
+
+    const attemptId = ++this.userAuthAttemptId
+    const attempt: UserAuthAttempt = {
+      id: attemptId,
+      phoneDeferred: createDeferred<string>(),
+      codeDeferred: null,
+      passwordDeferred: null,
+      onCodeNeeded: options?.onCodeNeeded || null,
+      onPasswordNeeded: options?.onPasswordNeeded || null,
+    }
+    this.activeUserAuthAttempt = attempt
 
     // Resolve phone immediately since we already have it
-    this.phoneDeferred.resolve(phone)
+    attempt.phoneDeferred.resolve(phone)
 
     try {
       await this.client.start({
         phoneNumber: async () => {
-          return this.phoneDeferred!.promise
+          return this.requireActiveUserAuthAttempt(attemptId).phoneDeferred.promise
         },
         phoneCode: async () => {
-          this.codeDeferred = createDeferred<string>()
-          return this.codeDeferred!.promise
+          const currentAttempt = this.requireActiveUserAuthAttempt(attemptId)
+          currentAttempt.codeDeferred = createDeferred<string>()
+          currentAttempt.passwordDeferred = null
+          currentAttempt.onCodeNeeded?.()
+          return currentAttempt.codeDeferred.promise
         },
         password: async (hint?: string) => {
-          this.passwordDeferred = createDeferred<string>()
+          const currentAttempt = this.requireActiveUserAuthAttempt(attemptId)
+          currentAttempt.passwordDeferred = createDeferred<string>()
+          currentAttempt.codeDeferred = null
           // Notify UI that password is needed before waiting
-          if (this.onPasswordNeeded) {
-            this.onPasswordNeeded(hint)
-          }
-          return this.passwordDeferred!.promise
+          currentAttempt.onPasswordNeeded?.(hint)
+          return currentAttempt.passwordDeferred.promise
         },
         onError: async (err) => {
           console.error('Auth error:', err)
 
           const recoverableStage = this.getRecoverableAuthStage(err)
           if (recoverableStage) {
+            const currentAttempt = this.activeUserAuthAttempt
+            if (currentAttempt?.id === attemptId) {
+              if (recoverableStage === 'code') {
+                currentAttempt.codeDeferred = null
+              } else {
+                currentAttempt.passwordDeferred = null
+              }
+            }
             options?.onRecoverableError?.(err, recoverableStage)
             return false
           }
@@ -595,26 +647,58 @@ class TelegramService {
       }
       throw new Error('Failed to get user info')
     } finally {
-      this.cancelInteractiveAuth()
+      if (this.activeUserAuthAttempt?.id === attemptId) {
+        this.cancelInteractiveAuth()
+      }
     }
   }
 
   /**
    * Provide the verification code (called from UI)
    */
-  provideCode(code: string): void {
-    if (this.codeDeferred) {
-      this.codeDeferred.resolve(code)
+  provideCode(code: string): boolean {
+    const attempt = this.activeUserAuthAttempt
+    if (!attempt?.codeDeferred) {
+      return false
     }
+
+    const deferred = attempt.codeDeferred
+    attempt.codeDeferred = null
+    deferred.resolve(code)
+    return true
   }
 
   /**
    * Provide the 2FA password (called from UI)
    */
-  providePassword(password: string): void {
-    if (this.passwordDeferred) {
-      this.passwordDeferred.resolve(password)
+  providePassword(password: string): boolean {
+    const attempt = this.activeUserAuthAttempt
+    if (!attempt?.passwordDeferred) {
+      return false
     }
+
+    const deferred = attempt.passwordDeferred
+    attempt.passwordDeferred = null
+    deferred.resolve(password)
+    return true
+  }
+
+  async abortCurrentUserAuth(): Promise<void> {
+    this.cancelInteractiveAuth()
+
+    if (this.client) {
+      try {
+        await this.client.disconnect()
+      } catch {
+        // Ignore disconnect errors during best-effort auth cleanup.
+      }
+      this.client = null
+    }
+
+    this.currentUser = null
+    this.entityCache.clear()
+    this.session = new StringSession('')
+    this.setConnectionState('disconnected')
   }
 
   /**
@@ -711,7 +795,7 @@ class TelegramService {
     await this.setAccountSessionState('needs_login')
   }
 
-  private async persistActiveUserSession(): Promise<void> {
+  private async persistUserSession(accountId?: string): Promise<void> {
     const sessionString = this.session.save()
     if (!sessionString) {
       return
@@ -720,18 +804,23 @@ class TelegramService {
     try {
       const { useAccountsStore } = await import('@/stores/accounts')
       const accountsStore = useAccountsStore()
-      const activeAccount = accountsStore.activeAccount
+      const targetAccountId = accountId ?? accountsStore.activeAccount?.id
 
-      if (!activeAccount || activeAccount.type !== 'user') {
+      if (!targetAccountId) {
         return
       }
 
-      if (activeAccount.sessionString === sessionString) {
+      const targetAccount = accountsStore.accounts.find((account) => account.id === targetAccountId)
+      if (!targetAccount || targetAccount.type !== 'user') {
         return
       }
 
-      accountsStore.updateAccount(activeAccount.id, { sessionString })
-      accountsStore.markAccountSessionReady(activeAccount.id)
+      if (targetAccount.sessionString === sessionString) {
+        return
+      }
+
+      accountsStore.updateAccount(targetAccount.id, { sessionString })
+      accountsStore.markAccountSessionReady(targetAccount.id)
     } catch (error) {
       console.warn('[TelegramService] Failed to persist refreshed session:', error)
     }

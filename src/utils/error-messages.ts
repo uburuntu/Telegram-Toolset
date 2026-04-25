@@ -4,127 +4,130 @@
  * Maps technical errors to human-readable messages for better UX.
  */
 
+import { i18n } from '@/i18n'
+
 interface ErrorMapping {
   pattern: RegExp | string
-  message: string
-  title?: string
+  translationKey: ErrorTranslationKey
 }
+
+type ErrorTranslationKey =
+  | 'invalidPhoneNumber'
+  | 'invalidCode'
+  | 'codeExpired'
+  | 'invalidPassword'
+  | 'twoFactorRequired'
+  | 'rateLimited'
+  | 'slowModeActive'
+  | 'adminRequired'
+  | 'cannotSend'
+  | 'banned'
+  | 'privateChannel'
+  | 'connectionError'
+  | 'timeout'
+  | 'sessionExpired'
+  | 'sessionRevoked'
+  | 'loginRequired'
+  | 'invalidBotToken'
+  | 'fileExpired'
+  | 'mediaNotFound'
+  | 'cancelled'
 
 const ERROR_MAPPINGS: ErrorMapping[] = [
   // Auth errors
   {
     pattern: /PHONE_NUMBER_INVALID/i,
-    message: 'The phone number entered is invalid. Please check and try again.',
-    title: 'Invalid Phone Number',
+    translationKey: 'invalidPhoneNumber',
   },
   {
     pattern: /PHONE_CODE_INVALID/i,
-    message: 'The verification code is incorrect. Please check and try again.',
-    title: 'Invalid Code',
+    translationKey: 'invalidCode',
   },
   {
     pattern: /PHONE_CODE_EXPIRED/i,
-    message: 'The verification code has expired. Please request a new one.',
-    title: 'Code Expired',
+    translationKey: 'codeExpired',
   },
   {
     pattern: /PASSWORD_HASH_INVALID/i,
-    message: 'The password is incorrect. Please try again.',
-    title: 'Invalid Password',
+    translationKey: 'invalidPassword',
   },
   {
     pattern: /SESSION_PASSWORD_NEEDED/i,
-    message: 'Two-factor authentication is enabled. Please enter your password.',
-    title: '2FA Required',
+    translationKey: 'twoFactorRequired',
   },
 
   // Rate limiting
   {
     pattern: /FLOOD_WAIT_(\d+)/i,
-    message: 'Too many requests. Please wait a moment and try again.',
-    title: 'Rate Limited',
+    translationKey: 'rateLimited',
   },
   {
     pattern: /SLOWMODE_WAIT_(\d+)/i,
-    message: 'Slow mode is enabled. Please wait before sending another message.',
-    title: 'Slow Mode Active',
+    translationKey: 'slowModeActive',
   },
 
   // Permission errors
   {
     pattern: /CHAT_ADMIN_REQUIRED/i,
-    message: 'You need admin rights to perform this action.',
-    title: 'Admin Required',
+    translationKey: 'adminRequired',
   },
   {
     pattern: /CHAT_WRITE_FORBIDDEN/i,
-    message: "You don't have permission to send messages in this chat.",
-    title: 'Cannot Send',
+    translationKey: 'cannotSend',
   },
   {
     pattern: /USER_BANNED_IN_CHANNEL/i,
-    message: 'You are banned from this channel.',
-    title: 'Banned',
+    translationKey: 'banned',
   },
   {
     pattern: /CHANNEL_PRIVATE/i,
-    message: 'This channel is private. You need an invitation to join.',
-    title: 'Private Channel',
+    translationKey: 'privateChannel',
   },
 
   // Network errors
   {
     pattern: /NETWORK_ERROR|NetworkError|net::ERR_/i,
-    message: 'Network connection failed. Please check your internet and try again.',
-    title: 'Connection Error',
+    translationKey: 'connectionError',
   },
   {
     pattern: /TIMEOUT|TimeoutError/i,
-    message: 'The request timed out. Please try again.',
-    title: 'Timeout',
+    translationKey: 'timeout',
   },
 
   // Session errors
   {
     pattern: /AUTH_KEY_UNREGISTERED/i,
-    message: 'Your session has expired. Please log in again.',
-    title: 'Session Expired',
+    translationKey: 'sessionExpired',
   },
   {
     pattern: /SESSION_REVOKED/i,
-    message: 'Your session was revoked. Please log in again.',
-    title: 'Session Revoked',
+    translationKey: 'sessionRevoked',
   },
   {
     pattern: /Saved session could not be restored/i,
-    message: 'Your saved login is no longer valid. Log in again to reconnect this account.',
-    title: 'Login Required',
+    translationKey: 'loginRequired',
   },
 
   // Bot errors
   {
     pattern: /BOT_TOKEN_INVALID/i,
-    message: 'The bot token is invalid. Please check and try again.',
-    title: 'Invalid Bot Token',
+    translationKey: 'invalidBotToken',
   },
 
   // Media errors
   {
     pattern: /FILE_REFERENCE_EXPIRED/i,
-    message: 'The file reference has expired. Please refresh and try again.',
-    title: 'File Expired',
+    translationKey: 'fileExpired',
   },
   {
     pattern: /MEDIA_EMPTY/i,
-    message: 'The media file could not be found or has been deleted.',
-    title: 'Media Not Found',
+    translationKey: 'mediaNotFound',
   },
 
   // Generic fallbacks
   {
     pattern: /aborted|cancelled/i,
-    message: 'The operation was cancelled.',
-    title: 'Cancelled',
+    translationKey: 'cancelled',
   },
 ]
 
@@ -148,17 +151,11 @@ export function toUserFriendlyError(error: unknown): UserFriendlyError {
       typeof mapping.pattern === 'string' ? new RegExp(mapping.pattern, 'i') : mapping.pattern
 
     if (pattern.test(errorMessage)) {
-      // Extract wait time for rate limit errors
-      let message = mapping.message
-      const floodMatch = errorMessage.match(/FLOOD_WAIT_(\d+)/i)
-      if (floodMatch?.[1]) {
-        const seconds = parseInt(floodMatch[1], 10)
-        message = `Too many requests. Please wait ${formatWaitTime(seconds)} and try again.`
-      }
+      const translated = getTranslatedError(mapping.translationKey, errorMessage)
 
       return {
-        title: mapping.title || 'Error',
-        message,
+        title: translated.title,
+        message: translated.message,
         isRetryable: isRetryableError(errorMessage),
         originalError: errorMessage,
       }
@@ -167,10 +164,38 @@ export function toUserFriendlyError(error: unknown): UserFriendlyError {
 
   // Generic fallback
   return {
-    title: 'Error',
-    message: 'An unexpected error occurred. Please try again.',
+    title: i18n.global.t('common.error'),
+    message: i18n.global.t('errors.unexpected.message'),
     isRetryable: !errorString.includes('invalid') && !errorString.includes('forbidden'),
     originalError: errorMessage,
+  }
+}
+
+function getTranslatedError(
+  translationKey: ErrorTranslationKey,
+  originalError: string,
+): Pick<UserFriendlyError, 'title' | 'message'> {
+  const titleKey = `errors.${translationKey}.title`
+  let messageKey = `errors.${translationKey}.message`
+  let params: Record<string, string> | undefined
+
+  if (translationKey === 'rateLimited') {
+    const floodMatch = originalError.match(/FLOOD_WAIT_(\d+)/i)
+    if (floodMatch?.[1]) {
+      messageKey = 'errors.rateLimited.messageWithDuration'
+      params = {
+        duration: formatWaitTime(parseInt(floodMatch[1], 10)),
+      }
+    }
+  }
+
+  return {
+    title: i18n.global.te(titleKey) ? i18n.global.t(titleKey) : i18n.global.t('common.error'),
+    message: i18n.global.te(messageKey)
+      ? params
+        ? i18n.global.t(messageKey, params)
+        : i18n.global.t(messageKey)
+      : i18n.global.t('errors.unexpected.message'),
   }
 }
 
@@ -210,14 +235,24 @@ function isRetryableError(errorMessage: string): boolean {
  */
 function formatWaitTime(seconds: number): string {
   if (seconds < 60) {
-    return `${seconds} seconds`
-  } else if (seconds < 3600) {
-    const minutes = Math.ceil(seconds / 60)
-    return `${minutes} minute${minutes > 1 ? 's' : ''}`
-  } else {
-    const hours = Math.ceil(seconds / 3600)
-    return `${hours} hour${hours > 1 ? 's' : ''}`
+    return formatWaitUnit('seconds', seconds)
   }
+
+  if (seconds < 3600) {
+    return formatWaitUnit('minutes', Math.ceil(seconds / 60))
+  }
+
+  return formatWaitUnit('hours', Math.ceil(seconds / 3600))
+}
+
+function formatWaitUnit(unit: 'seconds' | 'minutes' | 'hours', count: number): string {
+  const locale = i18n.global.locale.value
+  const number = new Intl.NumberFormat(locale).format(count)
+  const pluralCategory = new Intl.PluralRules(locale).select(count)
+  const exactKey = `errors.waitTime.${unit}.${pluralCategory}`
+  const fallbackKey = `errors.waitTime.${unit}.other`
+
+  return i18n.global.t(i18n.global.te(exactKey) ? exactKey : fallbackKey, { count: number })
 }
 
 /**

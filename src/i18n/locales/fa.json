@@ -21,10 +21,10 @@
     "openSource": "متن‌باز",
     "account": "حساب",
     "accounts": "حساب‌ها",
-    "rateLimited": "Rate limited. Waiting {seconds}s...",
-    "dismiss": "Dismiss",
-    "goHome": "Go Home",
-    "tryAgain": "Try Again"
+    "rateLimited": "محدودیت نرخ اعمال شد. در حال انتظار {seconds} ثانیه...",
+    "dismiss": "بستن",
+    "goHome": "رفتن به صفحه اصلی",
+    "tryAgain": "تلاش مجدد"
   },
   "landing": {
     "title": "Telegram Power Toolset",
@@ -66,45 +66,45 @@
     "addAccount": "افزودن {type} برای استفاده",
     "active": "فعال",
     "removeAccount": "حذف حساب",
-    "credentialsFound": "API credentials found",
-    "credentialsFoundHint": "You have API credentials saved from a previous login. The same credentials can be used for multiple Telegram accounts.",
-    "useSavedCredentials": "Use saved credentials",
-    "enterDifferentCredentials": "Enter different credentials",
-    "useDifferentApiHint": "Use a different API ID & Hash",
-    "whyCredentials": "Why do I need API credentials?",
-    "credentialsExplanation": "To connect as a user (not a bot), you need your own app credentials from Telegram. This is like a developer key that identifies your connection. Get them free at",
-    "phoneNumber": "Phone Number",
+    "credentialsFound": "اعتبارنامه‌های API پیدا شد",
+    "credentialsFoundHint": "شما اعتبارنامه‌های API ذخیره شده از ورود قبلی دارید. همان اعتبارنامه‌ها می‌توانند برای چندین حساب تلگرام استفاده شوند.",
+    "useSavedCredentials": "استفاده از اعتبارنامه‌های ذخیره‌شده",
+    "enterDifferentCredentials": "وارد کردن اعتبارنامه‌های متفاوت",
+    "useDifferentApiHint": "استفاده از API ID و Hash متفاوت",
+    "whyCredentials": "چرا به اعتبارنامه‌های API نیاز دارم؟",
+    "credentialsExplanation": "برای اتصال به عنوان کاربر (نه ربات)، به اعتبارنامه‌های برنامهٔ خود از تلگرام نیاز دارید. این مثل یک کلید توسعه‌دهنده است که اتصال شما را شناسایی می‌کند. آن را رایگان از اینجا بگیرید",
+    "phoneNumber": "شماره تلفن",
     "phonePlaceholder": "+1234567890",
-    "phoneHint": "Enter your phone number to receive a verification code",
-    "sendCode": "Send Code",
-    "sending": "Sending...",
-    "verificationCode": "Verification Code",
-    "verify": "Verify",
-    "verifying": "Verifying...",
-    "twoFaPassword": "2FA Password",
-    "twoFaHint": "Your account has two-factor authentication enabled. Enter your password to continue.",
-    "hint": "Hint",
-    "signingIn": "Signing in...",
-    "signIn": "Sign In",
-    "botTokenHint": "Get your bot token from",
-    "pasteTokenHint": "Paste your bot token here",
-    "tokenMaskedHint": "Token is masked for your privacy when screen sharing",
-    "enterValidToken": "Enter a valid token",
-    "accountAdded": "Account Added!",
-    "redirecting": "Redirecting...",
-    "privacyNote": "Your credentials are stored locally in your browser and never sent to any server.",
-    "continue": "Continue",
-    "back": "Back",
-    "botTokenTab": "Bot Token",
-    "updating": "Updating...",
-    "adding": "Adding...",
-    "duplicateBotWarning": "This bot is already added. Proceeding will update the existing token.",
+    "phoneHint": "شماره تلفن خود را برای دریافت کد تأیید وارد کنید",
+    "sendCode": "ارسال کد",
+    "sending": "در حال ارسال...",
+    "verificationCode": "کد تأیید",
+    "verify": "تأیید",
+    "verifying": "در حال تأیید...",
+    "twoFaPassword": "رمز عبور تأیید دومرحله‌ای",
+    "twoFaHint": "حساب شما تأیید دومرحله‌ای فعال دارد. برای ادامه رمز عبور خود را وارد کنید.",
+    "hint": "راهنما",
+    "signingIn": "در حال ورود...",
+    "signIn": "ورود",
+    "botTokenHint": "توکن ربات خود را از اینجا بگیرید",
+    "pasteTokenHint": "توکن ربات خود را اینجا جای‌گذاری کنید",
+    "tokenMaskedHint": "برای حفظ حریم خصوصی هنگام اشتراک‌گذاری صفحه، توکن پنهان می‌شود",
+    "enterValidToken": "یک توکن معتبر وارد کنید",
+    "accountAdded": "حساب اضافه شد!",
+    "redirecting": "در حال تغییر مسیر...",
+    "privacyNote": "اعتبارنامه‌های شما به صورت محلی در مرورگرتان ذخیره می‌شوند و هرگز به هیچ سروری فرستاده نمی‌شوند.",
+    "continue": "ادامه",
+    "back": "بازگشت",
+    "botTokenTab": "توکن ربات",
+    "updating": "در حال به‌روزرسانی...",
+    "adding": "در حال افزودن...",
+    "duplicateBotWarning": "این ربات قبلاً اضافه شده است. ادامه دادن توکن موجود را به‌روزرسانی می‌کند.",
     "addAccountTitle": "افزودن حساب",
-    "selected": "Selected",
-    "needsLogin": "Needs login",
-    "logInAgain": "Log In Again",
-    "sessionExpiredTitle": "{name} needs to log in again",
-    "sessionExpiredDescription": "This account is still selected, but its saved Telegram session is no longer valid. Telegram actions will not work until you sign in again."
+    "selected": "انتخاب‌شده",
+    "needsLogin": "نیازمند ورود",
+    "logInAgain": "دوباره وارد شوید",
+    "sessionExpiredTitle": "{name} باید دوباره وارد شود",
+    "sessionExpiredDescription": "این حساب هنوز انتخاب شده است، اما نشست ذخیره‌شدهٔ تلگرام آن دیگر معتبر نیست. تا دوباره وارد نشوید، عملیات تلگرام کار نخواهد کرد."
   },
   "auth": {
     "addAccount": "افزودن حساب",
@@ -154,25 +154,125 @@
     "redirecting": "در حال تغییر مسیر...",
     "privacyNote": "اعتبارنامه‌های شما به صورت محلی در مرورگرتان ذخیره شده و هرگز به هیچ سروری ارسال نمی‌شوند.",
     "validation": {
-      "apiId": "API ID must be a positive number",
-      "apiHash": "API Hash must be at least 10 characters",
-      "phone": "Please enter a valid phone number",
-      "code": "Please enter the verification code",
-      "password": "Please enter your 2FA password",
-      "botToken": "Please enter a valid bot token"
+      "apiId": "API ID باید یک عدد مثبت باشد",
+      "apiHash": "API Hash باید حداقل ۱۰ کاراکتر داشته باشد",
+      "phone": "لطفاً یک شماره تلفن معتبر وارد کنید",
+      "code": "لطفاً کد تأیید را وارد کنید",
+      "password": "لطفاً رمز عبور تأیید دومرحله‌ای خود را وارد کنید",
+      "botToken": "لطفاً یک توکن ربات معتبر وارد کنید"
     },
     "errors": {
-      "authenticationFailed": "Authentication failed",
-      "loginFlowExpired": "This login attempt expired. Send the code again.",
-      "sendCodeFailed": "Failed to send code",
-      "verifyCodeFailed": "Failed to verify code",
-      "incorrectPassword": "Incorrect password",
-      "addBotFailed": "Failed to add bot"
+      "authenticationFailed": "احراز هویت ناموفق بود",
+      "loginFlowExpired": "مهلت این تلاش برای ورود به پایان رسیده است. دوباره کد را ارسال کنید.",
+      "sendCodeFailed": "ارسال کد ناموفق بود",
+      "verifyCodeFailed": "تأیید کد ناموفق بود",
+      "incorrectPassword": "رمز عبور نادرست است",
+      "addBotFailed": "افزودن ربات ناموفق بود"
     },
-    "logInAgain": "Log In Again",
-    "reloginAccountTitle": "Reconnect {name}",
-    "reloginAccountDescription": "We'll keep this saved account and replace its expired session after you sign in.",
-    "reloginSuccess": "Account reconnected."
+    "logInAgain": "دوباره وارد شوید",
+    "reloginAccountTitle": "اتصال دوبارهٔ {name}",
+    "reloginAccountDescription": "این حساب ذخیره‌شده را نگه می‌داریم و بعد از ورود شما نشست منقضی‌شدهٔ آن را جایگزین می‌کنیم.",
+    "reloginSuccess": "حساب دوباره متصل شد."
+  },
+  "errors": {
+    "unexpected": {
+      "message": "An unexpected error occurred. Please try again."
+    },
+    "invalidPhoneNumber": {
+      "title": "Invalid Phone Number",
+      "message": "The phone number entered is invalid. Please check and try again."
+    },
+    "invalidCode": {
+      "title": "Invalid Code",
+      "message": "The verification code is incorrect. Please check and try again."
+    },
+    "codeExpired": {
+      "title": "Code Expired",
+      "message": "The verification code has expired. Please request a new one."
+    },
+    "invalidPassword": {
+      "title": "Invalid Password",
+      "message": "The password is incorrect. Please try again."
+    },
+    "twoFactorRequired": {
+      "title": "2FA Required",
+      "message": "Two-factor authentication is enabled. Please enter your password."
+    },
+    "rateLimited": {
+      "title": "Rate Limited",
+      "message": "Too many requests. Please wait a moment and try again.",
+      "messageWithDuration": "Too many requests. Please wait {duration} and try again."
+    },
+    "slowModeActive": {
+      "title": "Slow Mode Active",
+      "message": "Slow mode is enabled. Please wait before sending another message."
+    },
+    "adminRequired": {
+      "title": "Admin Required",
+      "message": "You need admin rights to perform this action."
+    },
+    "cannotSend": {
+      "title": "Cannot Send",
+      "message": "You don't have permission to send messages in this chat."
+    },
+    "banned": {
+      "title": "Banned",
+      "message": "You are banned from this channel."
+    },
+    "privateChannel": {
+      "title": "Private Channel",
+      "message": "This channel is private. You need an invitation to join."
+    },
+    "connectionError": {
+      "title": "Connection Error",
+      "message": "Network connection failed. Please check your internet and try again."
+    },
+    "timeout": {
+      "title": "Timeout",
+      "message": "The request timed out. Please try again."
+    },
+    "sessionExpired": {
+      "title": "Session Expired",
+      "message": "Your session has expired. Please log in again."
+    },
+    "sessionRevoked": {
+      "title": "Session Revoked",
+      "message": "Your session was revoked. Please log in again."
+    },
+    "loginRequired": {
+      "title": "Login Required",
+      "message": "Your saved login is no longer valid. Log in again to reconnect this account."
+    },
+    "invalidBotToken": {
+      "title": "Invalid Bot Token",
+      "message": "The bot token is invalid. Please check and try again."
+    },
+    "fileExpired": {
+      "title": "File Expired",
+      "message": "The file reference has expired. Please refresh and try again."
+    },
+    "mediaNotFound": {
+      "title": "Media Not Found",
+      "message": "The media file could not be found or has been deleted."
+    },
+    "cancelled": {
+      "title": "Cancelled",
+      "message": "The operation was cancelled."
+    },
+    "waitTime": {
+      "seconds": {
+        "one": "{count} second",
+        "other": "{count} seconds"
+      },
+      "minutes": {
+        "one": "{count} minute",
+        "other": "{count} minutes"
+      },
+      "hours": {
+        "one": "{count} hour",
+        "other": "{count} hours"
+      }
+    }
   },
   "modules": {
     "accountInfo": {
@@ -305,9 +405,9 @@
     "downloadZipBtn": "دانلود ZIP",
     "viewBackups": "مشاهده پشتیبان‌ها",
     "exportAnother": "خروجی دیگر",
-    "reconnectSuccess": "Reconnected successfully!",
-    "largeExportWarning": "Large export detected. Consider downloading as ZIP.",
-    "zipDownloaded": "ZIP downloaded successfully!"
+    "reconnectSuccess": "اتصال دوباره با موفقیت انجام شد!",
+    "largeExportWarning": "خروجی بزرگ شناسایی شد. بهتر است آن را به صورت ZIP دانلود کنید.",
+    "zipDownloaded": "فایل ZIP با موفقیت دانلود شد!"
   },
   "backups": {
     "title": "پشتیبان‌های شما",
@@ -320,12 +420,12 @@
     "createFirst": "ایجاد اولین پشتیبان",
     "downloadZip": "دانلود ZIP",
     "messages": "{count} پیام",
-    "noBackups": "No backups yet",
-    "noBackupsHint": "Export deleted messages from your channels to get started",
-    "photos": "photos",
-    "videos": "videos",
-    "docs": "docs",
-    "confirmDelete": "Are you sure you want to delete this backup?"
+    "noBackups": "هنوز هیچ نسخهٔ پشتیبانی وجود ندارد",
+    "noBackupsHint": "برای شروع، از پیام‌های حذف‌شدهٔ کانال‌هایتان خروجی بگیرید",
+    "photos": "عکس‌ها",
+    "videos": "ویدئوها",
+    "docs": "اسناد",
+    "confirmDelete": "آیا مطمئن هستید که می‌خواهید این نسخهٔ پشتیبانی را حذف کنید؟"
   },
   "privacy": {
     "footer": "۱۰۰٪ روی دستگاه. هیچ داده‌ای از مرورگر شما خارج نمی‌شود.",
@@ -405,7 +505,7 @@
     "failedMessage": "{count} پیام ارسال نشد",
     "backToHome": "بازگشت به خانه",
     "resendAnother": "ارسال مجدد دیگر",
-    "chooseContent": "Choose at least one content type to send."
+    "chooseContent": "حداقل یک نوع محتوا را برای ارسال انتخاب کنید."
   },
   "scheduled": {
     "title": "پیام‌های زمان‌بندی شده",
@@ -528,7 +628,7 @@
       "markdown": "فرمت Markdown با عناوین و قالب‌بندی، مناسب برای مستندسازی",
       "custom": "قالب خود را با متغیرهایی مانند sender, text, date تعریف کنید"
     },
-    "contentSection": "Content",
-    "structureSection": "Structure"
+    "contentSection": "محتوا",
+    "structureSection": "ساختار"
   }
 }

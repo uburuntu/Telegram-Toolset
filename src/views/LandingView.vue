@@ -69,7 +69,6 @@ function handleModuleClick(module: ToolModule): void {
     } else {
       // Need to add a new account
       const requiredType = module.accountType === 'any' ? 'user' : module.accountType
-      accountsStore.startAuthFlow(requiredType)
       uiStore.openModal('LoginModal', { requiredType, targetRoute: module.route.path })
     }
   } else {
