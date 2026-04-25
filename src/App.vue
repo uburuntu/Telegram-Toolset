@@ -217,11 +217,16 @@ watch(
     />
 
     <!-- Toast notifications -->
-    <div class="fixed top-16 right-4 z-50 space-y-2">
+    <div
+      class="fixed top-16 right-4 z-50 space-y-2"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <TransitionGroup name="toast">
         <div
           v-for="toast in uiStore.toasts"
           :key="toast.id"
+          :role="toast.type === 'error' || toast.type === 'warning' ? 'alert' : 'status'"
           :class="[
             'px-4 py-2.5 rounded-md shadow-lg max-w-sm text-sm font-medium',
             toast.type === 'success' && 'bg-green-600 text-white',

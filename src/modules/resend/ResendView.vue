@@ -405,10 +405,15 @@ function formatBytes(bytes: number): string {
       </header>
 
       <div class="mb-4">
+        <label for="resend-target-search" class="sr-only">
+          {{ t('common.search') }}
+        </label>
         <input
+          id="resend-target-search"
           v-model="searchQuery"
           type="search"
           :placeholder="t('common.search')"
+          :aria-label="t('common.search')"
           class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
         />
       </div>

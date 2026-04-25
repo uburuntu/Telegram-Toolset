@@ -393,10 +393,15 @@ function formatScheduledDate(date: Date): string {
       </header>
 
       <div class="mb-4">
+        <label for="scheduled-chat-search" class="sr-only">
+          {{ t('export.searchChats') }}
+        </label>
         <input
+          id="scheduled-chat-search"
           v-model="searchQuery"
           type="search"
           :placeholder="t('export.searchChats')"
+          :aria-label="t('export.searchChats')"
           class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
         />
       </div>
@@ -408,7 +413,7 @@ function formatScheduledDate(date: Date): string {
         <p class="text-gray-600 dark:text-gray-400">{{ t('export.loadingChats') }}</p>
       </div>
 
-      <div v-else-if="error" class="text-center py-12 text-red-600">
+      <div v-else-if="error" class="text-center py-12 text-red-600" role="alert" aria-live="assertive">
         {{ error }}
       </div>
 

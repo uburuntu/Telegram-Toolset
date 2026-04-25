@@ -48,6 +48,8 @@ function reset() {
 <template>
   <div
     v-if="error"
+    role="alert"
+    aria-live="assertive"
     class="p-6 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"
   >
     <div class="flex items-start gap-3">
