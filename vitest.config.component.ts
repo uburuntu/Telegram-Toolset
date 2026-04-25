@@ -1,18 +1,22 @@
-import { defineConfig } from 'vitest/config'
-import vue from '@vitejs/plugin-vue'
-import { resolve } from 'path'
+import { defineConfig, mergeConfig } from 'vitest/config'
 
-export default defineConfig({
-  plugins: [vue()],
-  test: {
-    include: ['tests/component/**/*.spec.ts'],
-    passWithNoTests: false,
-    environment: 'jsdom',
-    globals: true,
-  },
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src'),
+import { sharedVitestConfig } from './vitest.config.shared'
+
+export default mergeConfig(
+  sharedVitestConfig,
+  defineConfig({
+    test: {
+      include: ['tests/component/**/*.spec.ts'],
+      passWithNoTests: false,
+      coverage: {
+        reportsDirectory: 'coverage/component',
+        thresholds: {
+          statements: 50,
+          branches: 40,
+          functions: 55,
+          lines: 50,
+        },
+      },
     },
-  },
-})
+  }),
+)
