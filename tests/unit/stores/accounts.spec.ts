@@ -84,4 +84,26 @@ describe('accounts store', () => {
       },
     ])
   })
+
+  it('tracks selected accounts separately from login-required state', () => {
+    const store = useAccountsStore()
+    const account = store.addAccount({
+      type: 'user',
+      label: 'Test User',
+      phone: '+1234567890',
+      sessionString: 'saved-session',
+    })
+
+    store.setActiveAccount(account.id)
+    expect(store.activeAccount?.id).toBe(account.id)
+    expect(store.activeAccountNeedsLogin).toBe(false)
+
+    store.markAccountNeedsLogin(account.id)
+    expect(store.getAccountSessionState(account.id)).toBe('needs_login')
+    expect(store.activeAccountNeedsLogin).toBe(true)
+
+    store.markAccountSessionReady(account.id)
+    expect(store.getAccountSessionState(account.id)).toBe('ready')
+    expect(store.activeAccountNeedsLogin).toBe(false)
+  })
 })

@@ -11,11 +11,14 @@ const ACCOUNTS_STORAGE_KEY = 'telegram_accounts'
 const ACTIVE_ACCOUNT_KEY = 'telegram_active_account'
 const API_CREDENTIALS_KEY = 'telegram_api_credentials'
 
+export type AccountSessionState = 'unknown' | 'ready' | 'needs_login'
+
 export const useAccountsStore = defineStore('accounts', () => {
   // State
   const accounts = ref<SavedAccount[]>([])
   const activeAccountId = ref<string | null>(null)
   const apiCredentials = ref<ApiCredentials | null>(null)
+  const sessionStateByAccountId = ref<Record<string, AccountSessionState>>({})
   const authFlow = ref<AuthFlowState>({
     step: 'idle',
     accountType: 'user',
@@ -39,6 +42,16 @@ export const useAccountsStore = defineStore('accounts', () => {
   const isActiveAccountUser = computed(() => activeAccount.value?.type === 'user')
 
   const isActiveAccountBot = computed(() => activeAccount.value?.type === 'bot')
+
+  const activeAccountSessionState = computed(() => {
+    if (!activeAccount.value || activeAccount.value.type !== 'user') {
+      return 'ready' as const
+    }
+
+    return sessionStateByAccountId.value[activeAccount.value.id] ?? 'unknown'
+  })
+
+  const activeAccountNeedsLogin = computed(() => activeAccountSessionState.value === 'needs_login')
 
   // Actions
   function loadFromStorage(): void {
@@ -67,6 +80,14 @@ export const useAccountsStore = defineStore('accounts', () => {
           }
         })
       }
+
+      const nextSessionState: Record<string, AccountSessionState> = {}
+      for (const account of accounts.value) {
+        if (account.type === 'user') {
+          nextSessionState[account.id] = sessionStateByAccountId.value[account.id] ?? 'unknown'
+        }
+      }
+      sessionStateByAccountId.value = nextSessionState
 
       const storedActive = localStorage.getItem(ACTIVE_ACCOUNT_KEY)
       if (storedActive && accounts.value.some((a) => a.id === storedActive)) {
@@ -117,6 +138,9 @@ export const useAccountsStore = defineStore('accounts', () => {
       lastUsedAt: new Date(),
     }
     accounts.value.push(newAccount)
+    if (newAccount.type === 'user') {
+      sessionStateByAccountId.value[newAccount.id] = 'ready'
+    }
     saveToStorage()
     return newAccount
   }
@@ -131,6 +155,7 @@ export const useAccountsStore = defineStore('accounts', () => {
 
   function removeAccount(id: string): void {
     accounts.value = accounts.value.filter((a) => a.id !== id)
+    delete sessionStateByAccountId.value[id]
     if (activeAccountId.value === id) {
       activeAccountId.value = accounts.value[0]?.id ?? null
     }
@@ -156,6 +181,25 @@ export const useAccountsStore = defineStore('accounts', () => {
 
   function findBotByTelegramId(telegramBotId: number): SavedAccount | null {
     return botAccounts.value.find((a) => a.botTelegramId === telegramBotId) ?? null
+  }
+
+  function getAccountSessionState(accountId: string | null | undefined): AccountSessionState {
+    if (!accountId) {
+      return 'unknown'
+    }
+    return sessionStateByAccountId.value[accountId] ?? 'unknown'
+  }
+
+  function markAccountSessionReady(accountId: string): void {
+    sessionStateByAccountId.value[accountId] = 'ready'
+  }
+
+  function markAccountNeedsLogin(accountId: string): void {
+    sessionStateByAccountId.value[accountId] = 'needs_login'
+  }
+
+  function clearAccountSessionState(accountId: string): void {
+    delete sessionStateByAccountId.value[accountId]
   }
 
   function hasCompatibleAccount(requiredType: 'user' | 'bot' | 'any'): boolean {
@@ -212,6 +256,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     accounts,
     activeAccountId,
     apiCredentials,
+    sessionStateByAccountId,
     authFlow,
     // Getters
     activeAccount,
@@ -222,6 +267,8 @@ export const useAccountsStore = defineStore('accounts', () => {
     hasBotAccount,
     isActiveAccountUser,
     isActiveAccountBot,
+    activeAccountSessionState,
+    activeAccountNeedsLogin,
     // Actions
     loadFromStorage,
     saveToStorage,
@@ -234,6 +281,10 @@ export const useAccountsStore = defineStore('accounts', () => {
     hasCompatibleAccount,
     isActiveAccountCompatible,
     findBotByTelegramId,
+    getAccountSessionState,
+    markAccountSessionReady,
+    markAccountNeedsLogin,
+    clearAccountSessionState,
     // Auth flow
     startAuthFlow,
     setAuthFlowApiCredentials,

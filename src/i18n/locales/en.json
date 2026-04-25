@@ -65,6 +65,11 @@
     "switchAccount": "Switch account to use",
     "addAccount": "Add a {type} to use",
     "active": "Active",
+    "selected": "Selected",
+    "needsLogin": "Needs login",
+    "logInAgain": "Log In Again",
+    "sessionExpiredTitle": "{name} needs to log in again",
+    "sessionExpiredDescription": "This account is still selected, but its saved Telegram session is no longer valid. Telegram actions will not work until you sign in again.",
     "removeAccount": "Remove account",
     "credentialsFound": "API credentials found",
     "credentialsFoundHint": "You have API credentials saved from a previous login. The same credentials can be used for multiple Telegram accounts.",
@@ -103,6 +108,9 @@
   },
   "auth": {
     "addAccount": "Add Account",
+    "logInAgain": "Log In Again",
+    "reloginAccountTitle": "Reconnect {name}",
+    "reloginAccountDescription": "We'll keep this saved account and replace its expired session after you sign in.",
     "apiCredentials": {
       "title": "API Credentials",
       "description": "Get your credentials from",
@@ -140,10 +148,10 @@
       "description": "Get your bot token from",
       "placeholder": "123456789:ABCdefGHIjklMNOpqrSTUvwxYZ",
       "addBot": "Add Bot",
-    "validating": "Validating...",
-    "alreadyAdded": "This bot is already added. Proceeding will update the existing token.",
-    "updating": "Updating...",
-    "update": "Update"
+      "validating": "Validating...",
+      "alreadyAdded": "This bot is already added. Proceeding will update the existing token.",
+      "updating": "Updating...",
+      "update": "Update"
     },
     "validation": {
       "apiId": "API ID must be a positive number",
@@ -161,6 +169,7 @@
       "addBotFailed": "Failed to add bot"
     },
     "success": "Account Added!",
+    "reloginSuccess": "Account reconnected.",
     "redirecting": "Redirecting...",
     "privacyNote": "Your credentials are stored locally in your browser and never sent to any server."
   },

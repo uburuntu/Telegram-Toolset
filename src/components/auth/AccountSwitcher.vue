@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAccountsStore, useUiStore } from '@/stores'
+import type { SavedAccount } from '@/types'
 
 const { t } = useI18n()
 const accountsStore = useAccountsStore()
@@ -34,18 +35,36 @@ function addBotAccount(): void {
   uiStore.openModal('LoginModal', { requiredType: 'bot' })
 }
 
-function removeAccount(id: string, event: Event): void {
-  event.stopPropagation()
+function reloginAccount(id: string): void {
+  accountsStore.setActiveAccount(id)
+  closeDropdown()
+  accountsStore.startAuthFlow('user')
+  uiStore.openModal('LoginModal', {
+    requiredType: 'user',
+    replaceAccountId: id,
+  })
+}
+
+function removeAccount(id: string): void {
   if (confirm(`${t('accounts.removeAccount')}?`)) {
     accountsStore.removeAccount(id)
   }
+}
+
+function isAccountSelected(accountId: string): boolean {
+  return accountId === accountsStore.activeAccountId
+}
+
+function isAccountNeedsLogin(account: SavedAccount): boolean {
+  return (
+    account.type === 'user' && accountsStore.getAccountSessionState(account.id) === 'needs_login'
+  )
 }
 
 const displayName = computed(() => {
   if (!accountsStore.activeAccount) {
     return t('accounts.notLoggedIn')
   }
-  // Use firstName if available (from Telegram API), otherwise fall back to label
   return accountsStore.activeAccount.firstName || accountsStore.activeAccount.label
 })
 
@@ -55,20 +74,30 @@ const displayIcon = computed(() => {
   }
   return accountsStore.activeAccount.type === 'bot' ? '🤖' : '👤'
 })
+
+const activeAccountNeedsLogin = computed(
+  () => accountsStore.activeAccount?.type === 'user' && accountsStore.activeAccountNeedsLogin,
+)
 </script>
 
 <template>
   <div class="relative">
     <button
       @click="toggleDropdown"
+      :title="activeAccountNeedsLogin ? t('accounts.needsLogin') : undefined"
       class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-100"
     >
       <span>{{ displayIcon }}</span>
       <span
-        class="text-sm font-medium text-gray-700 dark:text-gray-300 max-w-[100px] truncate hidden sm:inline"
+        class="text-sm font-medium text-gray-700 dark:text-gray-300 max-w-[120px] truncate hidden sm:inline"
       >
         {{ displayName }}
       </span>
+      <span
+        v-if="activeAccountNeedsLogin"
+        class="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"
+        aria-hidden="true"
+      ></span>
       <svg
         class="w-3.5 h-3.5 text-gray-400 transition-transform duration-100"
         :class="{ 'rotate-180': isOpen }"
@@ -80,7 +109,6 @@ const displayIcon = computed(() => {
       </svg>
     </button>
 
-    <!-- Dropdown -->
     <Transition
       enter-active-class="transition ease-out duration-100"
       enter-from-class="opacity-0 scale-95"
@@ -91,51 +119,70 @@ const displayIcon = computed(() => {
     >
       <div
         v-if="isOpen"
-        class="absolute right-0 mt-1 w-64 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+        class="absolute right-0 mt-1 w-72 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
       >
-        <!-- Account List -->
         <div v-if="accountsStore.accounts.length > 0" class="p-1.5">
           <p class="px-2.5 py-1 text-xs font-medium text-gray-400 uppercase tracking-wide">
             {{ t('common.accounts') }}
           </p>
 
-          <button
+          <div
             v-for="account in accountsStore.accounts"
             :key="account.id"
-            @click="selectAccount(account.id)"
             :class="[
-              'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left transition-colors duration-100 group',
-              account.id === accountsStore.activeAccountId
-                ? 'bg-blue-50 dark:bg-blue-900/30'
-                : 'hover:bg-gray-50 dark:hover:bg-gray-800',
+              'flex items-center gap-2 rounded-md px-2.5 py-2 transition-colors duration-100',
+              isAccountNeedsLogin(account)
+                ? 'bg-amber-50 dark:bg-amber-950/20'
+                : isAccountSelected(account.id)
+                  ? 'bg-blue-50 dark:bg-blue-900/30'
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-800',
             ]"
           >
-            <span class="text-base flex-shrink-0">
-              {{ account.type === 'bot' ? '🤖' : '👤' }}
-            </span>
-            <div class="flex-1 min-w-0">
-              <div class="font-medium text-gray-900 dark:text-white text-sm truncate">
-                {{ account.firstName || account.label }}
+            <button
+              @click="selectAccount(account.id)"
+              class="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+            >
+              <span class="text-base flex-shrink-0">
+                {{ account.type === 'bot' ? '🤖' : '👤' }}
+              </span>
+              <div class="min-w-0 flex-1">
+                <div class="font-medium text-gray-900 dark:text-white text-sm truncate">
+                  {{ account.firstName || account.label }}
+                </div>
+                <div class="text-xs text-gray-500 truncate">
+                  <span v-if="account.username">@{{ account.username }}</span>
+                  <span v-else-if="account.phone">{{ account.phone }}</span>
+                  <span v-else>{{
+                    account.type === 'bot'
+                      ? t('accountInfo.botAccount')
+                      : t('accountInfo.userAccount')
+                  }}</span>
+                </div>
               </div>
-              <div class="text-xs text-gray-500 truncate">
-                <span v-if="account.username">@{{ account.username }}</span>
-                <span v-else-if="account.phone">{{ account.phone }}</span>
-                <span v-else>{{
-                  account.type === 'bot'
-                    ? t('accountInfo.botAccount')
-                    : t('accountInfo.userAccount')
-                }}</span>
-              </div>
-            </div>
-            <div class="flex items-center gap-1">
+            </button>
+
+            <div class="flex items-center gap-1.5 pl-2">
               <span
-                v-if="account.id === accountsStore.activeAccountId"
-                class="text-xs text-blue-600 dark:text-blue-400"
+                v-if="isAccountNeedsLogin(account)"
+                class="px-2 py-1 rounded-full text-[11px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
               >
-                {{ t('accounts.active') }}
+                {{ t('accounts.needsLogin') }}
+              </span>
+              <span
+                v-else-if="isAccountSelected(account.id)"
+                class="px-2 py-1 rounded-full text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+              >
+                {{ t('accounts.selected') }}
               </span>
               <button
-                @click="removeAccount(account.id, $event)"
+                v-if="isAccountNeedsLogin(account)"
+                @click="reloginAccount(account.id)"
+                class="px-2 py-1 rounded-md text-xs font-medium transition-colors duration-100 bg-amber-600 text-white hover:bg-amber-700"
+              >
+                {{ t('accounts.logInAgain') }}
+              </button>
+              <button
+                @click="removeAccount(account.id)"
                 class="p-1 text-gray-400 hover:text-red-500 transition-colors duration-100"
                 :title="t('accounts.removeAccount')"
               >
@@ -149,16 +196,14 @@ const displayIcon = computed(() => {
                 </svg>
               </button>
             </div>
-          </button>
+          </div>
         </div>
 
-        <!-- Divider -->
         <div
           v-if="accountsStore.accounts.length > 0"
           class="border-t border-gray-100 dark:border-gray-800"
         ></div>
 
-        <!-- Add Account Options -->
         <div class="p-1.5">
           <button
             @click="addUserAccount"
@@ -182,7 +227,6 @@ const displayIcon = computed(() => {
       </div>
     </Transition>
 
-    <!-- Click outside to close -->
     <div v-if="isOpen" class="fixed inset-0 z-40" @click="closeDropdown"></div>
   </div>
 </template>

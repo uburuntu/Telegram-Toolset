@@ -95,6 +95,11 @@ const ERROR_MAPPINGS: ErrorMapping[] = [
     message: 'Your session was revoked. Please log in again.',
     title: 'Session Revoked',
   },
+  {
+    pattern: /Saved session could not be restored/i,
+    message: 'Your saved login is no longer valid. Log in again to reconnect this account.',
+    title: 'Login Required',
+  },
 
   // Bot errors
   {

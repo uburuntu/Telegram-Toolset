@@ -21,10 +21,36 @@ const updateMobile = () => {
 
 // Check if login modal is open
 const showLoginModal = computed(() => uiStore.currentModal?.component === 'LoginModal')
+const showSessionRecoveryBanner = computed(
+  () =>
+    !showLoginModal.value &&
+    accountsStore.activeAccount?.type === 'user' &&
+    accountsStore.activeAccountNeedsLogin,
+)
 
 const loginModalProps = computed(
-  () => uiStore.currentModal?.props as { requiredType?: string; targetRoute?: string } | undefined,
+  () =>
+    uiStore.currentModal?.props as
+      | { requiredType?: string; targetRoute?: string; replaceAccountId?: string }
+      | undefined,
 )
+
+const sessionRecoveryLabel = computed(
+  () => accountsStore.activeAccount?.firstName || accountsStore.activeAccount?.label || '',
+)
+
+function openReloginModal(): void {
+  const activeAccount = accountsStore.activeAccount
+  if (!activeAccount || activeAccount.type !== 'user') {
+    return
+  }
+
+  accountsStore.startAuthFlow('user')
+  uiStore.openModal('LoginModal', {
+    requiredType: 'user',
+    replaceAccountId: activeAccount.id,
+  })
+}
 
 onMounted(() => {
   // Load accounts from storage
@@ -75,7 +101,6 @@ watch(
   () => [
     accountsStore.activeAccount?.id ?? null,
     accountsStore.activeAccount?.type ?? null,
-    accountsStore.activeAccount?.sessionString ?? null,
     accountsStore.apiCredentials?.apiId ?? null,
     accountsStore.apiCredentials?.apiHash ?? null,
   ],
@@ -101,6 +126,7 @@ watch(
     // Check for useUserAccountSession method (may be missing in E2E mocks)
     if (!('useUserAccountSession' in telegramService)) return
     type SessionFn = (o: {
+      accountId?: string
       sessionString?: string
       apiId: number
       apiHash: string
@@ -110,6 +136,7 @@ watch(
 
     try {
       await useSession({
+        accountId: account.id,
         sessionString: account.sessionString,
         apiId: creds.apiId,
         apiHash: creds.apiHash,
@@ -142,6 +169,30 @@ watch(
     </header>
 
     <!-- Main Content -->
+    <div
+      v-if="showSessionRecoveryBanner"
+      class="border-b border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
+    >
+      <div
+        class="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+      >
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-amber-900 dark:text-amber-100">
+            {{ t('accounts.sessionExpiredTitle', { name: sessionRecoveryLabel }) }}
+          </p>
+          <p class="text-sm text-amber-800 dark:text-amber-200">
+            {{ t('accounts.sessionExpiredDescription') }}
+          </p>
+        </div>
+        <button
+          @click="openReloginModal"
+          class="px-4 py-2 rounded-md font-medium text-sm transition-colors duration-100 bg-amber-600 text-white hover:bg-amber-700 self-start lg:self-auto"
+        >
+          {{ t('accounts.logInAgain') }}
+        </button>
+      </div>
+    </div>
+
     <main class="flex-1">
       <router-view />
     </main>
@@ -154,6 +205,7 @@ watch(
       v-if="showLoginModal"
       :required-type="loginModalProps?.requiredType as any"
       :target-route="loginModalProps?.targetRoute"
+      :replace-account-id="loginModalProps?.replaceAccountId"
       @close="uiStore.closeModal()"
     />
 

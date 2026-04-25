@@ -14,6 +14,7 @@ let authPromise: Promise<void> | null = null
 const props = defineProps<{
   requiredType?: 'user' | 'bot' | 'any'
   targetRoute?: string
+  replaceAccountId?: string
 }>()
 
 const emit = defineEmits<{
@@ -24,6 +25,20 @@ const { t } = useI18n()
 const router = useRouter()
 const accountsStore = useAccountsStore()
 const uiStore = useUiStore()
+const replacementUserAccount = computed(() => {
+  if (!props.replaceAccountId) {
+    return null
+  }
+
+  const account = accountsStore.accounts.find((entry) => entry.id === props.replaceAccountId)
+  return account?.type === 'user' ? account : null
+})
+const dialogTitle = computed(() =>
+  replacementUserAccount.value ? t('auth.logInAgain') : t('auth.addAccount'),
+)
+const replacementAccountLabel = computed(
+  () => replacementUserAccount.value?.firstName || replacementUserAccount.value?.label || '',
+)
 
 // Track what was active before opening the modal so we can restore the session if user cancels.
 const previousActiveAccountId = accountsStore.activeAccountId
@@ -40,6 +55,9 @@ const getInitialStep = ():
   | 'token'
   | 'success' => {
   if (props.requiredType === 'bot') return 'token'
+  if (replacementUserAccount.value) {
+    return accountsStore.apiCredentials ? 'phone' : 'credentials'
+  }
   // If we have stored API credentials, show choice screen
   if (accountsStore.apiCredentials) return 'credentials-choice'
   return 'credentials'
@@ -67,6 +85,21 @@ const tokenValidated = ref(false)
 // NOTE: "tokenValidationWarning" path removed per issue #4 - bot tokens must validate successfully.
 const existingBotAccount = ref<SavedAccount | null>(null)
 
+function seedReplacementUserFields(): void {
+  if (activeTab.value !== 'user' || !replacementUserAccount.value) {
+    return
+  }
+
+  phone.value = replacementUserAccount.value.phone || ''
+
+  if (accountsStore.apiCredentials) {
+    apiId.value = String(accountsStore.apiCredentials.apiId)
+    apiHash.value = accountsStore.apiCredentials.apiHash
+  }
+}
+
+seedReplacementUserFields()
+
 // Computed
 const canSwitchTabs = computed(() => props.requiredType === 'any' || !props.requiredType)
 
@@ -77,7 +110,7 @@ watch(activeTab, () => {
 
 function resetForm(): void {
   if (activeTab.value === 'user') {
-    step.value = accountsStore.apiCredentials ? 'credentials-choice' : 'credentials'
+    step.value = getInitialStep()
   } else {
     step.value = 'token'
   }
@@ -93,6 +126,7 @@ function resetForm(): void {
   botInfo.value = null
   tokenValidated.value = false
   existingBotAccount.value = null
+  seedReplacementUserFields()
 }
 
 // Handle bot token input with auto-validation
@@ -162,6 +196,9 @@ function useSavedCredentials(): void {
       accountsStore.apiCredentials.apiHash,
     )
     step.value = 'phone'
+    if (replacementUserAccount.value?.phone) {
+      phone.value = replacementUserAccount.value.phone
+    }
   }
 }
 
@@ -224,15 +261,38 @@ async function handlePhoneSubmit(): Promise<void> {
       })
       .then((user) => {
         // Auth completed successfully
-        const newAccount = accountsStore.addAccount({
-          type: 'user',
-          label: user.firstName || `User ${phone.value.slice(-4)}`,
-          phone: phone.value,
-          sessionString: telegramService.getSessionString(),
-        })
-        accountsStore.setActiveAccount(newAccount.id)
+        const sessionString = telegramService.getSessionString()
+        let accountId: string
+
+        if (replacementUserAccount.value) {
+          accountsStore.updateAccount(replacementUserAccount.value.id, {
+            label:
+              user.firstName ||
+              replacementUserAccount.value.label ||
+              `User ${phone.value.slice(-4)}`,
+            firstName: user.firstName || replacementUserAccount.value.firstName,
+            username: user.username,
+            phone: phone.value,
+            sessionString,
+          })
+          accountId = replacementUserAccount.value.id
+          uiStore.showToast('success', t('auth.reloginSuccess'))
+        } else {
+          const newAccount = accountsStore.addAccount({
+            type: 'user',
+            label: user.firstName || `User ${phone.value.slice(-4)}`,
+            firstName: user.firstName,
+            username: user.username,
+            phone: phone.value,
+            sessionString,
+          })
+          accountId = newAccount.id
+          uiStore.showToast('success', t('auth.success'))
+        }
+
+        accountsStore.markAccountSessionReady(accountId)
+        accountsStore.setActiveAccount(accountId)
         step.value = 'success'
-        uiStore.showToast('success', t('auth.success'))
         setTimeout(() => {
           handleClose()
           if (props.targetRoute) {
@@ -372,6 +432,10 @@ function handleClose(): void {
 
   // If user cancels mid-flow, restore previous active user session (best-effort).
   // This prevents leaving the app in a "disconnected" state after attempting to add another account.
+  if (step.value === 'success') {
+    return
+  }
+
   const prev = accountsStore.accounts.find((a) => a.id === previousActiveAccountId)
   const creds = accountsStore.apiCredentials
   if (prev?.type === 'user' && creds) {
@@ -379,6 +443,7 @@ function handleClose(): void {
     if (typeof svc.useUserAccountSession === 'function') {
       svc
         .useUserAccountSession({
+          accountId: prev.id,
           sessionString: prev.sessionString,
           apiId: creds.apiId,
           apiHash: creds.apiHash,
@@ -427,7 +492,7 @@ function goBack(): void {
       <!-- Header -->
       <div class="flex items-center justify-between mb-5">
         <h2 :id="dialogTitleId" class="text-lg font-semibold text-gray-900 dark:text-white">
-          {{ t('auth.addAccount') }}
+          {{ dialogTitle }}
         </h2>
         <button
           @click="handleClose"
@@ -436,6 +501,18 @@ function goBack(): void {
         >
           ✕
         </button>
+      </div>
+
+      <div
+        v-if="replacementUserAccount && activeTab === 'user' && step !== 'success'"
+        class="mb-4 p-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30"
+      >
+        <p class="text-sm font-medium text-amber-900 dark:text-amber-100">
+          {{ t('auth.reloginAccountTitle', { name: replacementAccountLabel }) }}
+        </p>
+        <p class="mt-1 text-xs text-amber-800 dark:text-amber-200">
+          {{ t('auth.reloginAccountDescription') }}
+        </p>
       </div>
 
       <!-- Tabs -->

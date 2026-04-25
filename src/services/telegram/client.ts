@@ -242,6 +242,7 @@ class TelegramService {
     if (!this.client) {
       const restored = await this.tryRestoreSession()
       if (!restored || !this.client) {
+        await this.markActiveAccountNeedsLogin()
         throw new Error('Saved session could not be restored. Please log in again.')
       }
     }
@@ -250,10 +251,13 @@ class TelegramService {
       const isAuthorized = await this.connect()
       if (!isAuthorized) {
         await this.disconnect()
+        await this.markActiveAccountNeedsLogin()
         throw new Error('Saved session could not be restored. Please log in again.')
       }
+      await this.markActiveAccountSessionReady()
     }
     if (!this.client) {
+      await this.markActiveAccountNeedsLogin()
       throw new Error('Saved session could not be restored. Please log in again.')
     }
     return this.client
@@ -294,6 +298,7 @@ class TelegramService {
 
       // Use the existing method to restore the session
       const success = await this.useUserAccountSession({
+        accountId: activeAccount.id,
         sessionString: activeAccount.sessionString,
         apiId: creds.apiId,
         apiHash: creds.apiHash,
@@ -321,6 +326,7 @@ class TelegramService {
    * `getDialogs()` while App.vue is still connecting) will await until initialization completes.
    */
   async useUserAccountSession(data: {
+    accountId?: string
     sessionString: string
     apiId: number
     apiHash: string
@@ -349,6 +355,9 @@ class TelegramService {
         const isAuthorized = await this.connect()
         if (!isAuthorized) {
           await this.disconnect()
+          await this.setAccountSessionState('needs_login', data.accountId)
+        } else {
+          await this.setAccountSessionState('ready', data.accountId)
         }
         return isAuthorized
       } finally {
@@ -459,6 +468,7 @@ class TelegramService {
 
       if (result) {
         this.setConnectionState('connected')
+        await this.markActiveAccountSessionReady()
       }
 
       return result
@@ -616,6 +626,42 @@ class TelegramService {
     void sessionString
   }
 
+  private async setAccountSessionState(
+    state: 'ready' | 'needs_login',
+    accountId?: string,
+  ): Promise<void> {
+    try {
+      const { useAccountsStore } = await import('@/stores/accounts')
+      const accountsStore = useAccountsStore()
+      const targetAccountId = accountId ?? accountsStore.activeAccount?.id
+
+      if (!targetAccountId) {
+        return
+      }
+
+      const targetAccount = accountsStore.accounts.find((account) => account.id === targetAccountId)
+      if (!targetAccount || targetAccount.type !== 'user') {
+        return
+      }
+
+      if (state === 'ready') {
+        accountsStore.markAccountSessionReady(targetAccountId)
+      } else {
+        accountsStore.markAccountNeedsLogin(targetAccountId)
+      }
+    } catch (error) {
+      console.warn('[TelegramService] Failed to update account session state:', error)
+    }
+  }
+
+  private async markActiveAccountSessionReady(): Promise<void> {
+    await this.setAccountSessionState('ready')
+  }
+
+  private async markActiveAccountNeedsLogin(): Promise<void> {
+    await this.setAccountSessionState('needs_login')
+  }
+
   private async persistActiveUserSession(): Promise<void> {
     const sessionString = this.session.save()
     if (!sessionString) {
@@ -636,6 +682,7 @@ class TelegramService {
       }
 
       accountsStore.updateAccount(activeAccount.id, { sessionString })
+      accountsStore.markAccountSessionReady(activeAccount.id)
     } catch (error) {
       console.warn('[TelegramService] Failed to persist refreshed session:', error)
     }
