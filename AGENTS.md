@@ -6,6 +6,21 @@ Clean, professional, fast. No gimmicks. The interface should feel like a native 
 
 **Respect the user**: No cookie popups, no notifications/badges, no onboarding tours, no update prompts, no newsletter, no AI, no review begging. Request permissions only when the feature is used.
 
+## Product Vision
+
+This repository is no longer treated as a single-purpose deleted-messages utility. The product direction is a modular Telegram tooling workspace built on a shared multi-account auth/session platform.
+
+- `Scheduled Messages` and `LLM Context Export` are first-class modules, not lab-only features.
+- `LLM Context Export` is an export/formatting workflow for external assistants, not an in-app AI product.
+- Productionization work should simplify and harden the platform without collapsing the module system.
+
+## Documentation Map
+
+- `TODO.md` is the restart-friendly roadmap and source of truth for productionization status.
+- `README.md` is the public product/development overview.
+- `AGENTS.md` is the single agent-facing guide for repo rules, architecture notes, and product direction.
+- If docs and current code disagree, treat the codebase as the source of current behavior and `TODO.md` as the source of target direction.
+
 ## Border Radius
 
 Use minimal rounding for a professional appearance:
@@ -186,17 +201,26 @@ Mobile-first approach: default styles for mobile, add complexity at larger break
 
 ## Core Architecture (Web App)
 
-- **App shell**: Vue 3 + Vite + TS, Pinia stores, Vue Router (landing-first, modules are lazy routes).
-- **Modules system**: `src/modules/index.ts` registers tools with `accountType` and `requiredPermissions`; modules are lazy-loaded.
-- **Auth UX**: Landing shows modules first; login modal opens on-demand. Supports multiple accounts (user/bot), stored in localStorage with active account switcher.
+- **App shell**: Vue 3 + Vite + TS, Pinia stores, Vue Router. The current app is landing-first; the production target is a persistent workspace shell with stable module navigation and visible long-running jobs.
+- **Modules system**: `src/modules/index.ts` is the registry for first-class, expandable tools. New modules must plug into shared auth, permissions, navigation, and QA patterns.
+- **Auth UX**: Multi-account auth/session handling is a shared platform capability, not a one-off flow owned by a single module.
 - **Telegram clients**:
-  - **User**: GramJS via `telegramService` (MTProto) for dialogs/admin log/export/resend.
+  - **User**: GramJS via `telegramService` (MTProto) for dialogs/admin log/export/resend. Production direction is a typed Telegram gateway with smaller modules and worker isolation for heavy tasks.
   - **Bot**: HTTP Bot API for `getMe` validation (no MTProto needed).
 - **Account Info module**: Replaces bot-only view; shows data for both user and bot accounts. For bots, uses `getMe` to display name, username, capabilities (join groups, privacy mode, inline, web app).
-- **Storage**: IndexedDB for backups/media (hybrid strategy in quota manager). Sessions in localStorage only; no server.
-- **Internationalization**: `vue-i18n` with EN/RU; locale persisted in localStorage; language switcher uses `i18n.global.locale`.
-- **Security/Privacy**: On-device only; bot token input masking and validation; API ID/Hash only stored locally.
-- **CI/Test** (from plan): Vitest (unit/component), Playwright (E2E), GitHub Actions for lint/type/test/build.
+- **Storage**: IndexedDB for backups/media/export caches. Current secrets still live in localStorage; production direction is encrypted IndexedDB + WebCrypto for sessions and API credentials.
+- **Internationalization**: `vue-i18n` is required for user-facing copy. Current locales include `en`, `ru`, `ar`, `es`, `fa`, `id`, `pt`, `tr`, `uk`, `uz`; production work must preserve escaping safety and completeness standards.
+- **Security/Privacy**: On-device only; no backend, no analytics, no tracking. Sensitive inputs must stay masked, validated, and minimally persisted.
+- **CI/Test**: Vitest (unit/component), Playwright (E2E), GitHub Actions. Productionization should move to deterministic installs, stronger integration coverage, and bundle/test budgets.
+
+## Productionization Priorities
+
+1. Decompose oversized services and route components instead of adding more logic to them.
+2. Preserve the modular product surface and the shared auth/session platform.
+3. Pin dependency versions and make CI reproducible.
+4. Move long-running Telegram work off the main thread where practical.
+5. Harden secret storage and data migration paths.
+6. Keep `Scheduled Messages` and `LLM Context Export` fully supported within the same shell.
 
 ## Service Layer Architecture
 
@@ -256,6 +280,8 @@ Key interfaces (all exported from `types/index.ts`):
 Lazy-loaded route components in `modules/`:
 - **ExportView**: Chat selection → export config → progress with cancel/ETA
 - **ResendView**: Backup/chat selection → full resend config → progress
+- **ScheduledView**: Scheduled message discovery, filtering, and deletion workflows
+- **LlmExportView**: Chat-history export and archive formatting for external assistants/tools
 - **AccountInfoView**: Displays current account details (user or bot)
 
 ## Key Design Decisions
@@ -388,9 +414,9 @@ Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#lit
 3. **`|` is OK for pluralization** (e.g., `"{count} message | {count} messages"`). Escape with `{'|'}` only if you need a literal pipe character.
 4. **The error is silent in production** — the component simply won't render, with no user-visible error message. The only clue is a `SyntaxError: 10` in the browser console.
 
-## Migration Status (Python → TypeScript)
+## Current Implementation Status
 
-### Completed
+### Completed Foundation
 - Rate limiter with FloodWait handling and exponential backoff
 - Export service with parallel downloads, retry, cancellation
 - Resend service with batching, media, header formatting
@@ -404,3 +430,11 @@ Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#lit
 - BigInt-safe JSON serialization utilities
 - `_rawMessage` stripping at persistence boundaries
 - Resend HTML escaping for user safety
+
+### Productionization Gaps
+- `telegramService` is still a very large singleton with too many responsibilities.
+- Auth, export, and resend views still own too much orchestration and UI logic.
+- Secrets are still stored in localStorage today.
+- The build still carries GramJS/browser-shim warnings and a heavy main bundle.
+- Tests are stronger at mocked service behavior than at real Telegram integration boundaries.
+- Documentation can drift behind the actual product direction if `TODO.md`, `README.md`, and `AGENTS.md` are not updated together.

@@ -3,88 +3,74 @@
 [![CI](https://github.com/uburuntu/Telegram-Toolset/actions/workflows/ci.yml/badge.svg)](https://github.com/uburuntu/Telegram-Toolset/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Power tools for Telegram that aren't available in official apps. Runs entirely in your browser - no server, no tracking, no data collection.
+Telegram Toolset is a privacy-first, browser-only workspace for advanced Telegram operations. The repository started as a deleted-messages manager and is now being productionized into a broader modular tool platform built around a shared multi-account auth pipeline.
 
-**[telegram-toolset.rmbk.me](https://telegram-toolset.rmbk.me)**
+The app runs entirely on-device. There is no backend, no tracking, and no server-side storage of Telegram data.
 
-## Tools
+## Current Module Set
 
-| Tool | Description | Account Type |
-|------|-------------|--------------|
-| **Export Deleted Messages** | Save deleted messages from channels/groups where you have admin access | User |
-| **Resend Messages** | Re-send exported messages to any chat with formatting options | User |
-| **Account Info** | View account details and bot capabilities | Any |
+| Module | Description | Account Type |
+|--------|-------------|--------------|
+| **Account Info** | View account details, capabilities, and session state | Any |
+| **Export Deleted Messages** | Export deleted messages from chats where the user has the required rights | User |
+| **Backups** | Manage saved exports and downloaded archives | User |
+| **Resend Messages** | Re-send exported content with formatting and batching controls | User |
+| **Scheduled Messages** | View and manage scheduled messages across chats | User |
+| **LLM Context Export** | Export chat history in assistant-friendly formats for external tools | User |
 
-## Privacy
+## Product Direction
 
-- 100% client-side - connects directly to Telegram
-- Session stored only in your browser's localStorage
-- Open source - verify the code yourself
+- Keep a single modular app shell rather than separate one-off apps.
+- Keep the shared auth/session pipeline as reusable platform infrastructure.
+- Keep `Scheduled Messages` and `LLM Context Export` as first-class modules.
+- Keep the app client-side and privacy-first.
+- Productionize the architecture instead of layering more logic onto oversized views and services.
+
+The detailed roadmap lives in [TODO.md](./TODO.md).
+
+## Architecture At A Glance
+
+- `Vue 3 + Vite + TypeScript`
+- `Pinia` for shared state
+- `Vue Router` for lazy-loaded module routes
+- `GramJS` for user MTProto flows
+- Telegram Bot HTTP API for bot validation flows
+- `IndexedDB` for backups, media, and export caches
+- `vue-i18n` for localization
+- `Vitest` + `Playwright` + GitHub Actions for quality gates
 
 ## Development
 
 ```bash
-npm install      # Install dependencies
-npm run dev      # Start dev server (http://localhost:5173)
-npm run lint     # Run linter
-npm test         # Run all tests
-npm run build    # Build for production
+npm ci
+npm run dev
+npm run lint
+npm run check:i18n
+npm run type-check
+npm run test:unit
+npm run test:component
+npm run test:e2e
+npm run build
 ```
 
-## Adding a New Module
+## Working In This Repo
 
-Want to add a new tool? Here's how:
+Read these files before making substantial changes:
 
-### 1. Create the module folder
+- [TODO.md](./TODO.md) for roadmap, priorities, and restart guidance
+- [AGENTS.md](./AGENTS.md) for design system rules, architecture notes, critical Telegram/browser lessons, and agent-facing repo guidance
 
-```
-src/modules/your-module/
-  └── YourModuleView.vue
-```
+Key contribution rules:
 
-### 2. Register in `src/modules/index.ts`
-
-```typescript
-{
-  id: 'your-module',
-  name: 'Your Module Name',
-  description: 'What it does',
-  icon: 'download',  // or 'send', 'user', 'bot'
-  accountType: 'user',  // or 'bot', 'any'
-  route: {
-    path: '/your-module',
-    name: 'your-module',
-    component: () => import('./your-module/YourModuleView.vue'),
-    meta: { requiresAuth: true, accountType: 'user' },
-  },
-}
-```
-
-### 3. Follow existing patterns
-
-- Use `telegramService` for Telegram API calls
-- Use Pinia stores for state management
-- Follow the design system in `AGENTS.md`
-- Add unit tests in `tests/unit/`
-
-### 4. Open a PR
-
-```bash
-git checkout -b feature/your-module
-npm run lint && npm test
-git commit -m "Add your-module"
-```
-
-CI will automatically run lint, type-check, and tests on your PR.
+- Reuse the shared auth/session platform instead of duplicating login flows inside modules.
+- Treat the module registry in `src/modules/index.ts` as a first-class product surface.
+- Preserve the privacy model: no backend, no silent data export, no tracking.
+- Keep UI changes aligned with the design system in `AGENTS.md`.
 
 ## Requirements
 
-- **User Accounts**: API credentials from [my.telegram.org](https://my.telegram.org)
+- **User accounts**: API credentials from [my.telegram.org](https://my.telegram.org)
 - **Bots**: Token from [@BotFather](https://t.me/BotFather)
-
-## Tech Stack
-
-Vue 3 + TypeScript + Vite, Pinia, Vue Router, TailwindCSS, GramJS (MTProto), IndexedDB, Vitest + Playwright
 
 ## License
 
