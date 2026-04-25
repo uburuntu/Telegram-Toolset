@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION_FILE: .nvmrc
+
 jobs:
   lint-and-typecheck:
     name: Lint & Type Check
@@ -16,11 +22,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run Biome lint
         run: npm run lint
@@ -40,14 +46,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run unit tests
-        run: npm run test:unit
+        run: npm run test:unit:coverage
+
+      - name: Upload unit coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-unit
+          path: coverage/unit/
+          retention-days: 7
 
   component-tests:
     name: Component Tests
@@ -58,14 +72,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run component tests
-        run: npm run test:component
+        run: npm run test:component:coverage
+
+      - name: Upload component coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-component
+          path: coverage/component/
+          retention-days: 7
 
   e2e-tests:
     name: E2E Tests
@@ -79,11 +101,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps ${{ matrix.browser }}
@@ -109,14 +131,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build
         run: npm run build
+
+      - name: Check bundle budgets
+        run: npm run bundle:check
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -124,3 +149,106 @@ jobs:
           name: dist
           path: dist/
           retention-days: 7
+
+  preview-deploy:
+    name: Deploy Preview
+    if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork }}
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, unit-tests, component-tests, e2e-tests, build]
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Validate Surge token
+        run: test -n "${{ secrets.SURGE_TOKEN }}"
+
+      - name: Deploy to Surge
+        run: |
+          npm install -g surge@0.24.6
+          surge ./dist pr-${{ github.event.pull_request.number }}-telegram-toolset.surge.sh --token ${{ secrets.SURGE_TOKEN }}
+
+      - name: Comment PR
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        with:
+          script: |
+            const url = `https://pr-${process.env.PR_NUMBER}-telegram-toolset.surge.sh`;
+            const sha = process.env.HEAD_SHA.substring(0, 7);
+            const fullSha = process.env.HEAD_SHA;
+            const repoUrl = `https://github.com/${process.env.REPO}`;
+
+            const body = [
+              '### Preview Deployment',
+              '',
+              `🔗 **${url}**`,
+              '',
+              `Currently deployed: [\`${sha}\`](${repoUrl}/commit/${fullSha})`,
+              '',
+              '_Auto-updates on each push after the full CI quality gate passes._'
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const botComment = comments.find(c => c.body.includes('Preview Deployment'));
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, unit-tests, component-tests, e2e-tests, build]
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
