@@ -7,7 +7,7 @@ Telegram Toolset is a privacy-first, browser-only workspace for advanced Telegra
 
 The app runs entirely on-device. There is no backend, no tracking, and no server-side storage of Telegram data.
 
-## Current Module Set
+## Current Product Surface
 
 | Module | Description | Account Type |
 |--------|-------------|--------------|
@@ -17,6 +17,8 @@ The app runs entirely on-device. There is no backend, no tracking, and no server
 | **Resend Messages** | Re-send exported content with formatting and batching controls | User |
 | **Scheduled Messages** | View and manage scheduled messages across chats | User |
 | **LLM Context Export** | Export chat history in assistant-friendly formats for external tools | User |
+
+`Account Info`, `Export Deleted Messages`, `Resend Messages`, `Scheduled Messages`, and `LLM Context Export` are currently surfaced from the module registry in `src/modules/index.ts`. `Backups` is already part of the supported product surface, but today it is exposed as its own authenticated route/workspace rather than as a landing-page module card.
 
 ## Product Direction
 
