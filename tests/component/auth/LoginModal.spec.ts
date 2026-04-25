@@ -146,6 +146,165 @@ describe('LoginModal', () => {
     expect(submitButton.attributes('disabled')).toBeUndefined()
   })
 
+  it('submits the verification code and completes re-login', async () => {
+    mockAccountsStore.apiCredentials = {
+      apiId: 123456,
+      apiHash: '0123456789abcdef',
+    }
+    mockAccountsStore.accounts = [
+      {
+        id: 'account-1',
+        type: 'user',
+        label: 'Ramzan',
+        firstName: 'Ramzan',
+        phone: '+79261247596',
+        sessionString: 'expired-session',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]
+
+    const service = telegramService as any
+    let resolveAuth!: (user: { firstName: string; username: string }) => void
+    const authPromise = new Promise<{ firstName: string; username: string }>((resolve) => {
+      resolveAuth = resolve
+    })
+
+    service.resetForNewUserLogin.mockResolvedValue(undefined)
+    service.initClient.mockResolvedValue(undefined)
+    service.startUserAuth.mockImplementation(
+      (
+        _phone: string,
+        options?: {
+          onCodeNeeded?: () => void
+        },
+      ) => {
+        options?.onCodeNeeded?.()
+        return authPromise
+      },
+    )
+    service.provideCode.mockImplementation((submittedCode: string) => {
+      expect(submittedCode).toBe('12345')
+      resolveAuth({ firstName: 'Ramzan', username: 'ramzan' })
+      return true
+    })
+    service.getSessionString.mockReturnValue('fresh-session')
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user', replaceAccountId: 'account-1' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    await wrapper.get('input[inputmode="numeric"]').setValue('12345')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(service.provideCode).toHaveBeenCalledTimes(1)
+    expect(mockAccountsStore.updateAccount).toHaveBeenCalledWith(
+      'account-1',
+      expect.objectContaining({
+        firstName: 'Ramzan',
+        username: 'ramzan',
+        phone: '+79261247596',
+        sessionString: 'fresh-session',
+      }),
+    )
+    expect(mockAccountsStore.markAccountSessionReady).toHaveBeenCalledWith('account-1')
+    expect(mockAccountsStore.setActiveAccount).toHaveBeenCalledWith('account-1')
+  })
+
+  it('keeps the verification code flow alive after a recoverable code error', async () => {
+    mockAccountsStore.apiCredentials = {
+      apiId: 123456,
+      apiHash: '0123456789abcdef',
+    }
+    mockAccountsStore.accounts = [
+      {
+        id: 'account-1',
+        type: 'user',
+        label: 'Ramzan',
+        firstName: 'Ramzan',
+        phone: '+79261247596',
+        sessionString: 'expired-session',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]
+
+    const service = telegramService as any
+    let authOptions:
+      | {
+          onCodeNeeded?: () => void
+          onRecoverableError?: (error: unknown, stage: 'code' | 'password') => void
+        }
+      | undefined
+    let resolveAuth!: (user: { firstName: string; username: string }) => void
+    const authPromise = new Promise<{ firstName: string; username: string }>((resolve) => {
+      resolveAuth = resolve
+    })
+    let codeAttempts = 0
+
+    service.resetForNewUserLogin.mockResolvedValue(undefined)
+    service.initClient.mockResolvedValue(undefined)
+    service.startUserAuth.mockImplementation((_phone: string, options: typeof authOptions) => {
+      authOptions = options
+      options?.onCodeNeeded?.()
+      return authPromise
+    })
+    service.provideCode.mockImplementation(() => {
+      codeAttempts += 1
+      if (codeAttempts === 1) {
+        authOptions?.onRecoverableError?.(new Error('PHONE_CODE_INVALID'), 'code')
+        authOptions?.onCodeNeeded?.()
+        return true
+      }
+
+      resolveAuth({ firstName: 'Ramzan', username: 'ramzan' })
+      return true
+    })
+    service.getSessionString.mockReturnValue('fresh-session')
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user', replaceAccountId: 'account-1' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    await wrapper.get('input[inputmode="numeric"]').setValue('11111')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('PHONE_CODE_INVALID')
+    expect((wrapper.get('input[inputmode="numeric"]').element as HTMLInputElement).value).toBe('')
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
+
+    await wrapper.get('input[inputmode="numeric"]').setValue('22222')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(service.provideCode).toHaveBeenCalledTimes(2)
+    expect(mockAccountsStore.updateAccount).toHaveBeenCalledWith(
+      'account-1',
+      expect.objectContaining({
+        firstName: 'Ramzan',
+        username: 'ramzan',
+        phone: '+79261247596',
+        sessionString: 'fresh-session',
+      }),
+    )
+    expect(mockAccountsStore.markAccountSessionReady).toHaveBeenCalledWith('account-1')
+    expect(mockAccountsStore.setActiveAccount).toHaveBeenCalledWith('account-1')
+  })
+
   it('keeps the re-login password flow alive after a recoverable 2FA error', async () => {
     vi.useFakeTimers()
 
