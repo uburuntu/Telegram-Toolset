@@ -17,7 +17,7 @@ import type {
   FormatConfig,
   MediaType,
 } from '@/types'
-import { telegramService } from '../telegram/client'
+import { telegramGateway } from '../telegram/gateway'
 import {
   formatDuration,
   Semaphore,
@@ -104,7 +104,7 @@ class ChatArchiveBuildTask implements ChatArchiveTask {
       if (mediaMessages.length > 0) {
         progress.phase = 'fetching_messages'
         this.callbacks.onProgress?.({ ...progress })
-        rawMessages = await telegramService.getChatMessagesByIds(
+        rawMessages = await telegramGateway.media.getChatMessagesByIds(
           this.chatExport.chatPeerId || this.chatExport.chatId,
           mediaMessages.map((message) => message.id),
         )
@@ -227,7 +227,7 @@ class ChatArchiveBuildTask implements ChatArchiveTask {
             throw new Error(`Message ${message.id} could not be reloaded from Telegram`)
           }
 
-          const blob = await withRetry(() => telegramService.downloadMedia(rawMessage), {
+          const blob = await withRetry(() => telegramGateway.media.downloadMedia(rawMessage), {
             maxRetries: MAX_DOWNLOAD_RETRIES,
             signal: this.signal,
             onFloodWait: (seconds) => {

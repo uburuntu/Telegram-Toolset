@@ -11,7 +11,7 @@
 
 import type { AdminLogIterOptions, DeletedMessage, ExportConfig, ExportProgress } from '@/types'
 import { safeJsonStringify } from '@/utils/message-serialization'
-import { telegramService } from '../telegram/client'
+import { telegramGateway } from '../telegram/gateway'
 import {
   formatDuration,
   Semaphore,
@@ -103,7 +103,7 @@ class ExportService {
     try {
       // Validate chat first (unless explicitly skipped)
       if (options.validateFirst !== false) {
-        const validation = await telegramService.validateChatForExport(config.chatId)
+        const validation = await telegramGateway.adminLog.validateChatForExport(config.chatId)
         if (!validation.canExport) {
           throw new Error(validation.errorMessage || 'Cannot export from this chat')
         }
@@ -126,7 +126,10 @@ class ExportService {
       if (options.minDate !== undefined) iterOptions.minDate = options.minDate
       if (options.maxDate !== undefined) iterOptions.maxDate = options.maxDate
 
-      for await (const msg of telegramService.iterDeletedMessages(config.chatId, iterOptions)) {
+      for await (const msg of telegramGateway.adminLog.iterDeletedMessages(
+        config.chatId,
+        iterOptions,
+      )) {
         // Check for cancellation
         if (signal.aborted) {
           progress.phase = 'cancelled'
@@ -189,18 +192,18 @@ class ExportService {
    * Useful for UI validation before showing export options
    */
   async validateChat(chatId: bigint) {
-    return telegramService.validateChatForExport(chatId)
+    return telegramGateway.adminLog.validateChatForExport(chatId)
   }
 
   /**
    * Enrich a message with sender name and username
-   * Uses telegramService's cached entity lookup
+   * Uses the Telegram gateway's cached entity lookup
    */
   private async enrichMessageWithSender(msg: DeletedMessage): Promise<DeletedMessage> {
     if (!msg.senderId) return msg
 
     try {
-      const senderInfo = await telegramService.resolveSenderInfo(msg.senderId)
+      const senderInfo = await telegramGateway.entities.resolveSenderInfo(msg.senderId)
       msg.senderName = senderInfo.name
       msg.senderUsername = senderInfo.username
     } catch {
@@ -270,7 +273,7 @@ class ExportService {
     return withRetry(
       async () => {
         // Use downloadMessageMedia which handles _rawMessage properly
-        const blob = await telegramService.downloadMessageMedia(msg)
+        const blob = await telegramGateway.media.downloadMessageMedia(msg)
         return blob
       },
       {

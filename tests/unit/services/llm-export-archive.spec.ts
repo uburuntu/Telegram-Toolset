@@ -2,15 +2,17 @@ import JSZip from 'jszip'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChatExport, ChatMessage, FormatConfig } from '@/types'
 
-vi.mock('@/services/telegram/client', () => ({
-  telegramService: {
-    getChatMessagesByIds: vi.fn(),
-    downloadMedia: vi.fn(),
+vi.mock('@/services/telegram/gateway', () => ({
+  telegramGateway: {
+    media: {
+      getChatMessagesByIds: vi.fn(),
+      downloadMedia: vi.fn(),
+    },
   },
 }))
 
 import { chatArchiveService } from '@/services/llm-export/archive-service'
-import { telegramService } from '@/services/telegram/client'
+import { telegramGateway } from '@/services/telegram/gateway'
 
 const chatExport: ChatExport = {
   id: 'export-1',
@@ -90,11 +92,13 @@ describe('ChatArchiveService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    vi.mocked(telegramService.getChatMessagesByIds).mockImplementation(async (_chatId, ids) => {
-      return new Map(ids.map((id) => [id, { id, media: true }]))
-    })
+    vi.mocked(telegramGateway.media.getChatMessagesByIds).mockImplementation(
+      async (_chatId, ids) => {
+        return new Map(ids.map((id) => [id, { id, media: true }]))
+      },
+    )
 
-    vi.mocked(telegramService.downloadMedia).mockImplementation(async (rawMessage) => {
+    vi.mocked(telegramGateway.media.downloadMedia).mockImplementation(async (rawMessage) => {
       const id = Number((rawMessage as { id: number }).id)
       const mimeType = id === 2 ? 'image/jpeg' : 'application/pdf'
       return new Blob([`media-${id}`], { type: mimeType })
@@ -127,8 +131,11 @@ describe('ChatArchiveService', () => {
     expect(document.messages[1].media.archivePath).toBe('media/2_photo_2.jpg')
     expect(document.messages[2].media.archivePath).toBe('media/3_report.pdf')
 
-    expect(telegramService.getChatMessagesByIds).toHaveBeenCalledWith(chatExport.chatPeerId, [2, 3])
-    expect(telegramService.downloadMedia).toHaveBeenCalledTimes(2)
+    expect(telegramGateway.media.getChatMessagesByIds).toHaveBeenCalledWith(
+      chatExport.chatPeerId,
+      [2, 3],
+    )
+    expect(telegramGateway.media.downloadMedia).toHaveBeenCalledTimes(2)
   })
 
   it('only downloads media for the selected message subset', async () => {
@@ -142,12 +149,15 @@ describe('ChatArchiveService', () => {
 
     expect(document.messages).toHaveLength(1)
     expect(document.messages[0].id).toBe(3)
-    expect(telegramService.getChatMessagesByIds).toHaveBeenCalledWith(chatExport.chatPeerId, [3])
-    expect(telegramService.downloadMedia).toHaveBeenCalledTimes(1)
+    expect(telegramGateway.media.getChatMessagesByIds).toHaveBeenCalledWith(
+      chatExport.chatPeerId,
+      [3],
+    )
+    expect(telegramGateway.media.downloadMedia).toHaveBeenCalledTimes(1)
   })
 
   it('keeps building the archive when one media file cannot be reloaded', async () => {
-    vi.mocked(telegramService.getChatMessagesByIds).mockResolvedValue(
+    vi.mocked(telegramGateway.media.getChatMessagesByIds).mockResolvedValue(
       new Map([[2, { id: 2, media: true }]]),
     )
 

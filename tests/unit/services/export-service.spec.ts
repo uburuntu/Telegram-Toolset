@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { DeletedMessage, ExportConfig } from '@/types'
 
-// Mock telegramService before importing exportService
+// Mock telegramGateway before importing exportService
 const mockDeletedMessages: DeletedMessage[] = [
   {
     id: 1001,
@@ -35,31 +35,38 @@ const mockDeletedMessages: DeletedMessage[] = [
   },
 ]
 
-vi.mock('@/services/telegram/client', () => ({
-  telegramService: {
-    iterDeletedMessages: vi.fn(async function* () {
-      for (const msg of mockDeletedMessages) {
-        yield msg
-      }
-    }),
-    resolveSenderInfo: vi.fn().mockResolvedValue({
-      name: 'Resolved Name',
-      username: 'resolveduser',
-    }),
-    downloadMedia: vi.fn().mockResolvedValue(new Blob(['fake media'], { type: 'image/jpeg' })),
-    downloadMessageMedia: vi.fn().mockResolvedValue(new Blob(['fake media'], { type: 'image/jpeg' })),
-    validateChatForExport: vi.fn().mockResolvedValue({
-      valid: true,
-      canExport: true,
-      chatType: 'channel',
-      chatTitle: 'Test Channel',
-    }),
+vi.mock('@/services/telegram/gateway', () => ({
+  telegramGateway: {
+    adminLog: {
+      iterDeletedMessages: vi.fn(async function* () {
+        for (const msg of mockDeletedMessages) {
+          yield msg
+        }
+      }),
+      validateChatForExport: vi.fn().mockResolvedValue({
+        valid: true,
+        canExport: true,
+        chatType: 'channel',
+        chatTitle: 'Test Channel',
+      }),
+    },
+    entities: {
+      resolveSenderInfo: vi.fn().mockResolvedValue({
+        name: 'Resolved Name',
+        username: 'resolveduser',
+      }),
+    },
+    media: {
+      downloadMessageMedia: vi
+        .fn()
+        .mockResolvedValue(new Blob(['fake media'], { type: 'image/jpeg' })),
+    },
   },
 }))
 
 // Import after mocking
 import { exportService } from '@/services/export/export-service'
-import { telegramService } from '@/services/telegram/client'
+import { telegramGateway } from '@/services/telegram/gateway'
 
 describe('ExportService', () => {
   const baseConfig: ExportConfig = {
@@ -72,26 +79,22 @@ describe('ExportService', () => {
     vi.clearAllMocks()
     
     // Reset to default mock implementations
-    vi.mocked(telegramService.iterDeletedMessages).mockImplementation(async function* () {
+    vi.mocked(telegramGateway.adminLog.iterDeletedMessages).mockImplementation(async function* () {
       for (const msg of mockDeletedMessages) {
         yield msg
       }
     })
     
-    vi.mocked(telegramService.resolveSenderInfo).mockResolvedValue({
+    vi.mocked(telegramGateway.entities.resolveSenderInfo).mockResolvedValue({
       name: 'Resolved Name',
       username: 'resolveduser',
     })
     
-    vi.mocked(telegramService.downloadMedia).mockResolvedValue(
+    vi.mocked(telegramGateway.media.downloadMessageMedia).mockResolvedValue(
       new Blob(['fake media'], { type: 'image/jpeg' })
     )
     
-    vi.mocked(telegramService.downloadMessageMedia).mockResolvedValue(
-      new Blob(['fake media'], { type: 'image/jpeg' })
-    )
-    
-    vi.mocked(telegramService.validateChatForExport).mockResolvedValue({
+    vi.mocked(telegramGateway.adminLog.validateChatForExport).mockResolvedValue({
       valid: true,
       canExport: true,
       chatType: 'channel',
@@ -109,7 +112,10 @@ describe('ExportService', () => {
 
       expect(result.messages.length).toBe(3)
       // iterDeletedMessages is now called with chatId and options object
-      expect(telegramService.iterDeletedMessages).toHaveBeenCalledWith(baseConfig.chatId, {})
+      expect(telegramGateway.adminLog.iterDeletedMessages).toHaveBeenCalledWith(
+        baseConfig.chatId,
+        {},
+      )
     })
 
     it('should enrich messages with sender info', async () => {
@@ -126,7 +132,7 @@ describe('ExportService', () => {
       const result = await exportService.exportDeletedMessages(baseConfig)
 
       // 2 messages have media
-      expect(telegramService.downloadMessageMedia).toHaveBeenCalledTimes(2)
+      expect(telegramGateway.media.downloadMessageMedia).toHaveBeenCalledTimes(2)
       expect(result.mediaBlobs.size).toBe(2)
       expect(result.mediaBlobs.has(1002)).toBe(true)
       expect(result.mediaBlobs.has(1003)).toBe(true)
@@ -138,7 +144,7 @@ describe('ExportService', () => {
         exportMode: 'text_only',
       })
 
-      expect(telegramService.downloadMessageMedia).not.toHaveBeenCalled()
+      expect(telegramGateway.media.downloadMessageMedia).not.toHaveBeenCalled()
       expect(result.mediaBlobs.size).toBe(0)
       // Still should have all messages
       expect(result.messages.length).toBe(3)
@@ -181,7 +187,7 @@ describe('ExportService', () => {
     it('should support cancellation during metadata phase', async () => {
       let messageCount = 0
 
-      vi.mocked(telegramService.iterDeletedMessages).mockImplementation(async function* () {
+      vi.mocked(telegramGateway.adminLog.iterDeletedMessages).mockImplementation(async function* () {
         for (const msg of mockDeletedMessages) {
           messageCount++
           if (messageCount === 2) {
@@ -205,7 +211,7 @@ describe('ExportService', () => {
     it('should report cancelled status', async () => {
       let finalPhase = ''
 
-      vi.mocked(telegramService.iterDeletedMessages).mockImplementation(async function* () {
+      vi.mocked(telegramGateway.adminLog.iterDeletedMessages).mockImplementation(async function* () {
         exportService.cancel()
         yield mockDeletedMessages[0]
       })
@@ -229,7 +235,7 @@ describe('ExportService', () => {
 
       let wasExporting = false
 
-      vi.mocked(telegramService.iterDeletedMessages).mockImplementation(async function* () {
+      vi.mocked(telegramGateway.adminLog.iterDeletedMessages).mockImplementation(async function* () {
         wasExporting = exportService.isExporting
         yield mockDeletedMessages[0]
       })
@@ -243,7 +249,9 @@ describe('ExportService', () => {
 
   describe('error handling', () => {
     it('should handle sender resolution failures gracefully', async () => {
-      vi.mocked(telegramService.resolveSenderInfo).mockRejectedValue(new Error('Entity not found'))
+      vi.mocked(telegramGateway.entities.resolveSenderInfo).mockRejectedValue(
+        new Error('Entity not found'),
+      )
 
       const result = await exportService.exportDeletedMessages(baseConfig)
 
@@ -255,7 +263,9 @@ describe('ExportService', () => {
       const errors: Error[] = []
 
       // Reject ALL download attempts to ensure we get consistent failures
-      vi.mocked(telegramService.downloadMessageMedia).mockRejectedValue(new Error('Download failed'))
+      vi.mocked(telegramGateway.media.downloadMessageMedia).mockRejectedValue(
+        new Error('Download failed'),
+      )
 
       const result = await exportService.exportDeletedMessages(baseConfig, {
         onError: (error) => {
@@ -270,7 +280,7 @@ describe('ExportService', () => {
     })
 
     it('should report error phase on critical failure', async () => {
-      vi.mocked(telegramService.iterDeletedMessages).mockImplementation(async function* () {
+      vi.mocked(telegramGateway.adminLog.iterDeletedMessages).mockImplementation(async function* () {
         throw new Error('Connection lost')
       })
 
@@ -321,4 +331,3 @@ describe('ExportService', () => {
     })
   })
 })
-

@@ -1,17 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { DeletedMessage, ResendConfig } from '@/types'
 
-// We need to mock telegramService before importing resendService
-vi.mock('@/services/telegram/client', () => ({
-  telegramService: {
-    sendMessage: vi.fn().mockResolvedValue(undefined),
-    sendFile: vi.fn().mockResolvedValue(undefined),
+// We need to mock telegramGateway before importing resendService
+vi.mock('@/services/telegram/gateway', () => ({
+  telegramGateway: {
+    send: {
+      sendMessage: vi.fn().mockResolvedValue(undefined),
+      sendFile: vi.fn().mockResolvedValue(undefined),
+    },
   },
 }))
 
 // Import after mocking
 import { resendService } from '@/services/resend/resend-service'
-import { telegramService } from '@/services/telegram/client'
+import { telegramGateway } from '@/services/telegram/gateway'
 
 describe('ResendService', () => {
   const baseConfig: ResendConfig = {
@@ -59,7 +61,7 @@ describe('ResendService', () => {
 
       const result = await resendService.resendMessages(messages, mediaBlobs, baseConfig)
 
-      expect(telegramService.sendMessage).toHaveBeenCalledTimes(1)
+      expect(telegramGateway.send.sendMessage).toHaveBeenCalledTimes(1)
       expect(result.sentCount).toBe(1)
       expect(result.failedCount).toBe(0)
     })
@@ -71,7 +73,7 @@ describe('ResendService', () => {
 
       const result = await resendService.resendMessages(messages, mediaBlobs, config)
 
-      expect(telegramService.sendMessage).not.toHaveBeenCalled()
+      expect(telegramGateway.send.sendMessage).not.toHaveBeenCalled()
       expect(result.sentCount).toBe(0)
     })
 
@@ -82,8 +84,8 @@ describe('ResendService', () => {
 
       const result = await resendService.resendMessages(messages, mediaBlobs, baseConfig)
 
-      expect(telegramService.sendFile).toHaveBeenCalledTimes(1)
-      expect(telegramService.sendFile).toHaveBeenCalledWith(
+      expect(telegramGateway.send.sendFile).toHaveBeenCalledTimes(1)
+      expect(telegramGateway.send.sendFile).toHaveBeenCalledWith(
         baseConfig.targetChatId,
         blob,
         expect.objectContaining({
@@ -101,8 +103,8 @@ describe('ResendService', () => {
 
       const result = await resendService.resendMessages(messages, mediaBlobs, baseConfig)
 
-      expect(telegramService.sendFile).not.toHaveBeenCalled()
-      expect(telegramService.sendMessage).toHaveBeenCalledTimes(1)
+      expect(telegramGateway.send.sendFile).not.toHaveBeenCalled()
+      expect(telegramGateway.send.sendMessage).toHaveBeenCalledTimes(1)
       expect(result.sentCount).toBe(1)
       expect(result.failedCount).toBe(1)
     })
@@ -113,15 +115,15 @@ describe('ResendService', () => {
 
       const result = await resendService.resendMessages(messages, mediaBlobs, baseConfig)
 
-      expect(telegramService.sendFile).not.toHaveBeenCalled()
-      expect(telegramService.sendMessage).not.toHaveBeenCalled()
+      expect(telegramGateway.send.sendFile).not.toHaveBeenCalled()
+      expect(telegramGateway.send.sendMessage).not.toHaveBeenCalled()
       expect(result.sentCount).toBe(0)
       expect(result.failedCount).toBe(1)
     })
 
     it('should sort messages by date (oldest first)', async () => {
       const sentTexts: string[] = []
-      vi.mocked(telegramService.sendMessage).mockImplementation(async (_chatId, text) => {
+      vi.mocked(telegramGateway.send.sendMessage).mockImplementation(async (_chatId, text) => {
         sentTexts.push(text)
       })
 
@@ -154,7 +156,7 @@ describe('ResendService', () => {
       })
 
       // Each message sent separately
-      expect(telegramService.sendMessage).toHaveBeenCalledTimes(2)
+      expect(telegramGateway.send.sendMessage).toHaveBeenCalledTimes(2)
     })
 
     it('should batch consecutive messages from same sender', async () => {
@@ -182,8 +184,8 @@ describe('ResendService', () => {
       })
 
       // Both messages combined into one send
-      expect(telegramService.sendMessage).toHaveBeenCalledTimes(1)
-      const sentText = vi.mocked(telegramService.sendMessage).mock.calls[0][1]
+      expect(telegramGateway.send.sendMessage).toHaveBeenCalledTimes(1)
+      const sentText = vi.mocked(telegramGateway.send.sendMessage).mock.calls[0][1]
       expect(sentText).toContain('One')
       expect(sentText).toContain('Two')
     })
@@ -210,7 +212,7 @@ describe('ResendService', () => {
         enableBatching: true,
       })
 
-      expect(telegramService.sendMessage).toHaveBeenCalledTimes(2)
+      expect(telegramGateway.send.sendMessage).toHaveBeenCalledTimes(2)
     })
 
     it('should not batch messages with media', async () => {
@@ -238,7 +240,7 @@ describe('ResendService', () => {
       })
 
       // First one sends alone, second one (with media) sends alone
-      expect(telegramService.sendMessage).toHaveBeenCalledTimes(2)
+      expect(telegramGateway.send.sendMessage).toHaveBeenCalledTimes(2)
     })
 
     it('should not batch messages outside time window', async () => {
@@ -265,7 +267,7 @@ describe('ResendService', () => {
         batchTimeWindowMinutes: 5,
       })
 
-      expect(telegramService.sendMessage).toHaveBeenCalledTimes(2)
+      expect(telegramGateway.send.sendMessage).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -281,7 +283,7 @@ describe('ResendService', () => {
         showDate: false,
       })
 
-      const sentText = vi.mocked(telegramService.sendMessage).mock.calls[0][1]
+      const sentText = vi.mocked(telegramGateway.send.sendMessage).mock.calls[0][1]
       expect(sentText).toContain('TestUser')
     })
 
@@ -296,7 +298,7 @@ describe('ResendService', () => {
         showDate: false,
       })
 
-      const sentText = vi.mocked(telegramService.sendMessage).mock.calls[0][1]
+      const sentText = vi.mocked(telegramGateway.send.sendMessage).mock.calls[0][1]
       expect(sentText).toContain('@testhandle')
     })
 
@@ -312,7 +314,7 @@ describe('ResendService', () => {
         timezone: 'Europe/Moscow', // UTC+3
       })
 
-      const sentText = vi.mocked(telegramService.sendMessage).mock.calls[0][1]
+      const sentText = vi.mocked(telegramGateway.send.sendMessage).mock.calls[0][1]
       expect(sentText).toContain('13:30') // 10:30 UTC = 13:30 Moscow
     })
 
@@ -331,7 +333,7 @@ describe('ResendService', () => {
         useHiddenReplyLinks: false,
       })
 
-      const sentText = vi.mocked(telegramService.sendMessage).mock.calls[0][1]
+      const sentText = vi.mocked(telegramGateway.send.sendMessage).mock.calls[0][1]
       expect(sentText).toContain('t.me/c/')
       expect(sentText).toContain('500')
     })
@@ -351,7 +353,7 @@ describe('ResendService', () => {
         useHiddenReplyLinks: true,
       })
 
-      const sentText = vi.mocked(telegramService.sendMessage).mock.calls[0][1]
+      const sentText = vi.mocked(telegramGateway.send.sendMessage).mock.calls[0][1]
       expect(sentText).toContain('<a href=')
       expect(sentText).toContain('↩️ Reply')
     })
@@ -362,7 +364,7 @@ describe('ResendService', () => {
 
       await resendService.resendMessages(messages, mediaBlobs, baseConfig)
 
-      const sentText = vi.mocked(telegramService.sendMessage).mock.calls[0][1]
+      const sentText = vi.mocked(telegramGateway.send.sendMessage).mock.calls[0][1]
       expect(sentText).toContain('❝ This is quoted ❞')
     })
   })
@@ -370,7 +372,7 @@ describe('ResendService', () => {
   describe('cancellation', () => {
     it('should stop sending when cancelled', async () => {
       let callCount = 0
-      vi.mocked(telegramService.sendMessage).mockImplementation(async () => {
+      vi.mocked(telegramGateway.send.sendMessage).mockImplementation(async () => {
         callCount++
         if (callCount === 1) {
           // Cancel after first message
@@ -420,7 +422,7 @@ describe('ResendService', () => {
 
     it('should report errors through callbacks', async () => {
       // Reject all retries to trigger error callback
-      vi.mocked(telegramService.sendMessage).mockRejectedValue(new Error('Send failed'))
+      vi.mocked(telegramGateway.send.sendMessage).mockRejectedValue(new Error('Send failed'))
 
       const errors: Error[] = []
       const messages = [createMessage()]

@@ -10,7 +10,7 @@
 import type { ChatInfo, ScheduledMessage } from '@/types'
 import { formatRelativeTimeFromNow } from '@/utils/locale-format'
 import { safeJsonStringify } from '@/utils/message-serialization'
-import { telegramService } from '../telegram/client'
+import { telegramGateway } from '../telegram/gateway'
 import { createFloodWaitSubscription, withRetry } from '../telegram/rate-limiter'
 
 export interface ScheduledMessagesProgress {
@@ -66,11 +66,15 @@ class ScheduledService {
     const signal = this.abortController.signal
 
     // Subscribe to global flood wait events from GramJS (it handles flood wait internally)
-    const unsubscribeFloodWait = createFloodWaitSubscription(telegramService, callbacks, signal)
+    const unsubscribeFloodWait = createFloodWaitSubscription(
+      telegramGateway.auth,
+      callbacks,
+      signal,
+    )
 
     try {
       return await Promise.race([
-        telegramService.getScheduledMessages(chatId),
+        telegramGateway.scheduled.getScheduledMessages(chatId),
         new Promise<ScheduledMessage[]>((_, reject) => {
           signal.addEventListener(
             'abort',
@@ -102,7 +106,11 @@ class ScheduledService {
     const signal = this.abortController.signal
 
     // Subscribe to global flood wait events from GramJS (it handles flood wait internally)
-    const unsubscribeFloodWait = createFloodWaitSubscription(telegramService, callbacks, signal)
+    const unsubscribeFloodWait = createFloodWaitSubscription(
+      telegramGateway.auth,
+      callbacks,
+      signal,
+    )
 
     const progress: ScheduledMessagesProgress = {
       phase: 'loading_chats',
@@ -115,7 +123,7 @@ class ScheduledService {
       callbacks.onProgress?.({ ...progress })
 
       // Get dialogs sorted by most recent message
-      const dialogs = await telegramService.getDialogs(chatLimit)
+      const dialogs = await telegramGateway.dialogs.getDialogs(chatLimit)
 
       if (signal.aborted) {
         throw new Error('Operation cancelled')
@@ -142,10 +150,13 @@ class ScheduledService {
         try {
           // Note: GramJS handles flood wait internally, so we use the global listener
           // instead of withRetry's onFloodWait. withRetry is still useful for other errors.
-          const messages = await withRetry(() => telegramService.getScheduledMessages(chat.id), {
-            maxRetries: 3,
-            signal,
-          })
+          const messages = await withRetry(
+            () => telegramGateway.scheduled.getScheduledMessages(chat.id),
+            {
+              maxRetries: 3,
+              signal,
+            },
+          )
 
           if (messages.length > 0) {
             // Add chat title to each message
@@ -194,7 +205,7 @@ class ScheduledService {
    * Delete scheduled messages from a chat
    */
   async deleteScheduledMessages(chatId: bigint, messageIds: number[]): Promise<void> {
-    await telegramService.deleteScheduledMessages(chatId, messageIds)
+    await telegramGateway.scheduled.deleteScheduledMessages(chatId, messageIds)
   }
 
   /**
