@@ -38,12 +38,12 @@ test.describe('Landing Page', () => {
     await expect(page.getByText('Add Account')).toBeVisible()
   })
 
-  test('should close login modal with X button', async ({ page }) => {
+  test('should close login modal with close button', async ({ page }) => {
     await page.goto('/')
     await page.getByText('Account Info').click()
 
     // Find and click close button
-    await page.getByRole('button', { name: '✕' }).click()
+    await page.getByRole('button', { name: 'Close' }).click()
 
     // Modal should close
     await expect(page.getByText('Add Account')).not.toBeVisible()
