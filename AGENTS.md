@@ -16,10 +16,18 @@ This repository is no longer treated as a single-purpose deleted-messages utilit
 
 ## Documentation Map
 
-- `TODO.md` is the restart-friendly roadmap and source of truth for productionization status.
+- `TODO.md` is the pause/restart brief and current priority list.
 - `README.md` is the public product/development overview.
 - `AGENTS.md` is the single agent-facing guide for repo rules, architecture notes, and product direction.
 - If docs and current code disagree, treat the codebase as the source of current behavior and `TODO.md` as the source of target direction.
+
+## Re-entry Checkpoint
+
+- The current safe merge checkpoint is the stabilization batch from PR `#16`.
+- That batch hardens auth accessibility, CI reproducibility, ZIP export safety, Telegram connection-state handling, and app-level accessibility announcements.
+- Desktop and mobile Playwright projects are now CI-blocking.
+- If returning after a break, read `TODO.md` first, then this file, then `README.md`.
+- The next highest-value work is still secure secret storage plus account-owned data cleanup.
 
 ## Border Radius
 
@@ -211,7 +219,7 @@ Mobile-first approach: default styles for mobile, add complexity at larger break
 - **Storage**: IndexedDB for backups/media/export caches. Current secrets still live in localStorage; production direction is encrypted IndexedDB + WebCrypto for sessions and API credentials.
 - **Internationalization**: `vue-i18n` is required for user-facing copy. Current locales include `en`, `ru`, `ar`, `es`, `fa`, `id`, `pt`, `tr`, `uk`, `uz`; production work must preserve escaping safety and completeness standards.
 - **Security/Privacy**: On-device only; no backend, no analytics, no tracking. Sensitive inputs must stay masked, validated, and minimally persisted.
-- **CI/Test**: Vitest (unit/component), Playwright (E2E), GitHub Actions. Productionization should move to deterministic installs, stronger integration coverage, and bundle/test budgets.
+- **CI/Test**: Vitest (unit/component), Playwright (E2E), GitHub Actions with deterministic `npm ci` installs and desktop/mobile Playwright coverage in CI. The next gap is stronger live-integration and route-level coverage, not basic CI plumbing.
 
 ## Productionization Priorities
 
@@ -228,6 +236,7 @@ Mobile-first approach: default styles for mobile, add complexity at larger break
 
 Central singleton for all Telegram MTProto operations via GramJS:
 - **Connection lifecycle**: `connect()`, `disconnect()`, session persistence to localStorage
+- **State integrity**: unauthorized `connect()` and `disconnect()` paths now have direct unit coverage for honest connection-state transitions
 - **Authentication**: Phone + code + 2FA password flow; session string storage
 - **Entity cache**: In-memory `Map<bigint, Entity>` to avoid redundant `getEntity()` calls
 - **Key methods**:
@@ -426,7 +435,13 @@ Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#lit
 - E2E tests for export/resend flows with mocked Telegram
 - Error UX: ErrorBoundary, ErrorAlert components, user-friendly error messages
 - ZIP export integration (download as ZIP option in ExportView)
+- ZIP export filename sanitization for archive safety
 - Multi-account session isolation (issue #4)
+- Auth modal keyboard/focus/error accessibility hardening
+- Deterministic installs and reproducible preview deploy path in CI
+- Mobile Playwright projects promoted into CI
+- Direct Telegram connection-state tests
+- App-level live-region improvements for shared errors and toast messages
 - BigInt-safe JSON serialization utilities
 - `_rawMessage` stripping at persistence boundaries
 - Resend HTML escaping for user safety
@@ -435,6 +450,8 @@ Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#lit
 - `telegramService` is still a very large singleton with too many responsibilities.
 - Auth, export, and resend views still own too much orchestration and UI logic.
 - Secrets are still stored in localStorage today.
+- Backups and LLM exports are not yet scoped tightly enough to the owning account lifecycle.
+- The first-run privacy gate in `App.vue` still conflicts with the design/product guidance in this file.
 - The build still carries GramJS/browser-shim warnings and a heavy main bundle.
 - Tests are stronger at mocked service behavior than at real Telegram integration boundaries.
 - Documentation can drift behind the actual product direction if `TODO.md`, `README.md`, and `AGENTS.md` are not updated together.
