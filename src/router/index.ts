@@ -37,12 +37,12 @@ const router = createRouter({
 })
 
 // Navigation guards
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to) => {
   const accountsStore = useAccountsStore()
 
   // Load accounts from storage on first navigation
-  if (accountsStore.accounts.length === 0) {
-    accountsStore.loadFromStorage()
+  if (!accountsStore.storageLoaded) {
+    await accountsStore.loadFromStorage()
   }
 
   // Check if route requires authentication
@@ -52,15 +52,14 @@ router.beforeEach((to, _from, next) => {
     // If no active account, redirect to home with a message
     if (!accountsStore.activeAccount) {
       // Store intended destination
-      next({
+      return {
         name: 'home',
         query: {
           redirect: to.fullPath,
           needsAuth: 'true',
           accountType: requiredAccountType || 'any',
         },
-      })
-      return
+      }
     }
 
     // Check account type compatibility
@@ -74,21 +73,18 @@ router.beforeEach((to, _from, next) => {
           accountsStore.setActiveAccount(firstCompatible.id)
         } else {
           // Redirect to home to add account
-          next({
+          return {
             name: 'home',
             query: {
               redirect: to.fullPath,
               needsAuth: 'true',
               accountType: requiredAccountType,
             },
-          })
-          return
+          }
         }
       }
     }
   }
-
-  next()
 })
 
 export default router

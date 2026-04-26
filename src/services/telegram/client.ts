@@ -825,7 +825,7 @@ class TelegramService {
         return
       }
 
-      accountsStore.updateAccount(targetAccount.id, { sessionString })
+      await accountsStore.updateAccount(targetAccount.id, { sessionString })
       accountsStore.markAccountSessionReady(targetAccount.id)
     } catch (error) {
       console.warn('[TelegramService] Failed to persist refreshed session:', error)

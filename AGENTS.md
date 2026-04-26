@@ -32,7 +32,7 @@ This repository is no longer treated as a single-purpose deleted-messages utilit
 
 - Read `TODO.md` first, then this file, then `README.md`.
 - Re-establish the baseline with the standard verification commands before changing behavior.
-- Prioritize secure secret storage and account-owned data cleanup before major rewrites or visual refreshes.
+- Prioritize account-owned data cleanup and live Telegram validation before major rewrites or visual refreshes.
 
 ## Border Radius
 
@@ -221,7 +221,7 @@ Mobile-first approach: default styles for mobile, add complexity at larger break
   - **User**: GramJS via `telegramService` (MTProto) for dialogs/admin log/export/resend. Production direction is a typed Telegram gateway with smaller modules and worker isolation for heavy tasks.
   - **Bot**: HTTP Bot API for `getMe` validation (no MTProto needed).
 - **Account Info module**: Replaces bot-only view; shows data for both user and bot accounts. For bots, uses `getMe` to display name, username, capabilities (join groups, privacy mode, inline, web app).
-- **Storage**: IndexedDB for backups/media/export caches. Current secrets still live in localStorage; production direction is encrypted IndexedDB + WebCrypto for sessions and API credentials.
+- **Storage**: IndexedDB for backups/media/export caches and encrypted account secrets. Non-sensitive metadata and preferences may stay in localStorage, but API credentials, bot tokens, and user session strings must persist via encrypted IndexedDB + WebCrypto with legacy migration support.
 - **Internationalization**: `vue-i18n` is required for user-facing copy. Current locales include `en`, `ru`, `ar`, `es`, `fa`, `id`, `pt`, `tr`, `uk`, `uz`; production work must preserve escaping safety and completeness standards.
 - **Security/Privacy**: On-device only; no backend, no analytics, no tracking. Sensitive inputs must stay masked, validated, and minimally persisted.
 - **CI/Test**: Vitest (unit/component), Playwright (E2E), GitHub Actions with deterministic `npm ci` installs and desktop/mobile Playwright coverage in CI. The next gap is stronger live-integration and route-level coverage, not basic CI plumbing.
@@ -232,7 +232,7 @@ Mobile-first approach: default styles for mobile, add complexity at larger break
 2. Preserve the modular product surface and the shared auth/session platform.
 3. Pin dependency versions and make CI reproducible.
 4. Move long-running Telegram work off the main thread where practical.
-5. Harden secret storage and data migration paths.
+5. Harden account-owned data lifecycle and migration paths.
 6. Keep `Scheduled Messages` and `LLM Context Export` fully supported within the same shell.
 
 ## Service Layer Architecture
@@ -240,7 +240,7 @@ Mobile-first approach: default styles for mobile, add complexity at larger break
 ### Telegram Service (`services/telegram/client.ts`)
 
 Central singleton for all Telegram MTProto operations via GramJS:
-- **Connection lifecycle**: `connect()`, `disconnect()`, session persistence to localStorage
+- **Connection lifecycle**: `connect()`, `disconnect()`, session persistence coordinated through the account store and secure vault
 - **State integrity**: unauthorized `connect()` and `disconnect()` paths now have direct unit coverage for honest connection-state transitions
 - **Authentication**: Phone + code + 2FA password flow; session string storage
 - **Entity cache**: In-memory `Map<bigint, Entity>` to avoid redundant `getEntity()` calls
@@ -300,7 +300,7 @@ Lazy-loaded route components in `modules/`:
 
 ## Key Design Decisions
 
-1. **Client-side only**: No backend; all data in localStorage/IndexedDB. Privacy-first.
+1. **Client-side only**: No backend; non-sensitive UI state may live in localStorage, while account secrets and larger data sets live in IndexedDB. Privacy-first.
 2. **GramJS for users, Bot API for bots**: MTProto complexity only where needed.
 3. **Entity caching**: Avoids N+1 queries when resolving sender info for many messages.
 4. **Semaphore concurrency**: Prevents overwhelming Telegram API during media downloads.
@@ -442,6 +442,7 @@ Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#lit
 - ZIP export integration (download as ZIP option in ExportView)
 - ZIP export filename sanitization for archive safety
 - Multi-account session isolation (issue #4)
+- Encrypted IndexedDB + WebCrypto storage for API credentials, bot tokens, and user session strings, with migration from legacy plaintext localStorage
 - Auth modal keyboard/focus/error accessibility hardening
 - Deterministic installs and reproducible preview deploy path in CI
 - Mobile Playwright projects promoted into CI
@@ -454,8 +455,8 @@ Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#lit
 ### Productionization Gaps
 - `telegramService` is still a very large singleton with too many responsibilities.
 - Auth, export, and resend views still own too much orchestration and UI logic.
-- Secrets are still stored in localStorage today.
 - Backups and LLM exports are not yet scoped tightly enough to the owning account lifecycle.
+- Account-owned data cleanup should default to recoverable archive/quarantine behavior, not immediate hard delete.
 - The first-run privacy gate in `App.vue` still conflicts with the design/product guidance in this file.
 - The build still carries GramJS/browser-shim warnings and a heavy main bundle.
 - Tests are stronger at mocked service behavior than at real Telegram integration boundaries.

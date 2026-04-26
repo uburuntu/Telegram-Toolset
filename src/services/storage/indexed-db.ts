@@ -51,16 +51,35 @@ interface TelegramToolsetDB {
       'by-export': string
     }
   }
+  secureVaultKeys: {
+    key: string
+    value: SecureVaultKeyRecord
+  }
+  secureVaultSecrets: {
+    key: string
+    value: SecureVaultSecretRecord
+  }
 }
 
 const DB_NAME = 'telegram-toolset'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 export interface BackupMediaEntry {
   messageId: number
   blob: Blob
   filename: string
   mimeType: string
+}
+
+export interface SecureVaultKeyRecord {
+  id: string
+  key: CryptoKey
+}
+
+export interface SecureVaultSecretRecord {
+  id: string
+  iv: Uint8Array
+  ciphertext: ArrayBuffer
 }
 
 let dbPromise: Promise<IDBPDatabase<TelegramToolsetDB>> | null = null
@@ -106,6 +125,17 @@ async function getDB(): Promise<IDBPDatabase<TelegramToolsetDB>> {
               keyPath: ['exportId', 'id'],
             })
             chatMsgStore.createIndex('by-export', 'exportId')
+          }
+        }
+
+        // Version 3: Encrypted account/session storage
+        if (oldVersion < 3) {
+          if (!db.objectStoreNames.contains('secureVaultKeys')) {
+            db.createObjectStore('secureVaultKeys', { keyPath: 'id' })
+          }
+
+          if (!db.objectStoreNames.contains('secureVaultSecrets')) {
+            db.createObjectStore('secureVaultSecrets', { keyPath: 'id' })
           }
         }
       },
@@ -405,4 +435,35 @@ export async function getChatExportSize(exportId: string): Promise<number> {
   // Estimate size based on message JSON
   const messages = await db.getAllFromIndex('chatMessages', 'by-export', exportId)
   return safeJsonStringify(messages).length
+}
+
+// =============================================================================
+// Secure Vault Operations
+// =============================================================================
+
+export async function getSecureVaultKey(id: string): Promise<CryptoKey | undefined> {
+  const db = await getDB()
+  return (await db.get('secureVaultKeys', id))?.key
+}
+
+export async function putSecureVaultKey(id: string, key: CryptoKey): Promise<void> {
+  const db = await getDB()
+  await db.put('secureVaultKeys', { id, key })
+}
+
+export async function getSecureVaultSecret(
+  id: string,
+): Promise<SecureVaultSecretRecord | undefined> {
+  const db = await getDB()
+  return db.get('secureVaultSecrets', id)
+}
+
+export async function putSecureVaultSecret(record: SecureVaultSecretRecord): Promise<void> {
+  const db = await getDB()
+  await db.put('secureVaultSecrets', record)
+}
+
+export async function deleteSecureVaultSecret(id: string): Promise<void> {
+  const db = await getDB()
+  await db.delete('secureVaultSecrets', id)
 }

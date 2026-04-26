@@ -53,8 +53,8 @@ function openReloginModal(): void {
 
 onMounted(() => {
   // Load accounts from storage
-  if (accountsStore.accounts.length === 0 && !accountsStore.apiCredentials) {
-    accountsStore.loadFromStorage()
+  if (!accountsStore.storageLoaded) {
+    void accountsStore.loadFromStorage()
   }
 
   // Load privacy notice state

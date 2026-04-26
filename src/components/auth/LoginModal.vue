@@ -338,7 +338,7 @@ async function finalizeUserAuth(user: UserInfo): Promise<void> {
   let accountId: string
 
   if (replacementUserAccount.value) {
-    accountsStore.updateAccount(replacementUserAccount.value.id, {
+    await accountsStore.updateAccount(replacementUserAccount.value.id, {
       label:
         user.firstName || replacementUserAccount.value.label || `User ${phone.value.slice(-4)}`,
       firstName: user.firstName || replacementUserAccount.value.firstName,
@@ -349,7 +349,7 @@ async function finalizeUserAuth(user: UserInfo): Promise<void> {
     accountId = replacementUserAccount.value.id
     uiStore.showToast('success', t('auth.reloginSuccess'))
   } else {
-    const newAccount = accountsStore.addAccount({
+    const newAccount = await accountsStore.addAccount({
       type: 'user',
       label: user.firstName || `User ${phone.value.slice(-4)}`,
       firstName: user.firstName,
@@ -526,8 +526,12 @@ async function handleCredentialsSubmit(): Promise<void> {
     return
   }
 
-  accountsStore.setApiCredentials({ apiId: id, apiHash: apiHash.value })
-  step.value = 'phone'
+  try {
+    await accountsStore.setApiCredentials({ apiId: id, apiHash: apiHash.value })
+    step.value = 'phone'
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : t('common.error')
+  }
 }
 
 async function handlePhoneSubmit(): Promise<void> {
@@ -658,7 +662,7 @@ async function handleBotTokenSubmit(): Promise<void> {
 
     if (existingBotAccount.value) {
       // Update existing bot account
-      accountsStore.updateAccount(existingBotAccount.value.id, {
+      await accountsStore.updateAccount(existingBotAccount.value.id, {
         label: botInfo.value.first_name,
         firstName: botInfo.value.first_name,
         username: botInfo.value.username,
@@ -672,7 +676,7 @@ async function handleBotTokenSubmit(): Promise<void> {
       uiStore.showToast('success', t('auth.success'))
     } else {
       // Add new bot account
-      const newAccount = accountsStore.addAccount({
+      const newAccount = await accountsStore.addAccount({
         type: 'bot',
         label: botInfo.value.first_name,
         firstName: botInfo.value.first_name,
