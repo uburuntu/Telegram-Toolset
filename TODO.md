@@ -2,6 +2,11 @@
 
 This file is the restart brief for the next time someone picks up the repo. It should stay useful after merges, branch changes, and time away. If the code and docs disagree, trust the code for current behavior and use this file for priority order.
 
+## Current Baseline
+
+- API credentials, bot tokens, and user session strings now persist through encrypted IndexedDB + WebCrypto.
+- Legacy plaintext auth data in `localStorage` is migrated on load and rewritten to sanitized metadata.
+
 ## First Steps When Returning
 
 1. Pull latest `main`.
@@ -17,10 +22,8 @@ This file is the restart brief for the next time someone picks up the repo. It s
 
 ## Highest-Priority Unresolved Risks
 
-- Secrets are still stored in plaintext `localStorage`.
-  - Affected data includes API credentials, bot tokens, and user session strings.
 - Backups and LLM exports are not scoped to the owning account.
-  - Account removal does not fully clean up account-owned stored data.
+  - Account removal and cleanup still need a recoverable lifecycle, not immediate destructive deletion.
 - The first-run privacy gate in `src/App.vue` still blocks the shell and conflicts with the product guidance in `AGENTS.md`.
 - Live Telegram integration still needs periodic real-world smoke validation.
   - CI is good, but most Telegram behavior is still tested behind mocks.
@@ -31,23 +34,23 @@ This file is the restart brief for the next time someone picks up the repo. It s
 
 Do this before any large rewrite or visual redesign:
 
-### A. Secure Storage And Account-Owned Data
+### A. Account-Owned Data With Recoverable Cleanup
 
-- Move secrets out of plaintext `localStorage`.
-- Use encrypted IndexedDB + WebCrypto for persisted credentials/session material.
-- Add a migration path from the current account/session format.
 - Add `ownerAccountId`-style scoping to backups and LLM export records.
-- Delete or archive account-owned persisted data when an account is removed.
+- Keep auth/session removal separate from backup/export cleanup.
+- On account removal, move owned data into a recoverable archive/quarantine state first.
+- Add an explicit purge path or delayed garbage collection after a grace period.
+- Document the recovery path so reconnect or migration issues do not force data loss.
 
 Exit criteria:
 
-- no raw credentials or session strings in `localStorage`
 - stored exports/backups are account-scoped
-- migration behavior is documented and tested
+- account removal does not immediately destroy recoverable user data
+- purge/archive behavior is documented and tested
 
 ### B. Live Telegram Smoke Pass
 
-After storage work, do one manual validation pass and record the result:
+After the account-owned data work, do one manual validation pass and record the result:
 
 - user login
 - bot login
@@ -60,7 +63,7 @@ After storage work, do one manual validation pass and record the result:
 Exit criteria:
 
 - one written smoke-test note exists in the repo or PR
-- no auth/session regressions are discovered after the storage migration
+- no auth/session regressions are discovered after the storage migration and data-lifecycle changes
 
 ## Next Milestone After That
 
@@ -82,6 +85,7 @@ Exit criteria:
 - Do not rename the repo/product as a prerequisite for real engineering work.
 - Do not add new modules before storage/auth hardening is finished.
 - Do not spend the first milestone on visual polish or bundle work alone.
+- Do not hard-delete account-owned backups/exports as the default cleanup behavior.
 
 ## Docs Discipline
 

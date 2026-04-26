@@ -42,9 +42,13 @@ function reloginAccount(id: string): void {
   })
 }
 
-function removeAccount(id: string): void {
+async function removeAccount(id: string): Promise<void> {
   if (confirm(`${t('accounts.removeAccount')}?`)) {
-    accountsStore.removeAccount(id)
+    try {
+      await accountsStore.removeAccount(id)
+    } catch (error) {
+      uiStore.showToast('error', error instanceof Error ? error.message : t('common.error'))
+    }
   }
 }
 

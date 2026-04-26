@@ -1,42 +1,156 @@
 /**
- * Multi-account store supporting both user accounts and bot tokens
+ * Multi-account store supporting both user accounts and bot tokens.
+ * Non-sensitive account metadata stays in localStorage for fast boot.
+ * Sensitive material is encrypted into IndexedDB via WebCrypto.
  */
 
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, ref } from 'vue'
+import {
+  deleteSecureAccountSecret,
+  loadSecureAccountSecret,
+  loadSecureApiCredentials,
+  type PersistedAccountSecret,
+  saveSecureAccountSecret,
+  saveSecureApiCredentials,
+} from '@/services/storage/secure-account-vault'
 import type { ApiCredentials, SavedAccount } from '@/types/account'
 
 const ACCOUNTS_STORAGE_KEY = 'telegram_accounts'
 const ACTIVE_ACCOUNT_KEY = 'telegram_active_account'
 const API_CREDENTIALS_KEY = 'telegram_api_credentials'
 
+type StoredAccountRecord = Omit<
+  SavedAccount,
+  'createdAt' | 'lastUsedAt' | 'sessionString' | 'botToken'
+> & {
+  createdAt: string
+  lastUsedAt: string
+  sessionString?: string
+  botToken?: string
+  apiId?: number
+  apiHash?: string
+}
+
 export type AccountSessionState = 'unknown' | 'ready' | 'needs_login'
 
+function parseStoredAccounts(): StoredAccountRecord[] {
+  const raw = localStorage.getItem(ACCOUNTS_STORAGE_KEY)
+  if (!raw) {
+    return []
+  }
+
+  const parsed = JSON.parse(raw)
+  return Array.isArray(parsed) ? (parsed as StoredAccountRecord[]) : []
+}
+
+function parseStoredApiCredentials(): ApiCredentials | null {
+  const raw = localStorage.getItem(API_CREDENTIALS_KEY)
+  if (!raw) {
+    return null
+  }
+
+  return JSON.parse(raw) as ApiCredentials
+}
+
+function getEmbeddedApiCredentials(accounts: StoredAccountRecord[]): ApiCredentials | null {
+  for (const account of accounts) {
+    if (typeof account.apiId === 'number' && typeof account.apiHash === 'string') {
+      return {
+        apiId: account.apiId,
+        apiHash: account.apiHash,
+      }
+    }
+  }
+
+  return null
+}
+
+function hasLegacyPlaintextData(
+  accounts: StoredAccountRecord[],
+  hasStoredCredentialKey: boolean,
+): boolean {
+  if (hasStoredCredentialKey) {
+    return true
+  }
+
+  return accounts.some(
+    (account) =>
+      typeof account.sessionString === 'string' ||
+      typeof account.botToken === 'string' ||
+      typeof account.apiId === 'number' ||
+      typeof account.apiHash === 'string',
+  )
+}
+
+function getPersistedAccountSecret(account: SavedAccount): PersistedAccountSecret | null {
+  if (account.type === 'user') {
+    return account.sessionString ? { sessionString: account.sessionString } : null
+  }
+
+  return account.botToken ? { botToken: account.botToken } : null
+}
+
+function hydrateAccount(
+  stored: StoredAccountRecord,
+  secret: PersistedAccountSecret | null,
+): SavedAccount {
+  const {
+    sessionString: legacySessionString,
+    botToken: legacyBotToken,
+    apiId: _,
+    apiHash: __,
+    ...rest
+  } = stored
+
+  return {
+    ...rest,
+    createdAt: new Date(stored.createdAt),
+    lastUsedAt: new Date(stored.lastUsedAt),
+    sessionString:
+      stored.type === 'user'
+        ? (secret?.sessionString ?? legacySessionString ?? '')
+        : (legacySessionString ?? `bot_session_${stored.id}`),
+    botToken: stored.type === 'bot' ? (secret?.botToken ?? legacyBotToken) : undefined,
+  }
+}
+
+function serializeAccountMetadata(account: SavedAccount): StoredAccountRecord {
+  const {
+    sessionString: _sessionString,
+    botToken: _botToken,
+    createdAt,
+    lastUsedAt,
+    ...rest
+  } = account
+
+  return {
+    ...rest,
+    createdAt: createdAt.toISOString(),
+    lastUsedAt: lastUsedAt.toISOString(),
+  }
+}
+
 export const useAccountsStore = defineStore('accounts', () => {
-  // State
   const accounts = ref<SavedAccount[]>([])
   const activeAccountId = ref<string | null>(null)
   const apiCredentials = ref<ApiCredentials | null>(null)
   const sessionStateByAccountId = ref<Record<string, AccountSessionState>>({})
+  const storageLoaded = ref(false)
 
-  // Getters
+  let loadPromise: Promise<void> | null = null
+
   const activeAccount = computed(
     () => accounts.value.find((a) => a.id === activeAccountId.value) ?? null,
   )
 
   const userAccounts = computed(() => accounts.value.filter((a) => a.type === 'user'))
-
   const botAccounts = computed(() => accounts.value.filter((a) => a.type === 'bot'))
-
   const hasAnyAccount = computed(() => accounts.value.length > 0)
-
   const hasUserAccount = computed(() => userAccounts.value.length > 0)
-
   const hasBotAccount = computed(() => botAccounts.value.length > 0)
-
   const isActiveAccountUser = computed(() => activeAccount.value?.type === 'user')
-
   const isActiveAccountBot = computed(() => activeAccount.value?.type === 'bot')
 
   const activeAccountSessionState = computed(() => {
@@ -49,122 +163,210 @@ export const useAccountsStore = defineStore('accounts', () => {
 
   const activeAccountNeedsLogin = computed(() => activeAccountSessionState.value === 'needs_login')
 
-  // Actions
-  function loadFromStorage(): void {
-    try {
-      // Load API credentials first so reactive consumers that depend on both the
-      // active user account and credentials never observe an account without creds.
-      const storedCreds = localStorage.getItem(API_CREDENTIALS_KEY)
-      if (storedCreds) {
-        apiCredentials.value = JSON.parse(storedCreds)
-      }
+  function syncSessionStateMap(): void {
+    const nextSessionState: Record<string, AccountSessionState> = {}
 
-      const storedAccounts = localStorage.getItem(ACCOUNTS_STORAGE_KEY)
-      if (storedAccounts) {
-        const parsed = JSON.parse(storedAccounts)
-        accounts.value = parsed.map((a: SavedAccount & { apiId?: number; apiHash?: string }) => {
-          // Migrate: if account has apiId/apiHash from old format, extract them
-          if (a.apiId && a.apiHash && !apiCredentials.value) {
-            apiCredentials.value = { apiId: a.apiId, apiHash: a.apiHash }
-            saveApiCredentials()
-          }
-          const { apiId: _, apiHash: __, ...rest } = a
-          return {
-            ...rest,
-            createdAt: new Date(a.createdAt),
-            lastUsedAt: new Date(a.lastUsedAt),
-          }
-        })
+    for (const account of accounts.value) {
+      if (account.type === 'user') {
+        nextSessionState[account.id] = sessionStateByAccountId.value[account.id] ?? 'unknown'
       }
+    }
 
-      const nextSessionState: Record<string, AccountSessionState> = {}
-      for (const account of accounts.value) {
-        if (account.type === 'user') {
-          nextSessionState[account.id] = sessionStateByAccountId.value[account.id] ?? 'unknown'
+    sessionStateByAccountId.value = nextSessionState
+  }
+
+  function persistMetadataToLocalStorage(): void {
+    if (accounts.value.length > 0) {
+      localStorage.setItem(
+        ACCOUNTS_STORAGE_KEY,
+        JSON.stringify(accounts.value.map(serializeAccountMetadata)),
+      )
+    } else {
+      localStorage.removeItem(ACCOUNTS_STORAGE_KEY)
+    }
+
+    if (activeAccountId.value) {
+      localStorage.setItem(ACTIVE_ACCOUNT_KEY, activeAccountId.value)
+    } else {
+      localStorage.removeItem(ACTIVE_ACCOUNT_KEY)
+    }
+
+    // Remove the legacy plaintext credentials key once the secure path is active.
+    localStorage.removeItem(API_CREDENTIALS_KEY)
+  }
+
+  async function persistAccountSecret(account: SavedAccount): Promise<void> {
+    await saveSecureAccountSecret(account.id, getPersistedAccountSecret(account))
+  }
+
+  async function migrateLegacyPlaintextData(): Promise<void> {
+    await Promise.all(accounts.value.map((account) => persistAccountSecret(account)))
+    await saveSecureApiCredentials(apiCredentials.value)
+    persistMetadataToLocalStorage()
+  }
+
+  async function loadFromStorage(): Promise<void> {
+    if (storageLoaded.value) {
+      return
+    }
+
+    if (loadPromise) {
+      return loadPromise
+    }
+
+    loadPromise = (async () => {
+      try {
+        const storedAccounts = parseStoredAccounts()
+        const legacyCredentials = parseStoredApiCredentials()
+        const secureCredentials = await loadSecureApiCredentials()
+        const nextApiCredentials =
+          secureCredentials ?? legacyCredentials ?? getEmbeddedApiCredentials(storedAccounts)
+
+        // Load API credentials before publishing accounts so reactive consumers never
+        // observe a user account without the shared app credentials.
+        apiCredentials.value = nextApiCredentials
+
+        const secrets = await Promise.all(
+          storedAccounts.map(
+            async (account) => [account.id, await loadSecureAccountSecret(account.id)] as const,
+          ),
+        )
+        const secretByAccountId = new Map<string, PersistedAccountSecret | null>(secrets)
+
+        accounts.value = storedAccounts.map((account) =>
+          hydrateAccount(account, secretByAccountId.get(account.id) ?? null),
+        )
+        syncSessionStateMap()
+
+        const storedActive = localStorage.getItem(ACTIVE_ACCOUNT_KEY)
+        activeAccountId.value =
+          storedActive && accounts.value.some((account) => account.id === storedActive)
+            ? storedActive
+            : null
+
+        if (
+          hasLegacyPlaintextData(storedAccounts, legacyCredentials !== null) ||
+          (nextApiCredentials !== null && secureCredentials === null)
+        ) {
+          await migrateLegacyPlaintextData()
         }
+      } catch (error) {
+        console.error('Failed to load accounts from storage:', error)
+      } finally {
+        storageLoaded.value = true
+        loadPromise = null
       }
-      sessionStateByAccountId.value = nextSessionState
+    })()
 
-      const storedActive = localStorage.getItem(ACTIVE_ACCOUNT_KEY)
-      if (storedActive && accounts.value.some((a) => a.id === storedActive)) {
-        activeAccountId.value = storedActive
-      }
-    } catch (e) {
-      console.error('Failed to load accounts from storage:', e)
-    }
+    return loadPromise
   }
 
-  function saveToStorage(): void {
+  async function setApiCredentials(credentials: ApiCredentials): Promise<void> {
+    const previousCredentials = apiCredentials.value
+    apiCredentials.value = credentials
+
     try {
-      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts.value))
-      if (activeAccountId.value) {
-        localStorage.setItem(ACTIVE_ACCOUNT_KEY, activeAccountId.value)
-      } else {
-        localStorage.removeItem(ACTIVE_ACCOUNT_KEY)
-      }
-    } catch (e) {
-      console.error('Failed to save accounts to storage:', e)
+      await saveSecureApiCredentials(credentials)
+      persistMetadataToLocalStorage()
+    } catch (error) {
+      apiCredentials.value = previousCredentials
+      throw error
     }
   }
 
-  function saveApiCredentials(): void {
-    try {
-      if (apiCredentials.value) {
-        localStorage.setItem(API_CREDENTIALS_KEY, JSON.stringify(apiCredentials.value))
-      } else {
-        localStorage.removeItem(API_CREDENTIALS_KEY)
-      }
-    } catch (e) {
-      console.error('Failed to save API credentials to storage:', e)
-    }
-  }
-
-  function setApiCredentials(creds: ApiCredentials): void {
-    apiCredentials.value = creds
-    saveApiCredentials()
-  }
-
-  function addAccount(
+  async function addAccount(
     account: Omit<SavedAccount, 'id' | 'createdAt' | 'lastUsedAt'>,
-  ): SavedAccount {
+  ): Promise<SavedAccount> {
     const newAccount: SavedAccount = {
       ...account,
       id: uuidv4(),
       createdAt: new Date(),
       lastUsedAt: new Date(),
     }
+
     accounts.value.push(newAccount)
     if (newAccount.type === 'user') {
       sessionStateByAccountId.value[newAccount.id] = 'ready'
     }
-    saveToStorage()
-    return newAccount
-  }
 
-  function updateAccount(id: string, updates: Partial<SavedAccount>): void {
-    const index = accounts.value.findIndex((a) => a.id === id)
-    if (index !== -1) {
-      accounts.value[index] = { ...accounts.value[index], ...updates } as SavedAccount
-      saveToStorage()
+    try {
+      await persistAccountSecret(newAccount)
+      persistMetadataToLocalStorage()
+      return newAccount
+    } catch (error) {
+      accounts.value = accounts.value.filter(
+        (existingAccount) => existingAccount.id !== newAccount.id,
+      )
+      delete sessionStateByAccountId.value[newAccount.id]
+      throw error
     }
   }
 
-  function removeAccount(id: string): void {
-    accounts.value = accounts.value.filter((a) => a.id !== id)
+  async function updateAccount(id: string, updates: Partial<SavedAccount>): Promise<void> {
+    const index = accounts.value.findIndex((account) => account.id === id)
+    if (index === -1) {
+      return
+    }
+
+    const previousAccount = accounts.value[index]!
+    const nextAccount = { ...previousAccount, ...updates } as SavedAccount
+    accounts.value[index] = nextAccount
+
+    try {
+      await persistAccountSecret(nextAccount)
+      persistMetadataToLocalStorage()
+    } catch (error) {
+      accounts.value[index] = previousAccount
+      throw error
+    }
+  }
+
+  async function removeAccount(id: string): Promise<void> {
+    const removedAccount = accounts.value.find((account) => account.id === id)
+    if (!removedAccount) {
+      return
+    }
+
+    const previousAccounts = [...accounts.value]
+    const previousActiveAccountId = activeAccountId.value
+    const previousSessionState = { ...sessionStateByAccountId.value }
+
+    accounts.value = accounts.value.filter((account) => account.id !== id)
     delete sessionStateByAccountId.value[id]
+
     if (activeAccountId.value === id) {
       activeAccountId.value = accounts.value[0]?.id ?? null
     }
-    saveToStorage()
+
+    try {
+      await deleteSecureAccountSecret(id)
+      persistMetadataToLocalStorage()
+    } catch (error) {
+      accounts.value = previousAccounts
+      activeAccountId.value = previousActiveAccountId
+      sessionStateByAccountId.value = previousSessionState
+      throw error
+    }
   }
 
   function setActiveAccount(id: string | null): void {
-    if (id === null || accounts.value.some((a) => a.id === id)) {
-      activeAccountId.value = id
-      if (id) {
-        updateAccount(id, { lastUsedAt: new Date() })
+    if (id !== null && !accounts.value.some((account) => account.id === id)) {
+      return
+    }
+
+    activeAccountId.value = id
+
+    if (id) {
+      const account = accounts.value.find((entry) => entry.id === id)
+      if (account) {
+        account.lastUsedAt = new Date()
       }
-      saveToStorage()
+    }
+
+    try {
+      persistMetadataToLocalStorage()
+    } catch (error) {
+      console.error('Failed to persist active account selection:', error)
     }
   }
 
@@ -172,17 +374,19 @@ export const useAccountsStore = defineStore('accounts', () => {
     if (requiredType === 'any') {
       return accounts.value
     }
-    return accounts.value.filter((a) => a.type === requiredType)
+
+    return accounts.value.filter((account) => account.type === requiredType)
   }
 
   function findBotByTelegramId(telegramBotId: number): SavedAccount | null {
-    return botAccounts.value.find((a) => a.botTelegramId === telegramBotId) ?? null
+    return botAccounts.value.find((account) => account.botTelegramId === telegramBotId) ?? null
   }
 
   function getAccountSessionState(accountId: string | null | undefined): AccountSessionState {
     if (!accountId) {
       return 'unknown'
     }
+
     return sessionStateByAccountId.value[accountId] ?? 'unknown'
   }
 
@@ -203,18 +407,23 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   function isActiveAccountCompatible(requiredType: 'user' | 'bot' | 'any'): boolean {
-    if (!activeAccount.value) return false
-    if (requiredType === 'any') return true
+    if (!activeAccount.value) {
+      return false
+    }
+
+    if (requiredType === 'any') {
+      return true
+    }
+
     return activeAccount.value.type === requiredType
   }
 
   return {
-    // State
     accounts,
     activeAccountId,
     apiCredentials,
     sessionStateByAccountId,
-    // Getters
+    storageLoaded,
     activeAccount,
     userAccounts,
     botAccounts,
@@ -225,9 +434,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     isActiveAccountBot,
     activeAccountSessionState,
     activeAccountNeedsLogin,
-    // Actions
     loadFromStorage,
-    saveToStorage,
     addAccount,
     updateAccount,
     removeAccount,

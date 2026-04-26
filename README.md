@@ -37,7 +37,7 @@ The detailed roadmap lives in [TODO.md](./TODO.md).
 - `Vue Router` for lazy-loaded module routes
 - `GramJS` for user MTProto flows
 - Telegram Bot HTTP API for bot validation flows
-- `IndexedDB` for backups, media, and export caches
+- `IndexedDB` for backups, media, export caches, and encrypted account secrets
 - `vue-i18n` for localization
 - `Vitest` + `Playwright` + GitHub Actions for quality gates
 
