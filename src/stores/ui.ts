@@ -24,7 +24,6 @@ export const useUiStore = defineStore('ui', () => {
   const modals = ref<Modal[]>([])
   const isSidebarOpen = ref(false)
   const isMobile = ref(false)
-  const hasSeenPrivacyNotice = ref(false)
 
   // Getters
   const currentModal = computed(() => modals.value[modals.value.length - 1] ?? null)
@@ -76,22 +75,12 @@ export const useUiStore = defineStore('ui', () => {
     isMobile.value = mobile
   }
 
-  function acknowledgePrivacyNotice() {
-    hasSeenPrivacyNotice.value = true
-    localStorage.setItem('privacy_notice_seen', 'true')
-  }
-
-  function loadPrivacyNoticeState() {
-    hasSeenPrivacyNotice.value = localStorage.getItem('privacy_notice_seen') === 'true'
-  }
-
   return {
     // State
     toasts,
     modals,
     isSidebarOpen,
     isMobile,
-    hasSeenPrivacyNotice,
     // Getters
     currentModal,
     hasOpenModal,
@@ -104,7 +93,5 @@ export const useUiStore = defineStore('ui', () => {
     toggleSidebar,
     setSidebarOpen,
     setMobile,
-    acknowledgePrivacyNotice,
-    loadPrivacyNoticeState,
   }
 })

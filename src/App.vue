@@ -6,7 +6,7 @@ import AccountSwitcher from '@/components/auth/AccountSwitcher.vue'
 import LoginModal from '@/components/auth/LoginModal.vue'
 import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
 import PrivacyFooter from '@/components/layout/PrivacyFooter.vue'
-import { telegramService } from '@/services/telegram/client'
+import { useActiveUserSessionSync } from '@/composables'
 import { useAccountsStore, useUiStore } from '@/stores'
 
 const { t } = useI18n()
@@ -57,9 +57,6 @@ onMounted(() => {
     void accountsStore.loadFromStorage()
   }
 
-  // Load privacy notice state
-  uiStore.loadPrivacyNoticeState()
-
   // Detect mobile
   updateMobile()
   window.addEventListener('resize', updateMobile)
@@ -92,68 +89,7 @@ watch(
   },
 )
 
-// Keep Telegram client session in sync with the active user account (multi-account support).
-// Skip while LoginModal owns the client lifecycle during login/relogin.
-watch(
-  () => [
-    accountsStore.activeAccount?.id ?? null,
-    accountsStore.activeAccount?.type ?? null,
-    accountsStore.apiCredentials?.apiId ?? null,
-    accountsStore.apiCredentials?.apiHash ?? null,
-    showLoginModal.value,
-  ],
-  async () => {
-    const account = accountsStore.activeAccount
-
-    if (showLoginModal.value) {
-      return
-    }
-
-    if (!account || account.type !== 'user') {
-      try {
-        await telegramService.disconnect()
-      } catch {
-        // Ignore best-effort cleanup when leaving a user session.
-      }
-      return
-    }
-
-    if (accountsStore.activeAccountNeedsLogin) {
-      try {
-        await telegramService.disconnect()
-      } catch {
-        // Ignore disconnect failures while surfacing the re-login state.
-      }
-      return
-    }
-
-    const creds = accountsStore.apiCredentials
-    if (!creds) return
-
-    // Check for useUserAccountSession method (may be missing in E2E mocks)
-    if (!('useUserAccountSession' in telegramService)) return
-    type SessionFn = (o: {
-      accountId?: string
-      sessionString?: string
-      apiId: number
-      apiHash: string
-    }) => Promise<boolean>
-    const useSession = telegramService.useUserAccountSession as SessionFn | undefined
-    if (typeof useSession !== 'function') return
-
-    try {
-      await useSession({
-        accountId: account.id,
-        sessionString: account.sessionString,
-        apiId: creds.apiId,
-        apiHash: creds.apiHash,
-      })
-    } catch {
-      // Don't spam on startup; module UIs will show their own errors/reconnect UI if needed.
-    }
-  },
-  { immediate: true },
-)
+useActiveUserSessionSync(showLoginModal)
 </script>
 
 <template>
@@ -238,58 +174,6 @@ watch(
           {{ toast.message }}
         </div>
       </TransitionGroup>
-    </div>
-
-    <!-- Privacy notice modal (first visit) -->
-    <div
-      v-if="accountsStore.hasAnyAccount && !uiStore.hasSeenPrivacyNotice"
-      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-    >
-      <div class="bg-white dark:bg-gray-900 rounded-xl shadow-lg max-w-md w-full p-6">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          🔒 {{ t('privacy.modalTitle') }}
-        </h2>
-        <div class="space-y-3 text-gray-600 dark:text-gray-400 text-sm mb-5">
-          <p>{{ t('privacy.modalText') }}</p>
-          <ul class="space-y-2">
-            <li class="flex items-start gap-2">
-              <span class="text-green-500">✓</span>
-              <span>{{ t('privacy.noServer') }}</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="text-green-500">✓</span>
-              <span>{{ t('privacy.noTracking') }}</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="text-green-500">✓</span>
-              <span>{{ t('privacy.noCookies') }}</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="text-green-500">✓</span>
-              <span>{{ t('privacy.openSourceNote') }}</span>
-            </li>
-          </ul>
-          <p class="text-xs">
-            {{ t('privacy.sessionNote') }}
-          </p>
-        </div>
-        <div class="flex gap-3">
-          <a
-            href="https://github.com/uburuntu/Telegram-Deleted-Messages-Manager"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="flex-1 px-4 py-2 rounded-md font-medium text-sm text-center transition-colors duration-100 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-          >
-            {{ t('privacy.viewOnGitHub') }}
-          </a>
-          <button
-            @click="uiStore.acknowledgePrivacyNotice()"
-            class="flex-1 px-4 py-2 rounded-md font-medium text-sm transition-colors duration-100 bg-blue-600 text-white hover:bg-blue-700"
-          >
-            {{ t('privacy.understand') }}
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 </template>

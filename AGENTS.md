@@ -32,7 +32,7 @@ This repository is no longer treated as a single-purpose deleted-messages utilit
 
 - Read `TODO.md` first, then this file, then `README.md`.
 - Re-establish the baseline with the standard verification commands before changing behavior.
-- Prioritize live Telegram validation and explicit archive/purge follow-through before major rewrites or visual refreshes.
+- Prioritize live Telegram validation and safe local-data lifecycle follow-through before major rewrites or visual refreshes.
 
 ## Border Radius
 
@@ -221,7 +221,7 @@ Mobile-first approach: default styles for mobile, add complexity at larger break
   - **User**: GramJS via `telegramService` (MTProto) for dialogs/admin log/export/resend. Production direction is a typed Telegram gateway with smaller modules and worker isolation for heavy tasks.
   - **Bot**: HTTP Bot API for `getMe` validation (no MTProto needed).
 - **Account Info module**: Replaces bot-only view; shows data for both user and bot accounts. For bots, uses `getMe` to display name, username, capabilities (join groups, privacy mode, inline, web app).
-- **Storage**: IndexedDB for backups/media/export caches and encrypted account secrets. Non-sensitive metadata and preferences may stay in localStorage, but API credentials, bot tokens, and user session strings must persist via encrypted IndexedDB + WebCrypto with legacy migration support. Backups and LLM exports should carry ownership metadata and archive on account removal rather than being hard-deleted by default.
+- **Storage**: IndexedDB for backups/media/export caches and encrypted account secrets. Non-sensitive metadata and preferences may stay in localStorage, but API credentials, bot tokens, and user session strings must persist via encrypted IndexedDB + WebCrypto with legacy migration support. Backups and LLM exports should carry ownership metadata, archive on account removal rather than being hard-deleted by default, and surface explicit claim/delete actions when local data needs manual cleanup.
 - **Internationalization**: `vue-i18n` is required for user-facing copy. Current locales include `en`, `ru`, `ar`, `es`, `fa`, `id`, `pt`, `tr`, `uk`, `uz`; production work must preserve escaping safety and completeness standards.
 - **Security/Privacy**: On-device only; no backend, no analytics, no tracking. Sensitive inputs must stay masked, validated, and minimally persisted.
 - **CI/Test**: Vitest (unit/component), Playwright (E2E), GitHub Actions with deterministic `npm ci` installs and desktop/mobile Playwright coverage in CI. The next gap is stronger live-integration and route-level coverage, not basic CI plumbing.
@@ -280,7 +280,7 @@ Batch-aware message resending:
 - **backup-manager.ts**: CRUD for backups (metadata + messages) in IndexedDB
 - **indexed-db.ts**: Low-level IndexedDB wrapper with versioned schema
 - **quota.ts**: Storage quota monitoring, cleanup strategies
-- **Ownership model**: Backup/export records may be `owned`, `archived`, or `legacy`. New records should be owned, removed-account data should archive, and legacy visibility should only exist as a migration bridge.
+- **Ownership model**: Backup/export records may be `owned`, `archived`, or `legacy`. New records should be owned, removed-account data should archive, and legacy visibility may exist only as a clearly labeled migration bridge with explicit claim/delete actions.
 
 ## Type System (`types/`)
 
@@ -445,11 +445,13 @@ Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#lit
 - Multi-account session isolation (issue #4)
 - Encrypted IndexedDB + WebCrypto storage for API credentials, bot tokens, and user session strings, with migration from legacy plaintext localStorage
 - Account-owned backup and LLM export metadata with archive-on-remove and auto-recovery for the same phone number
+- Explicit claim/delete UI for legacy and archived local backups/exports
 - Auth modal keyboard/focus/error accessibility hardening
 - Deterministic installs and reproducible preview deploy path in CI
 - Mobile Playwright projects promoted into CI
 - Direct Telegram connection-state tests
 - App-level live-region improvements for shared errors and toast messages
+- App shell cleanup: first-run privacy gate removed, active user session sync extracted from `App.vue` into a composable
 - BigInt-safe JSON serialization utilities
 - `_rawMessage` stripping at persistence boundaries
 - Resend HTML escaping for user safety
@@ -457,9 +459,8 @@ Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#lit
 ### Productionization Gaps
 - `telegramService` is still a very large singleton with too many responsibilities.
 - Auth, export, and resend views still own too much orchestration and UI logic.
-- Archived and legacy local data still need an explicit purge/claim lifecycle.
 - Account-owned data cleanup must continue to default to recoverable archive/quarantine behavior, not immediate hard delete.
-- The first-run privacy gate in `App.vue` still conflicts with the design/product guidance in this file.
+- If local-data cleanup grows beyond the current explicit claim/delete flow, keep delayed GC or bulk purge opt-in, documented, and tested.
 - The build still carries GramJS/browser-shim warnings and a heavy main bundle.
 - Tests are stronger at mocked service behavior than at real Telegram integration boundaries.
 - Documentation can drift behind the actual product direction if `TODO.md`, `README.md`, and `AGENTS.md` are not updated together.
