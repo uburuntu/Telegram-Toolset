@@ -128,17 +128,21 @@ const sentCount = computed(() => {
 
 const hasSendableContent = computed(() => includeMedia.value || includeText.value)
 
-// Lifecycle
-onMounted(async () => {
+async function loadBackups() {
   backupsStore.setLoading(true)
   try {
-    const backups = await backupManager.listBackups()
+    const backups = await backupManager.listBackupsForAccount(accountsStore.activeAccount)
     backupsStore.setBackups(backups)
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load backups'
   } finally {
     backupsStore.setLoading(false)
   }
+}
+
+// Lifecycle
+onMounted(async () => {
+  await loadBackups()
 })
 
 onUnmounted(() => {
@@ -163,6 +167,16 @@ watch(
     currentProgress.value = null
     floodWaitSeconds.value = 0
     floodWaitRemaining.value = 0
+
+    await loadBackups()
+
+    if (
+      selectedBackup.value &&
+      !backupsStore.backups.some((backup) => backup.id === selectedBackup.value?.id)
+    ) {
+      selectedBackup.value = null
+      step.value = 'select-backup'
+    }
 
     if (accountsStore.activeAccount?.type !== 'user' || !selectedBackup.value) {
       return

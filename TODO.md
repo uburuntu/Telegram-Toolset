@@ -6,6 +6,8 @@ This file is the restart brief for the next time someone picks up the repo. It s
 
 - API credentials, bot tokens, and user session strings now persist through encrypted IndexedDB + WebCrypto.
 - Legacy plaintext auth data in `localStorage` is migrated on load and rewritten to sanitized metadata.
+- New backups and LLM exports now persist with account ownership metadata.
+- Removing a user account archives its owned backups/exports instead of deleting them, and adding the same phone again recovers archived data automatically.
 
 ## First Steps When Returning
 
@@ -22,8 +24,8 @@ This file is the restart brief for the next time someone picks up the repo. It s
 
 ## Highest-Priority Unresolved Risks
 
-- Backups and LLM exports are not scoped to the owning account.
-  - Account removal and cleanup still need a recoverable lifecycle, not immediate destructive deletion.
+- Archived and legacy local data still need an explicit lifecycle.
+  - There is no user-facing purge flow yet, and legacy unowned records still need a deliberate claim/purge policy.
 - The first-run privacy gate in `src/App.vue` still blocks the shell and conflicts with the product guidance in `AGENTS.md`.
 - Live Telegram integration still needs periodic real-world smoke validation.
   - CI is good, but most Telegram behavior is still tested behind mocks.
@@ -34,23 +36,9 @@ This file is the restart brief for the next time someone picks up the repo. It s
 
 Do this before any large rewrite or visual redesign:
 
-### A. Account-Owned Data With Recoverable Cleanup
+### A. Live Telegram Smoke Pass
 
-- Add `ownerAccountId`-style scoping to backups and LLM export records.
-- Keep auth/session removal separate from backup/export cleanup.
-- On account removal, move owned data into a recoverable archive/quarantine state first.
-- Add an explicit purge path or delayed garbage collection after a grace period.
-- Document the recovery path so reconnect or migration issues do not force data loss.
-
-Exit criteria:
-
-- stored exports/backups are account-scoped
-- account removal does not immediately destroy recoverable user data
-- purge/archive behavior is documented and tested
-
-### B. Live Telegram Smoke Pass
-
-After the account-owned data work, do one manual validation pass and record the result:
+After the storage and data-lifecycle changes, do one manual validation pass and record the result:
 
 - user login
 - bot login
@@ -64,6 +52,19 @@ Exit criteria:
 
 - one written smoke-test note exists in the repo or PR
 - no auth/session regressions are discovered after the storage migration and data-lifecycle changes
+
+### B. Account-Owned Data Follow-Through
+
+- Add an explicit purge path or delayed garbage collection after a grace period.
+- Decide how legacy unowned backups/exports are claimed, archived, or purged.
+- Keep hard delete opt-in and separate from account removal.
+- Document the recovery and purge path so reconnect or migration issues do not force data loss.
+
+Exit criteria:
+
+- archived data has an explicit, documented purge path
+- legacy data no longer relies on implicit global visibility
+- purge/archive behavior is documented and tested
 
 ## Next Milestone After That
 

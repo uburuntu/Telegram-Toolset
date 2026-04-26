@@ -14,17 +14,26 @@ import type {
   ChatHistoryTask,
   ChatInfo,
   ChatMessage,
+  SavedAccount,
 } from '@/types'
 import { telegramGateway } from '../telegram/gateway'
 import { createFloodWaitSubscription } from '../telegram/rate-limiter'
 import {
+  archiveChatExportsForRemovedAccount,
   deleteChatExport,
   getChatMessages,
   getTotalStorageSize as getStoredChatExportsSize,
   listChatExports,
+  listChatExportsForAccount,
   loadChatExportBundle,
+  recoverArchivedChatExportsForAccount,
   saveChatExportBundle,
 } from './store'
+
+interface ChatExportOwnerContext {
+  id: string
+  phone?: string
+}
 
 class ChatHistoryDownloadTask implements ChatHistoryTask {
   private readonly abortController = new AbortController()
@@ -32,14 +41,21 @@ class ChatHistoryDownloadTask implements ChatHistoryTask {
   private readonly chatInfo: ChatInfo
   private readonly options: ChatHistoryOptions
   private readonly callbacks: ChatHistoryCallbacks
+  private readonly owner: ChatExportOwnerContext | null
 
   readonly signal = this.abortController.signal
   readonly promise: Promise<ChatHistoryResult>
 
-  constructor(chatInfo: ChatInfo, options: ChatHistoryOptions, callbacks: ChatHistoryCallbacks) {
+  constructor(
+    chatInfo: ChatInfo,
+    options: ChatHistoryOptions,
+    callbacks: ChatHistoryCallbacks,
+    owner: ChatExportOwnerContext | null,
+  ) {
     this.chatInfo = chatInfo
     this.options = options
     this.callbacks = callbacks
+    this.owner = owner
     this.promise = this.run()
   }
 
@@ -136,6 +152,9 @@ class ChatHistoryDownloadTask implements ChatHistoryTask {
           from: minDate || new Date(),
           to: maxDate || new Date(),
         },
+        ownerAccountId: this.owner?.id,
+        ownerAccountPhone: this.owner?.phone,
+        ownershipState: this.owner ? 'owned' : 'legacy',
       }
 
       const result = await saveChatExportBundle(chatExport, messages)
@@ -199,16 +218,18 @@ class ChatHistoryService {
     chatInfo: ChatInfo,
     options: ChatHistoryOptions = {},
     callbacks: ChatHistoryCallbacks = {},
+    owner: ChatExportOwnerContext | null = null,
   ): ChatHistoryTask {
-    return new ChatHistoryDownloadTask(chatInfo, options, callbacks)
+    return new ChatHistoryDownloadTask(chatInfo, options, callbacks, owner)
   }
 
   async downloadChatHistory(
     chatInfo: ChatInfo,
     options: ChatHistoryOptions = {},
     callbacks: ChatHistoryCallbacks = {},
+    owner: ChatExportOwnerContext | null = null,
   ): Promise<ChatHistoryResult> {
-    return this.createDownloadTask(chatInfo, options, callbacks).promise
+    return this.createDownloadTask(chatInfo, options, callbacks, owner).promise
   }
 
   async loadChatExport(exportId: string): Promise<ChatHistoryResult | null> {
@@ -217,6 +238,10 @@ class ChatHistoryService {
 
   async listChatExports(): Promise<ChatExport[]> {
     return listChatExports()
+  }
+
+  async listChatExportsForAccount(account: SavedAccount | null): Promise<ChatExport[]> {
+    return listChatExportsForAccount(account)
   }
 
   async deleteChatExport(exportId: string): Promise<void> {
@@ -230,6 +255,14 @@ class ChatHistoryService {
   async hasExistingExport(chatId: bigint): Promise<ChatExport | null> {
     const exports = await listChatExports()
     return exports.find((chatExport) => chatExport.chatId === chatId) || null
+  }
+
+  async archiveChatExportsForRemovedAccount(account: SavedAccount): Promise<number> {
+    return archiveChatExportsForRemovedAccount(account)
+  }
+
+  async recoverArchivedChatExportsForAccount(account: SavedAccount): Promise<number> {
+    return recoverArchivedChatExportsForAccount(account)
   }
 
   async getTotalStorageSize(): Promise<number> {

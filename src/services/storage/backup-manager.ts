@@ -3,16 +3,63 @@
  */
 
 import { v4 as uuidv4 } from 'uuid'
-import type { Backup, BackupWithMessages, DeletedMessage, ExportConfig } from '@/types'
+import type {
+  Backup,
+  BackupWithMessages,
+  DeletedMessage,
+  ExportConfig,
+  SavedAccount,
+} from '@/types'
 import { safeJsonStringify, stripRawMessage } from '@/utils/message-serialization'
 import { zipGenerator } from '../export/zip-generator'
 import * as db from './indexed-db'
+
+interface BackupOwnerContext {
+  id: string
+  phone?: string
+}
+
+function normalizeBackup(backup: Backup): Backup {
+  return {
+    ...backup,
+    ownershipState: backup.ownershipState ?? (backup.ownerAccountId ? 'owned' : 'legacy'),
+    archivedAt:
+      backup.archivedAt && !(backup.archivedAt instanceof Date)
+        ? new Date(backup.archivedAt)
+        : backup.archivedAt,
+  }
+}
+
+function isBackupVisibleToAccount(backup: Backup, account: SavedAccount | null): boolean {
+  if (!account || account.type !== 'user') {
+    return false
+  }
+
+  if (backup.ownershipState === 'legacy') {
+    return true
+  }
+
+  return backup.ownershipState === 'owned' && backup.ownerAccountId === account.id
+}
 
 class BackupManager {
   async listBackups(): Promise<Backup[]> {
     const backups = await db.getAllBackups()
     // Sort by date, newest first
-    return backups.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    return backups
+      .map(normalizeBackup)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+  }
+
+  async listBackupsForAccount(account: SavedAccount | null): Promise<Backup[]> {
+    if (!account || account.type !== 'user') {
+      return []
+    }
+
+    await this.recoverArchivedBackupsForAccount(account)
+
+    const backups = await this.listBackups()
+    return backups.filter((backup) => isBackupVisibleToAccount(backup, account))
   }
 
   async getBackup(id: string): Promise<BackupWithMessages | null> {
@@ -23,7 +70,7 @@ class BackupManager {
     const mediaBlobs = await db.getMediaByBackup(id)
 
     return {
-      ...backup,
+      ...normalizeBackup(backup),
       messages,
       mediaBlobs,
     }
@@ -33,6 +80,7 @@ class BackupManager {
     config: ExportConfig,
     messages: DeletedMessage[],
     mediaBlobs: Map<number, Blob>,
+    ownerAccount?: BackupOwnerContext | null,
   ): Promise<Backup> {
     const id = uuidv4()
 
@@ -64,11 +112,14 @@ class BackupManager {
       hasMedia: mediaBlobs.size > 0,
       mediaTypes,
       exportMode: config.exportMode,
+      ownerAccountId: ownerAccount?.id,
+      ownerAccountPhone: ownerAccount?.phone,
+      ownershipState: ownerAccount ? 'owned' : 'legacy',
     }
 
     await db.saveBackupBundle(backup, messages, mediaEntries)
 
-    return backup
+    return normalizeBackup(backup)
   }
 
   async deleteBackup(id: string): Promise<void> {
@@ -146,6 +197,12 @@ class BackupManager {
       },
       messages,
       mediaMap,
+      backups[0]?.ownerAccountId
+        ? {
+            id: backups[0].ownerAccountId,
+            phone: backups[0].ownerAccountPhone,
+          }
+        : null,
     )
 
     // Delete original backups
@@ -159,6 +216,58 @@ class BackupManager {
   async getBackupsByChat(chatId: bigint): Promise<Backup[]> {
     const allBackups = await this.listBackups()
     return allBackups.filter((b) => b.chatId === chatId)
+  }
+
+  async archiveBackupsForRemovedAccount(account: SavedAccount): Promise<number> {
+    if (account.type !== 'user') {
+      return 0
+    }
+
+    const backups = await this.listBackups()
+    const ownedBackups = backups.filter(
+      (backup) => backup.ownershipState === 'owned' && backup.ownerAccountId === account.id,
+    )
+
+    await Promise.all(
+      ownedBackups.map((backup) =>
+        db.saveBackup({
+          ...backup,
+          ownershipState: 'archived',
+          archivedAt: new Date(),
+          archivedReason: 'account_removed',
+          ownerAccountPhone: backup.ownerAccountPhone ?? account.phone,
+        }),
+      ),
+    )
+
+    return ownedBackups.length
+  }
+
+  async recoverArchivedBackupsForAccount(account: SavedAccount): Promise<number> {
+    if (account.type !== 'user' || !account.phone) {
+      return 0
+    }
+
+    const backups = await this.listBackups()
+    const recoverableBackups = backups.filter(
+      (backup) =>
+        backup.ownershipState === 'archived' && backup.ownerAccountPhone === account.phone,
+    )
+
+    await Promise.all(
+      recoverableBackups.map((backup) =>
+        db.saveBackup({
+          ...backup,
+          ownerAccountId: account.id,
+          ownerAccountPhone: account.phone,
+          ownershipState: 'owned',
+          archivedAt: undefined,
+          archivedReason: undefined,
+        }),
+      ),
+    )
+
+    return recoverableBackups.length
   }
 }
 

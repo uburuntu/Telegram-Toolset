@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { backupManager } from '@/services/storage/backup-manager'
 import { quotaManager } from '@/services/storage/quota'
-import { useBackupsStore, useUiStore } from '@/stores'
+import { useAccountsStore, useBackupsStore, useUiStore } from '@/stores'
 import { formatDateWithLocale } from '@/utils/locale-format'
 
 const { t } = useI18n()
+const accountsStore = useAccountsStore()
 const backupsStore = useBackupsStore()
 const uiStore = useUiStore()
 
-onMounted(async () => {
+async function loadBackups() {
   backupsStore.setLoading(true)
   try {
     const [backups, estimate] = await Promise.all([
-      backupManager.listBackups(),
+      backupManager.listBackupsForAccount(accountsStore.activeAccount),
       quotaManager.getStorageEstimate(),
     ])
     backupsStore.setBackups(backups)
@@ -24,7 +25,18 @@ onMounted(async () => {
   } finally {
     backupsStore.setLoading(false)
   }
+}
+
+onMounted(async () => {
+  await loadBackups()
 })
+
+watch(
+  () => accountsStore.activeAccountId,
+  async () => {
+    await loadBackups()
+  },
+)
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B'

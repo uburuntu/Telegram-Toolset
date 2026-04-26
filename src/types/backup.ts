@@ -3,6 +3,7 @@
  */
 
 import { getActiveLocale } from '@/utils/locale-format'
+import type { StoredRecordOwnership } from './ownership'
 import type { DeletedMessage } from './telegram'
 
 export interface MediaTypeStats {
@@ -19,7 +20,7 @@ export interface MediaTypeStats {
   contacts: number
 }
 
-export interface Backup {
+export interface Backup extends StoredRecordOwnership {
   id: string
   chatId: bigint
   chatTitle: string

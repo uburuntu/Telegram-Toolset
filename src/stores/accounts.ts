@@ -327,6 +327,23 @@ export const useAccountsStore = defineStore('accounts', () => {
       return
     }
 
+    try {
+      if (removedAccount.type === 'user') {
+        const [{ backupManager }, { chatHistoryService }] = await Promise.all([
+          import('@/services/storage/backup-manager'),
+          import('@/services/llm-export/chat-history-service'),
+        ])
+
+        await Promise.all([
+          backupManager.archiveBackupsForRemovedAccount(removedAccount),
+          chatHistoryService.archiveChatExportsForRemovedAccount(removedAccount),
+        ])
+      }
+    } catch (error) {
+      console.error('Failed to archive account-owned data before removing account:', error)
+      throw error
+    }
+
     const previousAccounts = [...accounts.value]
     const previousActiveAccountId = activeAccountId.value
     const previousSessionState = { ...sessionStateByAccountId.value }

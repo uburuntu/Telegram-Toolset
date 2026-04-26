@@ -6,11 +6,14 @@ const { saveChatExportBundle } = vi.hoisted(() => ({
 }))
 
 vi.mock('@/services/llm-export/store', () => ({
+  archiveChatExportsForRemovedAccount: vi.fn(),
   deleteChatExport: vi.fn(),
   getChatMessages: vi.fn(),
   getTotalStorageSize: vi.fn(),
   listChatExports: vi.fn(),
+  listChatExportsForAccount: vi.fn(),
   loadChatExportBundle: vi.fn(),
+  recoverArchivedChatExportsForAccount: vi.fn(),
   saveChatExportBundle,
 }))
 
@@ -82,7 +85,12 @@ describe('chatHistoryService', () => {
       yield makeMessage()
     })
 
-    const result = await chatHistoryService.downloadChatHistory(chatInfo)
+    const result = await chatHistoryService.downloadChatHistory(
+      chatInfo,
+      {},
+      {},
+      { id: 'acct-1', phone: '+1234567890' },
+    )
 
     expect(telegramGateway.history.getChatMessageCount).toHaveBeenCalledWith(chatInfo.peerId)
     expect(saveChatExportBundle).toHaveBeenCalledTimes(1)
@@ -90,6 +98,9 @@ describe('chatHistoryService', () => {
       chatId: chatInfo.id,
       chatPeerId: chatInfo.peerId,
       schemaVersion: 2,
+      ownerAccountId: 'acct-1',
+      ownerAccountPhone: '+1234567890',
+      ownershipState: 'owned',
     })
     expect(saveChatExportBundle.mock.calls[0]?.[1]?.[0]).toMatchObject({
       chatPeerId: chatInfo.peerId,
