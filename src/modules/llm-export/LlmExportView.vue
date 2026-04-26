@@ -154,7 +154,7 @@ async function loadCachedExports() {
   exportsError.value = ''
 
   try {
-    const exports = await chatHistoryService.listChatExports()
+    const exports = await chatHistoryService.listChatExportsForAccount(accountsStore.activeAccount)
     cachedExports.value = exports.sort(
       (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
     )
@@ -203,6 +203,7 @@ async function startDownload() {
       },
       ...floodWait.callbacks,
     },
+    accountsStore.activeAccount,
   )
 
   downloadTask.value = task

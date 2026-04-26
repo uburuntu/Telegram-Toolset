@@ -1,4 +1,4 @@
-import type { ChatExport, ChatHistoryResult, ChatMessage } from '@/types'
+import type { ChatExport, ChatHistoryResult, ChatMessage, SavedAccount } from '@/types'
 import { getMarkedPeerIdForChat } from '@/utils/telegram-peers'
 import * as db from '../storage/indexed-db'
 
@@ -12,7 +12,27 @@ function normalizeChatExport(chatExport: ChatExport): ChatExport {
     hasMedia: chatExport.hasMedia ?? (chatExport.mediaCount ?? 0) > 0,
     mediaCount: chatExport.mediaCount ?? 0,
     schemaVersion: CURRENT_LLM_EXPORT_SCHEMA_VERSION,
+    ownershipState: chatExport.ownershipState ?? (chatExport.ownerAccountId ? 'owned' : 'legacy'),
+    archivedAt:
+      chatExport.archivedAt && !(chatExport.archivedAt instanceof Date)
+        ? new Date(chatExport.archivedAt)
+        : chatExport.archivedAt,
   }
+}
+
+function isChatExportVisibleToAccount(
+  chatExport: ChatExport,
+  account: SavedAccount | null,
+): boolean {
+  if (!account || account.type !== 'user') {
+    return false
+  }
+
+  if (chatExport.ownershipState === 'legacy') {
+    return true
+  }
+
+  return chatExport.ownershipState === 'owned' && chatExport.ownerAccountId === account.id
 }
 
 function normalizeChatMessage(chatExport: ChatExport, message: ChatMessage): ChatMessage {
@@ -62,6 +82,19 @@ export async function listChatExports(): Promise<ChatExport[]> {
   return chatExports.map(normalizeChatExport)
 }
 
+export async function listChatExportsForAccount(
+  account: SavedAccount | null,
+): Promise<ChatExport[]> {
+  if (!account || account.type !== 'user') {
+    return []
+  }
+
+  await recoverArchivedChatExportsForAccount(account)
+
+  const chatExports = await listChatExports()
+  return chatExports.filter((chatExport) => isChatExportVisibleToAccount(chatExport, account))
+}
+
 export async function deleteChatExport(exportId: string): Promise<void> {
   await db.deleteChatExport(exportId)
 }
@@ -80,4 +113,57 @@ export async function getTotalStorageSize(): Promise<number> {
   }
 
   return totalSize
+}
+
+export async function archiveChatExportsForRemovedAccount(account: SavedAccount): Promise<number> {
+  if (account.type !== 'user') {
+    return 0
+  }
+
+  const chatExports = await listChatExports()
+  const ownedExports = chatExports.filter(
+    (chatExport) =>
+      chatExport.ownershipState === 'owned' && chatExport.ownerAccountId === account.id,
+  )
+
+  await Promise.all(
+    ownedExports.map((chatExport) =>
+      db.saveChatExport({
+        ...chatExport,
+        ownershipState: 'archived',
+        archivedAt: new Date(),
+        archivedReason: 'account_removed',
+        ownerAccountPhone: chatExport.ownerAccountPhone ?? account.phone,
+      }),
+    ),
+  )
+
+  return ownedExports.length
+}
+
+export async function recoverArchivedChatExportsForAccount(account: SavedAccount): Promise<number> {
+  if (account.type !== 'user' || !account.phone) {
+    return 0
+  }
+
+  const chatExports = await listChatExports()
+  const recoverableExports = chatExports.filter(
+    (chatExport) =>
+      chatExport.ownershipState === 'archived' && chatExport.ownerAccountPhone === account.phone,
+  )
+
+  await Promise.all(
+    recoverableExports.map((chatExport) =>
+      db.saveChatExport({
+        ...chatExport,
+        ownerAccountId: account.id,
+        ownerAccountPhone: account.phone,
+        ownershipState: 'owned',
+        archivedAt: undefined,
+        archivedReason: undefined,
+      }),
+    ),
+  )
+
+  return recoverableExports.length
 }

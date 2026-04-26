@@ -18,4 +18,5 @@ export type {
 } from './gramjs'
 export * from './llm-export'
 export * from './module'
+export * from './ownership'
 export * from './telegram'

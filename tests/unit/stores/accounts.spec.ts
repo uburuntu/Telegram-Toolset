@@ -32,7 +32,21 @@ const vaultApi = vi.hoisted(() => ({
   }),
 }))
 
+const backupManagerApi = vi.hoisted(() => ({
+  archiveBackupsForRemovedAccount: vi.fn(async () => 0),
+}))
+
+const chatHistoryServiceApi = vi.hoisted(() => ({
+  archiveChatExportsForRemovedAccount: vi.fn(async () => 0),
+}))
+
 vi.mock('@/services/storage/secure-account-vault', () => vaultApi)
+vi.mock('@/services/storage/backup-manager', () => ({
+  backupManager: backupManagerApi,
+}))
+vi.mock('@/services/llm-export/chat-history-service', () => ({
+  chatHistoryService: chatHistoryServiceApi,
+}))
 
 describe('accounts store', () => {
   let storage: Map<string, string>
@@ -242,5 +256,32 @@ describe('accounts store', () => {
     store.markAccountSessionReady(account.id)
     expect(store.getAccountSessionState(account.id)).toBe('ready')
     expect(store.activeAccountNeedsLogin).toBe(false)
+  })
+
+  it('archives account-owned data before removing a user account', async () => {
+    const store = useAccountsStore()
+    const account = await store.addAccount({
+      type: 'user',
+      label: 'Test User',
+      phone: '+1234567890',
+      sessionString: 'saved-session',
+    })
+
+    await store.removeAccount(account.id)
+
+    expect(backupManagerApi.archiveBackupsForRemovedAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: account.id,
+        phone: '+1234567890',
+      }),
+    )
+    expect(chatHistoryServiceApi.archiveChatExportsForRemovedAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: account.id,
+        phone: '+1234567890',
+      }),
+    )
+    expect(vaultState.accountSecrets.has(account.id)).toBe(false)
+    expect(store.accounts).toHaveLength(0)
   })
 })

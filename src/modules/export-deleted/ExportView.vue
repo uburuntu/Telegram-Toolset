@@ -317,7 +317,12 @@ async function startExport() {
     // Create backup from results
     backupsStore.updateExportProgress({ phase: 'saving' })
 
-    const backup = await backupManager.createBackup(config, result.messages, result.mediaBlobs)
+    const backup = await backupManager.createBackup(
+      config,
+      result.messages,
+      result.mediaBlobs,
+      accountsStore.activeAccount,
+    )
     backupsStore.addBackup(backup)
 
     // Store for potential ZIP download

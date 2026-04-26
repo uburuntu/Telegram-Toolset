@@ -5,6 +5,7 @@
  * Separates data acquisition (slow, network-bound) from formatting (fast, local).
  */
 
+import type { StoredRecordOwnership } from './ownership'
 import type { MediaType } from './telegram'
 
 /**
@@ -39,7 +40,7 @@ export interface ChatMessage {
 /**
  * Metadata for a cached chat export
  */
-export interface ChatExport {
+export interface ChatExport extends StoredRecordOwnership {
   id: string
   chatId: bigint
   /** Stable Bot API-style marked peer ID: userId, -chatId, or -100channelId */
