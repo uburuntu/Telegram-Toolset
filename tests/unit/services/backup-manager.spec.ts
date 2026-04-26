@@ -10,7 +10,7 @@ const dbMocks = vi.hoisted(() => ({
   countMediaTypes: vi.fn(),
   deleteBackup: vi.fn(),
   getAllBackups: vi.fn(async () => state.backups),
-  getBackup: vi.fn(),
+  getBackup: vi.fn(async (id: string) => state.backups.find((item) => item.id === id)),
   getMediaByBackup: vi.fn(),
   getMessagesByBackup: vi.fn(),
   saveBackup: vi.fn(async (backup: Backup) => {
@@ -157,5 +157,67 @@ describe('backupManager ownership', () => {
       'archived-backup',
       'legacy-backup',
     ])
+  })
+
+  it('lists archived backups separately from active backups', async () => {
+    state.backups = [
+      createBackup({
+        id: 'recent-archived-backup',
+        ownerAccountId: 'acct-old',
+        ownerAccountPhone: '+1234567890',
+        ownershipState: 'archived',
+        archivedAt: new Date('2024-03-12T12:00:00Z'),
+      }),
+      createBackup({
+        id: 'older-archived-backup',
+        ownerAccountId: 'acct-older',
+        ownerAccountPhone: '+1987654321',
+        ownershipState: 'archived',
+        archivedAt: new Date('2024-03-11T12:00:00Z'),
+      }),
+      createBackup({
+        id: 'owned-backup',
+        ownerAccountId: 'acct-1',
+        ownerAccountPhone: '+1234567890',
+        ownershipState: 'owned',
+      }),
+    ]
+
+    const archivedBackups = await backupManager.listArchivedBackups()
+
+    expect(archivedBackups.map((backup) => backup.id)).toEqual([
+      'recent-archived-backup',
+      'older-archived-backup',
+    ])
+  })
+
+  it('claims a legacy backup for the current account', async () => {
+    const account = createUserAccount()
+
+    state.backups = [
+      createBackup({
+        id: 'legacy-backup',
+        ownershipState: 'legacy',
+      }),
+    ]
+
+    const claimedBackup = await backupManager.claimLegacyBackup('legacy-backup', account)
+
+    expect(dbMocks.saveBackup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'legacy-backup',
+        ownerAccountId: account.id,
+        ownerAccountPhone: account.phone,
+        ownershipState: 'owned',
+      }),
+    )
+    expect(claimedBackup).toEqual(
+      expect.objectContaining({
+        id: 'legacy-backup',
+        ownerAccountId: account.id,
+        ownerAccountPhone: account.phone,
+        ownershipState: 'owned',
+      }),
+    )
   })
 })

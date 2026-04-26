@@ -35,6 +35,18 @@ function isChatExportVisibleToAccount(
   return chatExport.ownershipState === 'owned' && chatExport.ownerAccountId === account.id
 }
 
+function sortChatExportsByCreatedAt(chatExports: ChatExport[]): ChatExport[] {
+  return chatExports.sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+}
+
+function sortArchivedChatExports(chatExports: ChatExport[]): ChatExport[] {
+  return chatExports.sort((left, right) => {
+    const leftDate = left.archivedAt ?? left.createdAt
+    const rightDate = right.archivedAt ?? right.createdAt
+    return rightDate.getTime() - leftDate.getTime()
+  })
+}
+
 function normalizeChatMessage(chatExport: ChatExport, message: ChatMessage): ChatMessage {
   return {
     ...message,
@@ -79,7 +91,7 @@ export async function loadChatExportBundle(exportId: string): Promise<ChatHistor
 
 export async function listChatExports(): Promise<ChatExport[]> {
   const chatExports = await db.getAllChatExports()
-  return chatExports.map(normalizeChatExport)
+  return sortChatExportsByCreatedAt(chatExports.map(normalizeChatExport))
 }
 
 export async function listChatExportsForAccount(
@@ -95,8 +107,47 @@ export async function listChatExportsForAccount(
   return chatExports.filter((chatExport) => isChatExportVisibleToAccount(chatExport, account))
 }
 
+export async function listArchivedChatExports(): Promise<ChatExport[]> {
+  const chatExports = await listChatExports()
+  return sortArchivedChatExports(
+    chatExports.filter((chatExport) => chatExport.ownershipState === 'archived'),
+  )
+}
+
 export async function deleteChatExport(exportId: string): Promise<void> {
   await db.deleteChatExport(exportId)
+}
+
+export async function claimLegacyChatExport(
+  exportId: string,
+  account: SavedAccount,
+): Promise<ChatExport> {
+  if (account.type !== 'user') {
+    throw new Error('Only user accounts can claim chat exports')
+  }
+
+  const storedChatExport = await db.getChatExport(exportId)
+  if (!storedChatExport) {
+    throw new Error('Chat export not found')
+  }
+
+  const chatExport = normalizeChatExport(storedChatExport)
+  if (chatExport.ownershipState !== 'legacy') {
+    throw new Error('Only legacy chat exports can be claimed')
+  }
+
+  const claimedChatExport: ChatExport = {
+    ...chatExport,
+    ownerAccountId: account.id,
+    ownerAccountPhone: account.phone,
+    ownershipState: 'owned',
+    archivedAt: undefined,
+    archivedReason: undefined,
+  }
+
+  await db.saveChatExport(claimedChatExport)
+
+  return normalizeChatExport(claimedChatExport)
 }
 
 export async function getChatMessages(exportId: string): Promise<ChatMessage[]> {

@@ -48,6 +48,7 @@ const archiveTask = shallowRef<ChatArchiveTask | null>(null)
 const archiveProgress = ref<ChatArchiveProgress | null>(null)
 
 const cachedExports = ref<ChatExport[]>([])
+const archivedExports = ref<ChatExport[]>([])
 const isLoadingExportsList = ref(false)
 const exportsError = ref('')
 const selectedExport = ref<ChatExport | null>(null)
@@ -116,10 +117,11 @@ watch(
     if (accountsStore.activeAccount?.type !== 'user') {
       chats.value = []
       cachedExports.value = []
+      archivedExports.value = []
       return
     }
 
-    await Promise.all([loadChats(), loadCachedExports()])
+    await Promise.all([loadChats(), loadStoredExports()])
   },
   { immediate: true },
 )
@@ -149,15 +151,21 @@ async function loadChats() {
   }
 }
 
-async function loadCachedExports() {
+function sortChatExportsByNewest(chatExports: ChatExport[]): ChatExport[] {
+  return chatExports.sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+}
+
+async function loadStoredExports() {
   isLoadingExportsList.value = true
   exportsError.value = ''
 
   try {
-    const exports = await chatHistoryService.listChatExportsForAccount(accountsStore.activeAccount)
-    cachedExports.value = exports.sort(
-      (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
-    )
+    const [visibleExports, archived] = await Promise.all([
+      chatHistoryService.listChatExportsForAccount(accountsStore.activeAccount),
+      chatHistoryService.listArchivedChatExports(),
+    ])
+    cachedExports.value = sortChatExportsByNewest(visibleExports)
+    archivedExports.value = sortChatExportsByNewest(archived)
 
     if (
       selectedExport.value &&
@@ -210,7 +218,7 @@ async function startDownload() {
 
   try {
     const result = await task.promise
-    await loadCachedExports()
+    await loadStoredExports()
 
     selectedExport.value = result.chatExport
     exportMessages.value = result.messages
@@ -270,7 +278,7 @@ async function handleExportSelect(chatExport: ChatExport) {
 async function handleExportDelete(exportId: string) {
   try {
     await chatHistoryService.deleteChatExport(exportId)
-    await loadCachedExports()
+    await loadStoredExports()
 
     if (selectedExport.value?.id === exportId) {
       selectedExport.value = null
@@ -280,6 +288,21 @@ async function handleExportDelete(exportId: string) {
     uiStore.showToast('success', t('llmExport.exportDeleted'))
   } catch {
     uiStore.showToast('error', t('llmExport.deleteError'))
+  }
+}
+
+async function handleExportClaim(exportId: string) {
+  const activeAccount = accountsStore.activeAccount
+  if (!activeAccount || activeAccount.type !== 'user') {
+    return
+  }
+
+  try {
+    await chatHistoryService.claimLegacyChatExport(exportId, activeAccount)
+    await loadStoredExports()
+    uiStore.showToast('success', t('llmExport.claimSuccess'))
+  } catch {
+    uiStore.showToast('error', t('llmExport.claimError'))
   }
 }
 
@@ -502,12 +525,14 @@ function cancelArchiveDownload() {
       <div class="lg:col-span-1">
         <ExportsList
           :exports="cachedExports"
+          :archived-exports="archivedExports"
           :selected-export-id="selectedExport?.id"
           :is-loading-list="isLoadingExportsList"
           :is-loading-selection="isLoadingSelectedExport"
           :error-message="exportsError"
           @select="handleExportSelect"
           @delete="handleExportDelete"
+          @claim="handleExportClaim"
         />
       </div>
 

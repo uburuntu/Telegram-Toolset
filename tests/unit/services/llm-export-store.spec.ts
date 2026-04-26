@@ -8,7 +8,7 @@ const state = vi.hoisted(() => ({
 const dbMocks = vi.hoisted(() => ({
   deleteChatExport: vi.fn(),
   getAllChatExports: vi.fn(async () => state.chatExports),
-  getChatExport: vi.fn(),
+  getChatExport: vi.fn(async (id: string) => state.chatExports.find((item) => item.id === id)),
   getChatExportSize: vi.fn(),
   getChatMessagesByExport: vi.fn(),
   saveChatExport: vi.fn(async (chatExport: ChatExport) => {
@@ -27,6 +27,8 @@ vi.mock('@/services/storage/indexed-db', () => dbMocks)
 
 import {
   archiveChatExportsForRemovedAccount,
+  claimLegacyChatExport,
+  listArchivedChatExports,
   listChatExportsForAccount,
 } from '@/services/llm-export/store'
 
@@ -147,5 +149,67 @@ describe('llm export ownership', () => {
       'archived-export',
       'legacy-export',
     ])
+  })
+
+  it('lists archived chat exports separately from active exports', async () => {
+    state.chatExports = [
+      createChatExport({
+        id: 'recent-archived-export',
+        ownerAccountId: 'acct-old',
+        ownerAccountPhone: '+1234567890',
+        ownershipState: 'archived',
+        archivedAt: new Date('2024-03-12T12:00:00Z'),
+      }),
+      createChatExport({
+        id: 'older-archived-export',
+        ownerAccountId: 'acct-older',
+        ownerAccountPhone: '+1987654321',
+        ownershipState: 'archived',
+        archivedAt: new Date('2024-03-11T12:00:00Z'),
+      }),
+      createChatExport({
+        id: 'owned-export',
+        ownerAccountId: 'acct-1',
+        ownerAccountPhone: '+1234567890',
+        ownershipState: 'owned',
+      }),
+    ]
+
+    const archivedExports = await listArchivedChatExports()
+
+    expect(archivedExports.map((chatExport) => chatExport.id)).toEqual([
+      'recent-archived-export',
+      'older-archived-export',
+    ])
+  })
+
+  it('claims a legacy chat export for the current account', async () => {
+    const account = createUserAccount()
+
+    state.chatExports = [
+      createChatExport({
+        id: 'legacy-export',
+        ownershipState: 'legacy',
+      }),
+    ]
+
+    const claimedExport = await claimLegacyChatExport('legacy-export', account)
+
+    expect(dbMocks.saveChatExport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'legacy-export',
+        ownerAccountId: account.id,
+        ownerAccountPhone: account.phone,
+        ownershipState: 'owned',
+      }),
+    )
+    expect(claimedExport).toEqual(
+      expect.objectContaining({
+        id: 'legacy-export',
+        ownerAccountId: account.id,
+        ownerAccountPhone: account.phone,
+        ownershipState: 'owned',
+      }),
+    )
   })
 })

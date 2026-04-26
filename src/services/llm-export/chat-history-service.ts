@@ -20,9 +20,11 @@ import { telegramGateway } from '../telegram/gateway'
 import { createFloodWaitSubscription } from '../telegram/rate-limiter'
 import {
   archiveChatExportsForRemovedAccount,
+  claimLegacyChatExport,
   deleteChatExport,
   getChatMessages,
   getTotalStorageSize as getStoredChatExportsSize,
+  listArchivedChatExports,
   listChatExports,
   listChatExportsForAccount,
   loadChatExportBundle,
@@ -244,8 +246,16 @@ class ChatHistoryService {
     return listChatExportsForAccount(account)
   }
 
+  async listArchivedChatExports(): Promise<ChatExport[]> {
+    return listArchivedChatExports()
+  }
+
   async deleteChatExport(exportId: string): Promise<void> {
     await deleteChatExport(exportId)
+  }
+
+  async claimLegacyChatExport(exportId: string, account: SavedAccount): Promise<ChatExport> {
+    return claimLegacyChatExport(exportId, account)
   }
 
   async getChatMessages(exportId: string): Promise<ChatMessage[]> {

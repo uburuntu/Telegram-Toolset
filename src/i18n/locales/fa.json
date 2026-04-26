@@ -425,7 +425,18 @@
     "photos": "عکس‌ها",
     "videos": "ویدئوها",
     "docs": "اسناد",
-    "confirmDelete": "آیا مطمئن هستید که می‌خواهید این نسخهٔ پشتیبانی را حذف کنید؟"
+    "confirmDelete": "آیا مطمئن هستید که می‌خواهید این نسخهٔ پشتیبانی را حذف کنید؟",
+    "noActiveBackups": "No active backups for this account",
+    "noActiveBackupsHint": "Only archived local backups remain. They will recover automatically when the matching phone signs in again, or you can delete them here.",
+    "legacyLabel": "Unassigned local data",
+    "legacyHint": "This backup was created before account ownership existed. Claim it to keep it with the current account, or delete it if you no longer need it.",
+    "claim": "Claim",
+    "claimSuccess": "Backup assigned to this account.",
+    "claimError": "Failed to assign backup.",
+    "archivedTitle": "Archived local backups",
+    "archivedHint": "Archived backups stay out of resend flows until the matching phone signs in again. Delete them only if you no longer need the local copy.",
+    "archivedOn": "Archived",
+    "removedAccountPhone": "Removed account: {phone}"
   },
   "privacy": {
     "footer": "۱۰۰٪ روی دستگاه. هیچ داده‌ای از مرورگر شما خارج نمی‌شود.",
@@ -629,6 +640,17 @@
       "custom": "قالب خود را با متغیرهایی مانند sender, text, date تعریف کنید"
     },
     "contentSection": "محتوا",
-    "structureSection": "ساختار"
+    "structureSection": "ساختار",
+    "noActiveExports": "No active exports for this account",
+    "noActiveExportsHint": "Only archived local exports remain. They will recover automatically when the matching phone signs in again, or you can delete them here.",
+    "legacyLabel": "Unassigned local data",
+    "legacyHint": "This export was cached before account ownership existed. Claim it to keep it with the current account, or delete it if you no longer need it.",
+    "claim": "Claim",
+    "claimSuccess": "Export assigned to this account.",
+    "claimError": "Failed to assign export.",
+    "archivedTitle": "Archived local exports",
+    "archivedHint": "Archived exports stay out of the active list until the matching phone signs in again. Delete them only if you no longer need the local copy.",
+    "archivedOn": "Archived",
+    "removedAccountPhone": "Removed account: {phone}"
   }
 }
