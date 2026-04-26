@@ -16,18 +16,23 @@ This repository is no longer treated as a single-purpose deleted-messages utilit
 
 ## Documentation Map
 
-- `TODO.md` is the pause/restart brief and current priority list.
+- `TODO.md` is the restart brief and priority order for future work.
 - `README.md` is the public product/development overview.
 - `AGENTS.md` is the single agent-facing guide for repo rules, architecture notes, and product direction.
 - If docs and current code disagree, treat the codebase as the source of current behavior and `TODO.md` as the source of target direction.
 
-## Re-entry Checkpoint
+## Documentation Durability
 
-- The current safe merge checkpoint is the stabilization batch from PR `#16`.
-- That batch hardens auth accessibility, CI reproducibility, ZIP export safety, Telegram connection-state handling, and app-level accessibility announcements.
-- Desktop and mobile Playwright projects are now CI-blocking.
-- If returning after a break, read `TODO.md` first, then this file, then `README.md`.
-- The next highest-value work is still secure secret storage plus account-owned data cleanup.
+- Long-lived docs in this repo should capture durable guidance: product direction, architecture, operating rules, recurring pitfalls, and priority order.
+- Do not put point-in-time coordination data in `AGENTS.md`, `TODO.md`, or other durable docs. That includes PR numbers, branch names, commit SHAs, CI run IDs, "safe merge checkpoints", temporary statuses, and notes that only make sense right now.
+- If a detail would read as strange after a few commits, a month, or to a different person, it does not belong in durable docs.
+- Put ephemeral status in PR descriptions, issues, commit messages, or short-lived handoff comments instead.
+
+## Returning Later
+
+- Read `TODO.md` first, then this file, then `README.md`.
+- Re-establish the baseline with the standard verification commands before changing behavior.
+- Prioritize secure secret storage and account-owned data cleanup before major rewrites or visual refreshes.
 
 ## Border Radius
 
