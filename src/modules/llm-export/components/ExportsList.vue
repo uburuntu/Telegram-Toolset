@@ -4,6 +4,7 @@ import type { ChatExport } from '@/types'
 
 const props = defineProps<{
   exports: ChatExport[]
+  archivedExports: ChatExport[]
   selectedExportId?: string
   isLoadingList: boolean
   isLoadingSelection: boolean
@@ -13,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: [chatExport: ChatExport]
   delete: [exportId: string]
+  claim: [exportId: string]
 }>()
 
 const { t } = useI18n()
@@ -58,12 +60,17 @@ function handleDelete(exportId: string) {
 </script>
 
 <template>
-  <section class="space-y-3">
-    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
-      {{ t('llmExport.cachedExports') }}
-    </h3>
+  <section class="space-y-4">
+    <div>
+      <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+        {{ t('llmExport.cachedExports') }}
+      </h3>
+    </div>
 
-    <div v-if="isLoadingList" class="p-6 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
+    <div
+      v-if="isLoadingList"
+      class="p-6 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm"
+    >
       <div class="animate-spin w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full"></div>
     </div>
 
@@ -78,8 +85,20 @@ function handleDelete(exportId: string) {
       v-else-if="props.exports.length === 0"
       class="p-6 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm text-gray-500 dark:text-gray-400"
     >
-      <p class="text-sm">{{ t('llmExport.noExports') }}</p>
-      <p class="text-xs mt-1">{{ t('llmExport.noExportsHint') }}</p>
+      <p class="text-sm">
+        {{
+          props.archivedExports.length > 0
+            ? t('llmExport.noActiveExports')
+            : t('llmExport.noExports')
+        }}
+      </p>
+      <p class="text-xs mt-1">
+        {{
+          props.archivedExports.length > 0
+            ? t('llmExport.noActiveExportsHint')
+            : t('llmExport.noExportsHint')
+        }}
+      </p>
     </div>
 
     <div v-else class="space-y-2">
@@ -94,7 +113,9 @@ function handleDelete(exportId: string) {
             :class="selectedExportId === chatExport.id ? 'text-blue-700 dark:text-blue-300' : ''"
             @click="emit('select', chatExport)"
           >
-            <div class="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-lg flex-shrink-0">
+            <div
+              class="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-lg flex-shrink-0"
+            >
               {{ getChatIcon(chatExport.chatType) }}
             </div>
 
@@ -114,6 +135,16 @@ function handleDelete(exportId: string) {
               <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
                 {{ t('llmExport.exported') }} {{ formatDate(chatExport.createdAt) }}
               </div>
+              <div v-if="chatExport.ownershipState === 'legacy'" class="mt-2 space-y-2">
+                <span
+                  class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
+                >
+                  {{ t('llmExport.legacyLabel') }}
+                </span>
+                <p class="text-xs text-amber-700 dark:text-amber-300">
+                  {{ t('llmExport.legacyHint') }}
+                </p>
+              </div>
               <div
                 v-if="isLoadingSelection && selectedExportId === chatExport.id"
                 class="text-xs text-blue-600 dark:text-blue-300 mt-2"
@@ -123,8 +154,74 @@ function handleDelete(exportId: string) {
             </div>
           </button>
 
+          <div class="flex flex-wrap justify-end gap-2">
+            <button
+              v-if="chatExport.ownershipState === 'legacy'"
+              class="px-3 py-1.5 rounded-md font-medium text-sm bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-900/70 transition-colors duration-100"
+              @click="emit('claim', chatExport.id)"
+            >
+              {{ t('llmExport.claim') }}
+            </button>
+            <button
+              class="px-3 py-1.5 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-300 transition-colors duration-100"
+              :title="t('common.delete')"
+              @click="handleDelete(chatExport.id)"
+            >
+              {{ t('common.delete') }}
+            </button>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <section v-if="props.archivedExports.length > 0" class="space-y-2 pt-2">
+      <div>
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+          {{ t('llmExport.archivedTitle') }}
+        </h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          {{ t('llmExport.archivedHint') }}
+        </p>
+      </div>
+
+      <article
+        v-for="chatExport in props.archivedExports"
+        :key="`archived-${chatExport.id}`"
+        class="p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm"
+      >
+        <div class="flex items-start gap-3">
+          <div
+            class="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-lg flex-shrink-0"
+          >
+            {{ getChatIcon(chatExport.chatType) }}
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <div class="font-medium text-sm text-gray-900 dark:text-white break-words">
+              {{ chatExport.chatTitle }}
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 break-words">
+              <span>{{ chatExport.messageCount.toLocaleString() }} {{ t('llmExport.messages') }}</span>
+              <span v-if="(chatExport.mediaCount ?? 0) > 0">
+                · {{ t('export.mediaFiles', { count: chatExport.mediaCount ?? 0 }) }}
+              </span>
+            </div>
+            <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+              {{ t('llmExport.exported') }} {{ formatDate(chatExport.createdAt) }}
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              {{ t('llmExport.archivedOn') }} {{ formatDate(chatExport.archivedAt ?? chatExport.createdAt) }}
+            </div>
+            <div
+              v-if="chatExport.ownerAccountPhone"
+              class="text-xs text-gray-500 dark:text-gray-400 mt-1"
+            >
+              {{ t('llmExport.removedAccountPhone', { phone: chatExport.ownerAccountPhone }) }}
+            </div>
+          </div>
+
           <button
-            class="px-2 py-1.5 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-300 transition-colors duration-100"
+            class="px-3 py-1.5 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-300 transition-colors duration-100"
             :title="t('common.delete')"
             @click="handleDelete(chatExport.id)"
           >
@@ -132,6 +229,6 @@ function handleDelete(exportId: string) {
           </button>
         </div>
       </article>
-    </div>
+    </section>
   </section>
 </template>

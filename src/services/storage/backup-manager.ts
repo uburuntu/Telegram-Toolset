@@ -42,13 +42,22 @@ function isBackupVisibleToAccount(backup: Backup, account: SavedAccount | null):
   return backup.ownershipState === 'owned' && backup.ownerAccountId === account.id
 }
 
+function sortBackupsByCreatedAt(backups: Backup[]): Backup[] {
+  return backups.sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
+}
+
+function sortArchivedBackups(backups: Backup[]): Backup[] {
+  return backups.sort((left, right) => {
+    const leftDate = left.archivedAt ?? left.createdAt
+    const rightDate = right.archivedAt ?? right.createdAt
+    return rightDate.getTime() - leftDate.getTime()
+  })
+}
+
 class BackupManager {
   async listBackups(): Promise<Backup[]> {
     const backups = await db.getAllBackups()
-    // Sort by date, newest first
-    return backups
-      .map(normalizeBackup)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    return sortBackupsByCreatedAt(backups.map(normalizeBackup))
   }
 
   async listBackupsForAccount(account: SavedAccount | null): Promise<Backup[]> {
@@ -60,6 +69,11 @@ class BackupManager {
 
     const backups = await this.listBackups()
     return backups.filter((backup) => isBackupVisibleToAccount(backup, account))
+  }
+
+  async listArchivedBackups(): Promise<Backup[]> {
+    const backups = await this.listBackups()
+    return sortArchivedBackups(backups.filter((backup) => backup.ownershipState === 'archived'))
   }
 
   async getBackup(id: string): Promise<BackupWithMessages | null> {
@@ -124,6 +138,35 @@ class BackupManager {
 
   async deleteBackup(id: string): Promise<void> {
     await db.deleteBackup(id)
+  }
+
+  async claimLegacyBackup(id: string, account: SavedAccount): Promise<Backup> {
+    if (account.type !== 'user') {
+      throw new Error('Only user accounts can claim backups')
+    }
+
+    const storedBackup = await db.getBackup(id)
+    if (!storedBackup) {
+      throw new Error('Backup not found')
+    }
+
+    const backup = normalizeBackup(storedBackup)
+    if (backup.ownershipState !== 'legacy') {
+      throw new Error('Only legacy backups can be claimed')
+    }
+
+    const claimedBackup: Backup = {
+      ...backup,
+      ownerAccountId: account.id,
+      ownerAccountPhone: account.phone,
+      ownershipState: 'owned',
+      archivedAt: undefined,
+      archivedReason: undefined,
+    }
+
+    await db.saveBackup(claimedBackup)
+
+    return normalizeBackup(claimedBackup)
   }
 
   async getBackupStorageSize(id: string): Promise<number> {
