@@ -1,39 +1,10 @@
 # Restart TODO
 
-Last updated: 2026-04-26
-
-This file is the re-entry brief for the next time someone picks up the repo. If the code and docs disagree, trust the code for current behavior and use this file for priority order.
-
-## Current Checkpoint
-
-Safe merge checkpoint:
-
-- PR `#16`
-- Branch: `chore/reviewer-followups`
-
-What that stabilization batch adds:
-
-- auth modal accessibility and keyboard behavior
-- reproducible preview deploy path in CI
-- mobile Playwright projects promoted into CI
-- ZIP export filename sanitization
-- direct Telegram connection-state tests
-- app-level accessibility announcements for toasts and shared errors
-
-Verified on the current branch:
-
-- `npm run lint`
-- `npm run type-check`
-- `npm run test:unit`
-- `npm run test:component`
-- `npm run build`
-- `npx playwright test --project=mobile-chrome`
-- `npx playwright test --project=mobile-safari`
-- PR CI run `24941732891` green
+This file is the restart brief for the next time someone picks up the repo. It should stay useful after merges, branch changes, and time away. If the code and docs disagree, trust the code for current behavior and use this file for priority order.
 
 ## First Steps When Returning
 
-1. Pull latest `main` and confirm PR `#16` was merged cleanly.
+1. Pull latest `main`.
 2. Re-run:
    - `npm ci`
    - `npm run lint`
@@ -113,6 +84,8 @@ Exit criteria:
 - Do not spend the first milestone on visual polish or bundle work alone.
 
 ## Docs Discipline
+
+Keep long-lived docs durable. Do not record point-in-time coordination details here or in `AGENTS.md`, such as PR numbers, branch names, commit SHAs, CI run IDs, temporary statuses, or "current checkpoint" notes.
 
 When scope or priorities change, update these together in the same PR:
 
