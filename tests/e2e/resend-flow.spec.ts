@@ -29,9 +29,6 @@ async function setupMockedAuthWithBackups(page: Page) {
       JSON.stringify({ apiId: 12345, apiHash: 'mock_api_hash' }),
     )
 
-    // Prevent the privacy notice modal from blocking clicks in E2E.
-    localStorage.setItem('privacy_notice_seen', 'true')
-
     // We'll also need to set up mock backups in IndexedDB
     // This would require more complex setup - for now we test the UI states
   })

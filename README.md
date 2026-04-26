@@ -13,7 +13,7 @@ The app runs entirely on-device. There is no backend, no tracking, and no server
 |--------|-------------|--------------|
 | **Account Info** | View account details, capabilities, and session state | Any |
 | **Export Deleted Messages** | Export deleted messages from chats where the user has the required rights | User |
-| **Backups** | Manage saved exports and downloaded archives | User |
+| **Backups** | Manage saved exports, archived local backups, and recovery lifecycle actions | User |
 | **Resend Messages** | Re-send exported content with formatting and batching controls | User |
 | **Scheduled Messages** | View and manage scheduled messages across chats | User |
 | **LLM Context Export** | Export chat history in assistant-friendly formats for external tools | User |
@@ -37,7 +37,7 @@ The detailed roadmap lives in [TODO.md](./TODO.md).
 - `Vue Router` for lazy-loaded module routes
 - `GramJS` for user MTProto flows
 - Telegram Bot HTTP API for bot validation flows
-- `IndexedDB` for backups, media, export caches, encrypted account secrets, and recoverable account-owned archives
+- `IndexedDB` for backups, media, export caches, encrypted account secrets, and recoverable account-owned archives with explicit claim/delete lifecycle actions
 - `vue-i18n` for localization
 - `Vitest` + `Playwright` + GitHub Actions for quality gates
 

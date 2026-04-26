@@ -8,6 +8,8 @@ This file is the restart brief for the next time someone picks up the repo. It s
 - Legacy plaintext auth data in `localStorage` is migrated on load and rewritten to sanitized metadata.
 - New backups and LLM exports now persist with account ownership metadata.
 - Removing a user account archives its owned backups/exports instead of deleting them, and adding the same phone again recovers archived data automatically.
+- Backups and LLM exports now expose explicit legacy claim/delete actions and archived delete actions in the UI.
+- The shell no longer blocks users behind a first-run privacy modal; privacy messaging lives in the normal product chrome instead.
 
 ## First Steps When Returning
 
@@ -24,11 +26,10 @@ This file is the restart brief for the next time someone picks up the repo. It s
 
 ## Highest-Priority Unresolved Risks
 
-- Archived and legacy local data still need an explicit lifecycle.
-  - There is no user-facing purge flow yet, and legacy unowned records still need a deliberate claim/purge policy.
-- The first-run privacy gate in `src/App.vue` still blocks the shell and conflicts with the product guidance in `AGENTS.md`.
 - Live Telegram integration still needs periodic real-world smoke validation.
   - CI is good, but most Telegram behavior is still tested behind mocks.
+- Local-data lifecycle is explicit now, but any future cleanup work must stay recoverable by default.
+  - Only add delayed GC, bulk purge, or more aggressive cleanup if it is deliberate, documented, and tested.
 - `src/services/telegram/client.ts` remains too large and still owns too many concerns.
 - The production build still emits GramJS/browser-shim warnings and ships a heavy main chunk.
 
@@ -55,16 +56,16 @@ Exit criteria:
 
 ### B. Account-Owned Data Follow-Through
 
-- Add an explicit purge path or delayed garbage collection after a grace period.
-- Decide how legacy unowned backups/exports are claimed, archived, or purged.
+- Keep account-owned data cleanup explicit and recoverable by default.
+- If needed, add delayed garbage collection or bulk purge only as an opt-in follow-up.
 - Keep hard delete opt-in and separate from account removal.
-- Document the recovery and purge path so reconnect or migration issues do not force data loss.
+- Document any lifecycle changes so reconnect or migration issues do not force data loss.
 
 Exit criteria:
 
-- archived data has an explicit, documented purge path
-- legacy data no longer relies on implicit global visibility
-- purge/archive behavior is documented and tested
+- any new cleanup behavior is explicit, documented, and tested
+- archive/recovery behavior remains separate from account removal
+- reconnect or migration bugs cannot silently destroy local data
 
 ## Next Milestone After That
 
