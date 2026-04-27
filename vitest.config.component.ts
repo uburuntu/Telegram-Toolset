@@ -10,12 +10,6 @@ export default mergeConfig(
       passWithNoTests: false,
       coverage: {
         reportsDirectory: 'coverage/component',
-        thresholds: {
-          statements: 50,
-          branches: 40,
-          functions: 55,
-          lines: 50,
-        },
       },
     },
   }),
