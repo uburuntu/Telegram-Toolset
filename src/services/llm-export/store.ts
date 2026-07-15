@@ -136,8 +136,46 @@ export async function listArchivedChatExports(): Promise<ChatExport[]> {
   )
 }
 
+/** Exports whose owner metadata is missing or inconsistent; surfaced for explicit repair. */
+export async function listQuarantinedChatExports(): Promise<ChatExport[]> {
+  const chatExports = await listChatExports()
+  return chatExports.filter((chatExport) => normalizeOwnership(chatExport).health === 'quarantined')
+}
+
 export async function deleteChatExport(exportId: string): Promise<void> {
   await db.deleteChatExport(exportId)
+}
+
+/**
+ * Explicit repair: bind a quarantined or legacy export to `account`. This is a deliberate user
+ * action for ambiguous records — it never runs automatically.
+ */
+export async function reconcileChatExport(
+  exportId: string,
+  account: SavedAccount,
+): Promise<ChatExport> {
+  if (account.type !== 'user') {
+    throw new Error('Only user accounts can reconcile chat exports')
+  }
+
+  const storedChatExport = await db.getChatExport(exportId)
+  if (!storedChatExport) {
+    throw new Error('Chat export not found')
+  }
+
+  const ownership = normalizeOwnership(storedChatExport)
+  if (ownership.health !== 'quarantined' && ownership.verification !== 'legacy') {
+    throw new Error('Only quarantined or legacy chat exports can be reconciled')
+  }
+
+  const reconciledChatExport = applyChatExportOwnership(
+    normalizeChatExport(storedChatExport),
+    claimOwnership(ownership, account),
+  )
+
+  await db.saveChatExport(reconciledChatExport)
+
+  return normalizeChatExport(reconciledChatExport)
 }
 
 export async function claimLegacyChatExport(

@@ -183,6 +183,40 @@ class BackupManager {
     return normalizeBackup(claimedBackup)
   }
 
+  /** Records whose owner metadata is missing or inconsistent; surfaced for explicit repair. */
+  async listQuarantinedBackups(): Promise<Backup[]> {
+    const backups = await this.listBackups()
+    return backups.filter((backup) => normalizeOwnership(backup).health === 'quarantined')
+  }
+
+  /**
+   * Explicit repair: bind a quarantined or legacy record to `account`. This is a deliberate user
+   * action for ambiguous records — it never runs automatically.
+   */
+  async reconcileBackup(id: string, account: SavedAccount): Promise<Backup> {
+    if (account.type !== 'user') {
+      throw new Error('Only user accounts can reconcile backups')
+    }
+
+    const storedBackup = await db.getBackup(id)
+    if (!storedBackup) {
+      throw new Error('Backup not found')
+    }
+
+    const ownership = normalizeOwnership(storedBackup)
+    if (ownership.health !== 'quarantined' && ownership.verification !== 'legacy') {
+      throw new Error('Only quarantined or legacy backups can be reconciled')
+    }
+
+    const reconciled = applyOwnership(
+      normalizeBackup(storedBackup),
+      claimOwnership(ownership, account),
+    )
+    await db.saveBackup(reconciled)
+
+    return normalizeBackup(reconciled)
+  }
+
   async getBackupStorageSize(id: string): Promise<number> {
     return db.calculateBackupSize(id)
   }

@@ -30,6 +30,8 @@ import {
   claimLegacyChatExport,
   listArchivedChatExports,
   listChatExportsForAccount,
+  listQuarantinedChatExports,
+  reconcileChatExport,
 } from '@/services/llm-export/store'
 
 function createChatExport(overrides: Partial<ChatExport> = {}): ChatExport {
@@ -181,6 +183,72 @@ describe('llm export ownership', () => {
       'recent-archived-export',
       'older-archived-export',
     ])
+  })
+
+  it('surfaces exports with lost owner metadata as quarantined instead of hiding them', async () => {
+    const account = createUserAccount({ principal: { kind: 'user', telegramUserId: '500' } })
+
+    state.chatExports = [
+      createChatExport({
+        id: 'healthy-export',
+        ownerAccountId: account.id,
+        ownerPrincipal: { kind: 'user', telegramUserId: '500' },
+        ownershipState: 'owned',
+      }),
+      createChatExport({
+        id: 'broken-export',
+        ownerVerification: 'verified',
+        ownershipState: 'owned',
+      }),
+    ]
+
+    const visible = await listChatExportsForAccount(account)
+    expect(visible.map((chatExport) => chatExport.id)).toEqual(['healthy-export'])
+
+    const quarantined = await listQuarantinedChatExports()
+    expect(quarantined.map((chatExport) => chatExport.id)).toEqual(['broken-export'])
+  })
+
+  it('reconciles a quarantined export to the current account on explicit repair', async () => {
+    const account = createUserAccount({ principal: { kind: 'user', telegramUserId: '500' } })
+
+    state.chatExports = [
+      createChatExport({
+        id: 'broken-export',
+        ownerVerification: 'verified',
+        ownershipState: 'owned',
+      }),
+    ]
+
+    const reconciled = await reconcileChatExport('broken-export', account)
+
+    expect(reconciled).toMatchObject({
+      id: 'broken-export',
+      ownerAccountId: account.id,
+      ownerPrincipal: { kind: 'user', telegramUserId: '500' },
+      ownerVerification: 'verified',
+      recordHealth: 'healthy',
+      ownershipState: 'owned',
+    })
+    expect(await listQuarantinedChatExports()).toEqual([])
+  })
+
+  it('refuses to reconcile a healthy export owned by someone else', async () => {
+    const account = createUserAccount({ principal: { kind: 'user', telegramUserId: '500' } })
+
+    state.chatExports = [
+      createChatExport({
+        id: 'other-owner-export',
+        ownerAccountId: 'acct-other',
+        ownerPrincipal: { kind: 'user', telegramUserId: '999' },
+        ownershipState: 'owned',
+      }),
+    ]
+
+    await expect(reconcileChatExport('other-owner-export', account)).rejects.toThrow(
+      /quarantined or legacy/,
+    )
+    expect(dbMocks.saveChatExport).not.toHaveBeenCalled()
   })
 
   it('claims a legacy chat export for the current account', async () => {

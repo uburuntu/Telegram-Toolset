@@ -290,6 +290,74 @@ describe('backupManager ownership', () => {
     )
   })
 
+  it('surfaces records with lost owner metadata as quarantined instead of hiding them', async () => {
+    const account = createUserAccount({ principal: { kind: 'user', telegramUserId: '500' } })
+
+    state.backups = [
+      createBackup({
+        id: 'healthy-backup',
+        ownerAccountId: account.id,
+        ownerPrincipal: { kind: 'user', telegramUserId: '500' },
+        ownershipState: 'owned',
+      }),
+      createBackup({
+        // verified marker but the principal was lost -> internally inconsistent.
+        id: 'broken-backup',
+        ownerVerification: 'verified',
+        ownershipState: 'owned',
+      }),
+    ]
+
+    // A quarantined record must never be silently exposed as owned or visible.
+    const visible = await backupManager.listBackupsForAccount(account)
+    expect(visible.map((backup) => backup.id)).toEqual(['healthy-backup'])
+
+    const quarantined = await backupManager.listQuarantinedBackups()
+    expect(quarantined.map((backup) => backup.id)).toEqual(['broken-backup'])
+  })
+
+  it('reconciles a quarantined backup to the current account on explicit repair', async () => {
+    const account = createUserAccount({ principal: { kind: 'user', telegramUserId: '500' } })
+
+    state.backups = [
+      createBackup({
+        id: 'broken-backup',
+        ownerVerification: 'verified',
+        ownershipState: 'owned',
+      }),
+    ]
+
+    const reconciled = await backupManager.reconcileBackup('broken-backup', account)
+
+    expect(reconciled).toMatchObject({
+      id: 'broken-backup',
+      ownerAccountId: account.id,
+      ownerPrincipal: { kind: 'user', telegramUserId: '500' },
+      ownerVerification: 'verified',
+      recordHealth: 'healthy',
+      ownershipState: 'owned',
+    })
+    expect(await backupManager.listQuarantinedBackups()).toEqual([])
+  })
+
+  it('refuses to reconcile a healthy backup owned by someone else', async () => {
+    const account = createUserAccount({ principal: { kind: 'user', telegramUserId: '500' } })
+
+    state.backups = [
+      createBackup({
+        id: 'other-owner-backup',
+        ownerAccountId: 'acct-other',
+        ownerPrincipal: { kind: 'user', telegramUserId: '999' },
+        ownershipState: 'owned',
+      }),
+    ]
+
+    await expect(backupManager.reconcileBackup('other-owner-backup', account)).rejects.toThrow(
+      /quarantined or legacy/,
+    )
+    expect(dbMocks.saveBackup).not.toHaveBeenCalled()
+  })
+
   it('claims a legacy backup for the current account', async () => {
     const account = createUserAccount()
 
