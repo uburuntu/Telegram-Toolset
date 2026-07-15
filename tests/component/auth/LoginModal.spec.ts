@@ -39,6 +39,8 @@ vi.mock('@/services/telegram/client', () => ({
     provideCode: vi.fn(),
     providePassword: vi.fn(),
     abortCurrentUserAuth: vi.fn(),
+    beginActiveAccountTransition: vi.fn(() => 1),
+    completeActiveAccountTransition: vi.fn(),
     getSessionString: vi.fn(),
     resetForNewUserLogin: vi.fn(),
     useUserAccountSession: vi.fn(),
@@ -60,6 +62,8 @@ describe('LoginModal', () => {
     vi.clearAllMocks()
     mockAccountsStore.apiCredentials = null
     mockAccountsStore.accounts = []
+    vi.mocked(telegramService.abortCurrentUserAuth).mockResolvedValue(undefined)
+    vi.mocked(telegramService.beginActiveAccountTransition).mockReturnValue(1)
     vi.mocked(isValidTokenFormat).mockImplementation((token: string) =>
       /^\d+:[A-Za-z0-9_-]{20,}$/.test(token),
     )
@@ -169,6 +173,24 @@ describe('LoginModal', () => {
     expect(apiIdInput.attributes('aria-invalid')).toBe('true')
     expect(apiIdInput.attributes('aria-errormessage')).toBe('login-modal-credentials-error')
     expect(errorMessage.attributes('role')).toBe('alert')
+  })
+
+  it('masks API hashes and bot tokens at the input boundary', async () => {
+    const userWrapper = mount(LoginModal, {
+      props: { requiredType: 'user' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+    expect(userWrapper.get('#login-modal-api-hash').attributes('type')).toBe('password')
+
+    const botWrapper = mount(LoginModal, {
+      props: { requiredType: 'bot' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+    expect(botWrapper.get('#login-modal-bot-token').attributes('type')).toBe('password')
   })
 
   it('emits close without directly popping the modal store', async () => {
@@ -309,6 +331,186 @@ describe('LoginModal', () => {
     )
     expect(mockAccountsStore.markAccountSessionReady).toHaveBeenCalledWith('account-1')
     expect(mockAccountsStore.setActiveAccount).toHaveBeenCalledWith('account-1')
+  })
+
+  it('reports account persistence failures after Telegram authentication completes', async () => {
+    mockAccountsStore.apiCredentials = {
+      apiId: 123456,
+      apiHash: '0123456789abcdef',
+    }
+    mockAccountsStore.accounts = [
+      {
+        id: 'account-1',
+        type: 'user',
+        label: 'Ramzan',
+        firstName: 'Ramzan',
+        phone: '+79261247596',
+        sessionString: 'expired-session',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]
+
+    const service = telegramService as any
+    service.resetForNewUserLogin.mockResolvedValue(undefined)
+    service.initClient.mockResolvedValue(undefined)
+    service.startUserAuth.mockResolvedValue({
+      id: BigInt(123),
+      firstName: 'Ramzan',
+      username: 'ramzan',
+      phone: '+79261247596',
+    })
+    service.getSessionString.mockReturnValue('fresh-session')
+    mockAccountsStore.updateAccount.mockRejectedValueOnce(new Error('Failed to save account'))
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user', replaceAccountId: 'account-1' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    const phoneInput = wrapper.get('#login-modal-phone')
+    expect(phoneInput.attributes('readonly')).toBeDefined()
+
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Failed to save account')
+    expect(wrapper.get('#login-modal-phone').exists()).toBe(true)
+    expect(mockAccountsStore.markAccountSessionReady).not.toHaveBeenCalled()
+    expect(mockAccountsStore.setActiveAccount).not.toHaveBeenCalled()
+  })
+
+  it('allows re-login to restore a missing stored phone number', () => {
+    mockAccountsStore.apiCredentials = {
+      apiId: 123456,
+      apiHash: '0123456789abcdef',
+    }
+    mockAccountsStore.accounts = [
+      {
+        id: 'account-1',
+        type: 'user',
+        label: 'Ramzan',
+        sessionString: 'expired-session',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user', replaceAccountId: 'account-1' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    expect(wrapper.get('#login-modal-phone').attributes('readonly')).toBeUndefined()
+  })
+
+  it('does not activate an account when unmounted during persistence', async () => {
+    mockAccountsStore.apiCredentials = {
+      apiId: 123456,
+      apiHash: '0123456789abcdef',
+    }
+    mockAccountsStore.accounts = [
+      {
+        id: 'account-1',
+        type: 'user',
+        label: 'Ramzan',
+        phone: '+79261247596',
+        sessionString: 'expired-session',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]
+
+    const service = telegramService as any
+    service.resetForNewUserLogin.mockResolvedValue(undefined)
+    service.initClient.mockResolvedValue(undefined)
+    service.startUserAuth.mockResolvedValue({
+      id: BigInt(123),
+      firstName: 'Ramzan',
+      username: 'ramzan',
+      phone: '+79261247596',
+    })
+    service.getSessionString.mockReturnValue('fresh-session')
+
+    let resolvePersistence!: () => void
+    mockAccountsStore.updateAccount.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePersistence = resolve
+        }),
+    )
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user', replaceAccountId: 'account-1' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+    expect(mockAccountsStore.updateAccount).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+    resolvePersistence()
+    await flushPromises()
+
+    expect(mockAccountsStore.markAccountSessionReady).not.toHaveBeenCalled()
+    expect(mockAccountsStore.setActiveAccount).not.toHaveBeenCalled()
+  })
+
+  it('does not start authentication after closing during client reset', async () => {
+    mockAccountsStore.apiCredentials = {
+      apiId: 123456,
+      apiHash: '0123456789abcdef',
+    }
+    mockAccountsStore.accounts = [
+      {
+        id: 'account-1',
+        type: 'user',
+        label: 'Ramzan',
+        phone: '+79261247596',
+        sessionString: 'expired-session',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]
+
+    const service = telegramService as any
+    let finishReset!: () => void
+    service.resetForNewUserLogin.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishReset = resolve
+        }),
+    )
+    service.abortCurrentUserAuth.mockResolvedValue(undefined)
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user', replaceAccountId: 'account-1' },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+    expect(service.resetForNewUserLogin).toHaveBeenCalledTimes(1)
+    expect(service.beginActiveAccountTransition).toHaveBeenCalledTimes(1)
+
+    await wrapper.get('button[aria-label="Close"]').trigger('click')
+    await flushPromises()
+    finishReset()
+    await flushPromises()
+
+    expect(service.initClient).not.toHaveBeenCalled()
+    expect(service.startUserAuth).not.toHaveBeenCalled()
+    expect(service.completeActiveAccountTransition).toHaveBeenCalledWith(1)
+    expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
   it('keeps the verification code flow alive after a recoverable code error', async () => {

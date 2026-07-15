@@ -36,6 +36,8 @@ test.describe('Landing Page', () => {
 
     // Login modal should appear
     await expect(page.getByText('Add Account')).toBeVisible()
+    await expect(page.getByTestId('tab-user')).toBeVisible()
+    await expect(page.getByTestId('tab-bot')).toBeVisible()
   })
 
   test('should close login modal with close button', async ({ page }) => {
