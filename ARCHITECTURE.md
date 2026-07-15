@@ -443,7 +443,7 @@ Coverage thresholds should expand only after the relevant integration seams are 
 - Add worker-backed export/archive pipelines with the committed byte, heap, and cancellation caps.
 - Implement real quota strategies.
 - Defer GramJS and locales from the initial route.
-- Add production-artifact browser smoke and define the supported browser floor.
+- Expand the production-artifact browser smoke (a Chromium boot/lazy-route baseline exists) to every route and define the supported browser floor.
 
 ### Stage F — Workflow decomposition
 
