@@ -242,6 +242,26 @@ describe('TelegramSessionCoordinator', () => {
     expect(snapshots.some((s) => s.accountId === 'a')).toBe(false)
   })
 
+  it('skips a stale activation entirely when superseded during the cancellation wait', async () => {
+    backend.autoResolveCancel = false
+
+    coordinator.activate(reqA)
+    await flushPromises()
+    // A is parked in the cancellation wait; supersede it before the deadline.
+    coordinator.activate(reqB)
+
+    fireDeadline() // releases A's cancellation wait
+    await flushPromises()
+    // A was superseded, so it must never touch the session.
+    expect(backend.log).not.toContain('activate:a')
+
+    fireDeadline() // releases B's cancellation wait
+    await flushPromises()
+
+    expect(backend.log).toContain('activate:b')
+    expect(coordinator.getSnapshot()).toMatchObject({ status: 'active', accountId: 'b' })
+  })
+
   it('reaches the final requested state across rapid A -> B -> teardown -> A', async () => {
     coordinator.activate(reqA)
     coordinator.activate(reqB)
