@@ -285,6 +285,58 @@ describe('accounts store', () => {
     expect(store.accounts).toHaveLength(0)
   })
 
+  it('starts every account at epoch 0 and advances it when the account is removed', async () => {
+    const store = useAccountsStore()
+    const account = await store.addAccount({
+      type: 'user',
+      label: 'Test User',
+      phone: '+1234567890',
+      sessionString: 'saved-session',
+    })
+
+    expect(store.getAccountEpoch(account.id)).toBe(0)
+
+    await store.removeAccount(account.id)
+
+    expect(store.getAccountEpoch(account.id)).toBe(1)
+  })
+
+  it('rolls the account epoch back when archival fails and the account survives', async () => {
+    backupManagerApi.archiveBackupsForRemovedAccount.mockRejectedValueOnce(
+      new Error('archive failed'),
+    )
+
+    const store = useAccountsStore()
+    const account = await store.addAccount({
+      type: 'user',
+      label: 'Test User',
+      phone: '+1234567890',
+      sessionString: 'saved-session',
+    })
+
+    await expect(store.removeAccount(account.id)).rejects.toThrow('archive failed')
+
+    expect(store.accounts).toHaveLength(1)
+    expect(store.getAccountEpoch(account.id)).toBe(0)
+  })
+
+  it('rolls the account epoch back when secret deletion fails during removal', async () => {
+    vaultApi.deleteSecureAccountSecret.mockRejectedValueOnce(new Error('secret delete failed'))
+
+    const store = useAccountsStore()
+    const account = await store.addAccount({
+      type: 'user',
+      label: 'Test User',
+      phone: '+1234567890',
+      sessionString: 'saved-session',
+    })
+
+    await expect(store.removeAccount(account.id)).rejects.toThrow('secret delete failed')
+
+    expect(store.accounts).toHaveLength(1)
+    expect(store.getAccountEpoch(account.id)).toBe(0)
+  })
+
   it('persists the Telegram principal and finds accounts by it', async () => {
     const store = useAccountsStore()
     const account = await store.addAccount({

@@ -14,6 +14,7 @@ import type {
   ChatHistoryTask,
   ChatInfo,
   ChatMessage,
+  CommitOptions,
   SavedAccount,
 } from '@/types'
 import { ownershipForAccount, toStoredOwnership } from '../storage/record-ownership'
@@ -44,6 +45,7 @@ class ChatHistoryDownloadTask implements ChatHistoryTask {
   private readonly options: ChatHistoryOptions
   private readonly callbacks: ChatHistoryCallbacks
   private readonly owner: ChatExportOwnerContext | null
+  private readonly commitOptions?: CommitOptions
 
   readonly signal = this.abortController.signal
   readonly promise: Promise<ChatHistoryResult>
@@ -53,11 +55,13 @@ class ChatHistoryDownloadTask implements ChatHistoryTask {
     options: ChatHistoryOptions,
     callbacks: ChatHistoryCallbacks,
     owner: ChatExportOwnerContext | null,
+    commitOptions?: CommitOptions,
   ) {
     this.chatInfo = chatInfo
     this.options = options
     this.callbacks = callbacks
     this.owner = owner
+    this.commitOptions = commitOptions
     this.promise = this.run()
   }
 
@@ -157,7 +161,7 @@ class ChatHistoryDownloadTask implements ChatHistoryTask {
         ...toStoredOwnership(ownershipForAccount(this.owner)),
       }
 
-      const result = await saveChatExportBundle(chatExport, messages)
+      const result = await saveChatExportBundle(chatExport, messages, this.commitOptions)
 
       progress.phase = 'complete'
       this.callbacks.onProgress?.({ ...progress })
@@ -219,8 +223,9 @@ class ChatHistoryService {
     options: ChatHistoryOptions = {},
     callbacks: ChatHistoryCallbacks = {},
     owner: ChatExportOwnerContext | null = null,
+    commitOptions?: CommitOptions,
   ): ChatHistoryTask {
-    return new ChatHistoryDownloadTask(chatInfo, options, callbacks, owner)
+    return new ChatHistoryDownloadTask(chatInfo, options, callbacks, owner, commitOptions)
   }
 
   async downloadChatHistory(
@@ -228,8 +233,9 @@ class ChatHistoryService {
     options: ChatHistoryOptions = {},
     callbacks: ChatHistoryCallbacks = {},
     owner: ChatExportOwnerContext | null = null,
+    commitOptions?: CommitOptions,
   ): Promise<ChatHistoryResult> {
-    return this.createDownloadTask(chatInfo, options, callbacks, owner).promise
+    return this.createDownloadTask(chatInfo, options, callbacks, owner, commitOptions).promise
   }
 
   async loadChatExport(exportId: string): Promise<ChatHistoryResult | null> {

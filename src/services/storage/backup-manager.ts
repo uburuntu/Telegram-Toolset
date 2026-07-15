@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import type {
   Backup,
   BackupWithMessages,
+  CommitOptions,
   DeletedMessage,
   ExportConfig,
   SavedAccount,
@@ -100,12 +101,14 @@ class BackupManager {
     messages: DeletedMessage[],
     mediaBlobs: Map<number, Blob>,
     ownerAccount?: SavedAccount | null,
+    options?: CommitOptions,
   ): Promise<Backup> {
     return this.createBackupWithOwnership(
       config,
       messages,
       mediaBlobs,
       ownershipForAccount(ownerAccount),
+      options,
     )
   }
 
@@ -114,6 +117,7 @@ class BackupManager {
     messages: DeletedMessage[],
     mediaBlobs: Map<number, Blob>,
     ownership: NormalizedOwnership,
+    options?: CommitOptions,
   ): Promise<Backup> {
     const id = uuidv4()
 
@@ -150,6 +154,9 @@ class BackupManager {
       ownership,
     )
 
+    // Final fence immediately before the write: if the owning account was removed while the export
+    // ran, this throws and no orphaned owned record is persisted (ARCHITECTURE.md §3, criterion 4).
+    options?.ensureCommittable?.()
     await db.saveBackupBundle(backup, messages, mediaEntries)
 
     return normalizeBackup(backup)
