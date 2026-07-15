@@ -396,6 +396,69 @@ describe('ResendService', () => {
         expect((error as DOMException).name).toBe('AbortError')
       }
     })
+
+    it('waits for an in-flight send to settle before reporting idle', async () => {
+      let releaseSend!: () => void
+      vi.mocked(telegramGateway.send.sendMessage).mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            releaseSend = resolve
+          }),
+      )
+
+      const resend = resendService.resendMessages(
+        [createMessage()],
+        new Map<number, Blob>(),
+        baseConfig,
+      )
+      const resendResult = resend.catch((error: unknown) => error)
+      await vi.waitFor(() => {
+        expect(telegramGateway.send.sendMessage).toHaveBeenCalledTimes(1)
+      })
+
+      let finishedWaiting = false
+      const waitForIdle = resendService.cancelAndWait().then(() => {
+        finishedWaiting = true
+      })
+      await Promise.resolve()
+      expect(finishedWaiting).toBe(false)
+
+      releaseSend()
+      await waitForIdle
+
+      const error = await resendResult
+      expect(error).toBeInstanceOf(DOMException)
+      expect((error as DOMException).name).toBe('AbortError')
+      expect(resendService.isResending).toBe(false)
+    })
+
+    it('abandons singleton ownership when cancellation cannot settle by its deadline', async () => {
+      let releaseSend!: () => void
+      vi.mocked(telegramGateway.send.sendMessage).mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            releaseSend = resolve
+          }),
+      )
+
+      const resend = resendService.resendMessages(
+        [createMessage()],
+        new Map<number, Blob>(),
+        baseConfig,
+      )
+      const resendResult = resend.catch((error: unknown) => error)
+      await vi.waitFor(() => {
+        expect(telegramGateway.send.sendMessage).toHaveBeenCalledTimes(1)
+      })
+
+      await expect(resendService.cancelAndWait(5)).resolves.toBe(false)
+      expect(resendService.isResending).toBe(false)
+
+      releaseSend()
+      const error = await resendResult
+      expect(error).toBeInstanceOf(DOMException)
+      expect((error as DOMException).name).toBe('AbortError')
+    })
   })
 
   describe('progress tracking', () => {

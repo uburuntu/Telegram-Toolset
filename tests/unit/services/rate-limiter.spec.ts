@@ -4,8 +4,10 @@ import {
   withRetry,
   isFloodWaitError,
   sleep,
+  startFloodWaitCountdown,
   formatDuration,
   calculateETA,
+  createFloodWaitSubscription,
   type FloodWaitError,
   type OperationProgress,
 } from '@/services/telegram/rate-limiter'
@@ -42,6 +44,60 @@ describe('rate-limiter', () => {
       controller.abort()
 
       await expect(sleepPromise).rejects.toThrow('Aborted')
+    })
+
+    it('should remove its abort listener after a normal sleep', async () => {
+      const controller = new AbortController()
+      const removeListener = vi.spyOn(controller.signal, 'removeEventListener')
+      const sleepPromise = sleep(1000, controller.signal)
+
+      vi.advanceTimersByTime(1000)
+      await expect(sleepPromise).resolves.toBeUndefined()
+
+      expect(removeListener).toHaveBeenCalledWith('abort', expect.any(Function))
+    })
+  })
+
+  describe('startFloodWaitCountdown', () => {
+    it('should clean up its abort listener when the countdown completes', () => {
+      const controller = new AbortController()
+      const removeListener = vi.spyOn(controller.signal, 'removeEventListener')
+      const callback = vi.fn()
+
+      startFloodWaitCountdown(1, callback, controller.signal)
+      vi.advanceTimersByTime(1000)
+
+      expect(callback).toHaveBeenCalledWith(0)
+      expect(removeListener).toHaveBeenCalledWith('abort', expect.any(Function))
+    })
+  })
+
+  describe('createFloodWaitSubscription', () => {
+    it('unsubscribes and ignores future events when aborted', () => {
+      const controller = new AbortController()
+      const unsubscribeFromService = vi.fn()
+      let listener: ((seconds: number, method: string) => void) | undefined
+      const telegramService = {
+        onFloodWait: vi.fn((nextListener: (seconds: number, method: string) => void) => {
+          listener = nextListener
+          return unsubscribeFromService
+        }),
+      }
+      const onFloodWait = vi.fn()
+
+      const unsubscribe = createFloodWaitSubscription(
+        telegramService,
+        { onFloodWait },
+        controller.signal,
+      )
+      listener?.(10, 'messages.getHistory')
+      controller.abort()
+      listener?.(20, 'messages.getHistory')
+      unsubscribe()
+
+      expect(onFloodWait).toHaveBeenCalledTimes(1)
+      expect(onFloodWait).toHaveBeenCalledWith(10)
+      expect(unsubscribeFromService).toHaveBeenCalledTimes(1)
     })
   })
 

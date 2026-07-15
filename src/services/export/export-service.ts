@@ -60,10 +60,7 @@ class ExportService {
    * Cancel the current export operation
    */
   cancel(): void {
-    if (this.abortController) {
-      this.abortController.abort()
-      this.abortController = null
-    }
+    this.abortController?.abort()
   }
 
   /**
@@ -82,9 +79,13 @@ class ExportService {
     callbacks: ExportCallbacks = {},
     options: ExportOptions = {},
   ): Promise<ExportResult> {
-    // Create new abort controller for this export
-    this.abortController = new AbortController()
-    const signal = this.abortController.signal
+    if (this.abortController) {
+      throw new Error('An export is already in progress')
+    }
+
+    const abortController = new AbortController()
+    this.abortController = abortController
+    const signal = abortController.signal
 
     const progress: ExportProgress = {
       phase: 'initializing',
@@ -108,6 +109,7 @@ class ExportService {
           throw new Error(validation.errorMessage || 'Cannot export from this chat')
         }
       }
+      this.throwIfCancelled(signal)
 
       // Phase 1: Collect metadata
       progress.phase = 'fetching_metadata'
@@ -130,15 +132,15 @@ class ExportService {
         config.chatId,
         iterOptions,
       )) {
-        // Check for cancellation
-        if (signal.aborted) {
-          progress.phase = 'cancelled'
-          callbacks.onProgress?.(progress)
-          throw new DOMException('Export cancelled', 'AbortError')
+        this.throwIfCancelled(signal)
+
+        if (config.exportMode === 'media_only' && !msg.hasMedia) {
+          continue
         }
 
         // Resolve sender information
         const enrichedMsg = await this.enrichMessageWithSender(msg)
+        this.throwIfCancelled(signal)
         messages.push(enrichedMsg)
 
         // Track messages with media for phase 2
@@ -169,6 +171,7 @@ class ExportService {
       }
 
       // Complete
+      this.throwIfCancelled(signal)
       progress.phase = 'complete'
       callbacks.onProgress?.(progress)
 
@@ -183,7 +186,9 @@ class ExportService {
       callbacks.onProgress?.(progress)
       throw error
     } finally {
-      this.abortController = null
+      if (this.abortController === abortController) {
+        this.abortController = null
+      }
     }
   }
 
@@ -211,6 +216,12 @@ class ExportService {
     }
 
     return msg
+  }
+
+  private throwIfCancelled(signal: AbortSignal): void {
+    if (signal.aborted) {
+      throw new DOMException('Export cancelled', 'AbortError')
+    }
   }
 
   /**

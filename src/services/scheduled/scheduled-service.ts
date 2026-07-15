@@ -49,10 +49,7 @@ class ScheduledService {
   }
 
   cancel(): void {
-    if (this.abortController) {
-      this.abortController.abort()
-      this.abortController = null
-    }
+    this.abortController?.abort()
   }
 
   /**
@@ -62,8 +59,8 @@ class ScheduledService {
     chatId: bigint,
     callbacks: Pick<ScheduledMessagesCallbacks, 'onFloodWait' | 'onFloodWaitCountdown'> = {},
   ): Promise<ScheduledMessage[]> {
-    this.abortController = new AbortController()
-    const signal = this.abortController.signal
+    const abortController = this.startLoading()
+    const signal = abortController.signal
 
     // Subscribe to global flood wait events from GramJS (it handles flood wait internally)
     const unsubscribeFloodWait = createFloodWaitSubscription(
@@ -85,7 +82,7 @@ class ScheduledService {
       ])
     } finally {
       unsubscribeFloodWait()
-      this.abortController = null
+      this.finishLoading(abortController)
     }
   }
 
@@ -102,8 +99,8 @@ class ScheduledService {
   ): Promise<ChatWithScheduledMessages[]> {
     const chatLimit = options.chatLimit ?? 100
 
-    this.abortController = new AbortController()
-    const signal = this.abortController.signal
+    const abortController = this.startLoading()
+    const signal = abortController.signal
 
     // Subscribe to global flood wait events from GramJS (it handles flood wait internally)
     const unsubscribeFloodWait = createFloodWaitSubscription(
@@ -197,6 +194,22 @@ class ScheduledService {
       throw error
     } finally {
       unsubscribeFloodWait()
+      this.finishLoading(abortController)
+    }
+  }
+
+  private startLoading(): AbortController {
+    if (this.abortController) {
+      throw new Error('A scheduled-message scan is already in progress')
+    }
+
+    const abortController = new AbortController()
+    this.abortController = abortController
+    return abortController
+  }
+
+  private finishLoading(abortController: AbortController): void {
+    if (this.abortController === abortController) {
       this.abortController = null
     }
   }
