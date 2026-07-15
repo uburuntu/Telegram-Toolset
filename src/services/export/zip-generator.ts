@@ -122,7 +122,7 @@ class ZipGenerator {
   ): string {
     const sanitized = this.sanitizeArchiveEntryFilename(originalFilename || '')
     if (sanitized) {
-      return sanitized
+      return `${messageId}_${sanitized}`
     }
 
     return `${messageId}${this.getExtensionFromMimeType(mimeType)}`
