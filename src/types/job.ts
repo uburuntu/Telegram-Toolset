@@ -20,6 +20,16 @@ export type JobKind =
 export type JobStatus = 'running' | 'succeeded' | 'failed' | 'cancelled'
 
 /**
+ * Threaded into a persistence commit boundary so the storage layer can enforce the account-epoch
+ * fence without depending on any store. `ensureCommittable` runs synchronously immediately before
+ * the durable write and must throw (an AbortError) when the owning account has been removed since
+ * the job started, so the write is skipped rather than orphaning an owned record (§3, criterion 4).
+ */
+export interface CommitOptions {
+  ensureCommittable?: () => void
+}
+
+/**
  * Immutable execution context stamped onto a job at creation. `peer` intentionally arrives with the
  * canonical `PeerRef` in Stage D (§4); until then multi-peer jobs carry their own peer identifiers.
  */

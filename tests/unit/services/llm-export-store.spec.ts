@@ -32,6 +32,7 @@ import {
   listChatExportsForAccount,
   listQuarantinedChatExports,
   reconcileChatExport,
+  saveChatExportBundle,
 } from '@/services/llm-export/store'
 
 function createChatExport(overrides: Partial<ChatExport> = {}): ChatExport {
@@ -279,5 +280,39 @@ describe('llm export ownership', () => {
         ownershipState: 'owned',
       }),
     )
+  })
+})
+
+describe('saveChatExportBundle commit fence', () => {
+  beforeEach(() => {
+    state.chatExports = []
+    vi.clearAllMocks()
+  })
+
+  it('runs ensureCommittable immediately before writing the bundle', async () => {
+    const order: string[] = []
+    dbMocks.saveChatExportBundle.mockImplementation(async () => {
+      order.push('save')
+    })
+    const ensureCommittable = vi.fn(() => {
+      order.push('ensure')
+    })
+
+    await saveChatExportBundle(createChatExport(), [], { ensureCommittable })
+
+    expect(ensureCommittable).toHaveBeenCalledTimes(1)
+    expect(order).toEqual(['ensure', 'save'])
+  })
+
+  it('does not persist the bundle when ensureCommittable rejects the commit', async () => {
+    const ensureCommittable = vi.fn(() => {
+      throw new DOMException('Owning account was removed during export', 'AbortError')
+    })
+
+    await expect(
+      saveChatExportBundle(createChatExport(), [], { ensureCommittable }),
+    ).rejects.toThrow('Owning account was removed during export')
+
+    expect(dbMocks.saveChatExportBundle).not.toHaveBeenCalled()
   })
 })

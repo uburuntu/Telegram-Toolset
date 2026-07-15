@@ -1,4 +1,10 @@
-import type { ChatExport, ChatHistoryResult, ChatMessage, SavedAccount } from '@/types'
+import type {
+  ChatExport,
+  ChatHistoryResult,
+  ChatMessage,
+  CommitOptions,
+  SavedAccount,
+} from '@/types'
 import { getMarkedPeerIdForChat } from '@/utils/telegram-peers'
 import * as db from '../storage/indexed-db'
 import {
@@ -80,12 +86,16 @@ function normalizeChatMessage(chatExport: ChatExport, message: ChatMessage): Cha
 export async function saveChatExportBundle(
   chatExport: ChatExport,
   messages: ChatMessage[],
+  options?: CommitOptions,
 ): Promise<ChatHistoryResult> {
   const normalizedExport = normalizeChatExport(chatExport)
   const normalizedMessages = messages.map((message) =>
     normalizeChatMessage(normalizedExport, message),
   )
 
+  // Fence immediately before the write so a removed account cannot leave an orphaned owned export
+  // (ARCHITECTURE.md §3, criterion 4).
+  options?.ensureCommittable?.()
   await db.saveChatExportBundle(normalizedExport, normalizedMessages)
 
   return {

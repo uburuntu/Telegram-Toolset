@@ -388,3 +388,52 @@ describe('backupManager ownership', () => {
     )
   })
 })
+
+describe('backupManager createBackup commit fence', () => {
+  beforeEach(() => {
+    state.backups = []
+    vi.clearAllMocks()
+    dbMocks.countMediaTypes.mockResolvedValue(emptyMediaTypes)
+  })
+
+  it('runs ensureCommittable immediately before writing the bundle', async () => {
+    const account = createUserAccount()
+    const order: string[] = []
+    dbMocks.saveBackupBundle.mockImplementation(async () => {
+      order.push('save')
+    })
+    const ensureCommittable = vi.fn(() => {
+      order.push('ensure')
+    })
+
+    await backupManager.createBackup(
+      { chatId: BigInt('100123'), chatTitle: 'Test', exportMode: 'all' },
+      [],
+      new Map(),
+      account,
+      { ensureCommittable },
+    )
+
+    expect(ensureCommittable).toHaveBeenCalledTimes(1)
+    expect(order).toEqual(['ensure', 'save'])
+  })
+
+  it('does not persist the bundle when ensureCommittable rejects the commit', async () => {
+    const account = createUserAccount()
+    const ensureCommittable = vi.fn(() => {
+      throw new DOMException('Owning account was removed during export', 'AbortError')
+    })
+
+    await expect(
+      backupManager.createBackup(
+        { chatId: BigInt('100123'), chatTitle: 'Test', exportMode: 'all' },
+        [],
+        new Map(),
+        account,
+        { ensureCommittable },
+      ),
+    ).rejects.toThrow('Owning account was removed during export')
+
+    expect(dbMocks.saveBackupBundle).not.toHaveBeenCalled()
+  })
+})

@@ -225,6 +225,17 @@ async function startDownload() {
   floodWait.reset()
   const account = accountsStore.activeAccount
   const accountId = account?.id ?? null
+  const ownerEpoch = accountId !== null ? accountsStore.getAccountEpoch(accountId) : null
+  // Commit fence for the export write: rejects if the owning account is removed mid-download so no
+  // orphaned owned export is persisted (ARCHITECTURE.md §3, criterion 4).
+  const ensureCommittable =
+    accountId !== null
+      ? () => {
+          if (accountsStore.getAccountEpoch(accountId) !== ownerEpoch) {
+            throw new DOMException('Owning account was removed during export', 'AbortError')
+          }
+        }
+      : undefined
 
   const task = chatHistoryService.createDownloadTask(
     selectedChat.value,
@@ -245,6 +256,7 @@ async function startDownload() {
       ...floodWait.callbacks,
     },
     account,
+    { ensureCommittable },
   )
 
   downloadTask.value = task

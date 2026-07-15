@@ -286,11 +286,19 @@ async function startExport() {
 
   const requestId = ++exportRequestId
   const ownerAccountId = ownerAccount.id
+  const ownerEpoch = accountsStore.getAccountEpoch(ownerAccountId)
   const isCurrentExport = () =>
     requestId === exportRequestId && accountsStore.activeAccountId === ownerAccountId
   const assertCurrentExport = () => {
     if (!isCurrentExport()) {
       throw new DOMException('Export no longer belongs to the active account', 'AbortError')
+    }
+  }
+  // Commit fence for the backup write: rejects if the owning account was removed mid-export, even in
+  // the narrow window after the last assertCurrentExport() (ARCHITECTURE.md §3, criterion 4).
+  const ensureCommittable = () => {
+    if (accountsStore.getAccountEpoch(ownerAccountId) !== ownerEpoch) {
+      throw new DOMException('Owning account was removed during export', 'AbortError')
     }
   }
 
@@ -364,6 +372,7 @@ async function startExport() {
       result.messages,
       result.mediaBlobs,
       ownerAccount,
+      { ensureCommittable },
     )
     assertCurrentExport()
     backupsStore.addBackup(backup)

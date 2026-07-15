@@ -141,6 +141,24 @@ export const useAccountsStore = defineStore('accounts', () => {
   const sessionStateByAccountId = ref<Record<string, AccountSessionState>>({})
   const storageLoaded = ref(false)
 
+  // Monotonic per-account epoch. Removing an account advances its epoch before any archival runs, so
+  // long-running jobs that captured the prior epoch fail their commit fence instead of writing an
+  // owned record for an account that is being torn down (ARCHITECTURE.md §3, criterion 4). Account
+  // ids are UUIDs and never reused, so a re-added same-principal account gets a fresh id and epoch 0.
+  const accountEpochs = ref<Record<string, number>>({})
+
+  function getAccountEpoch(id: string): number {
+    return accountEpochs.value[id] ?? 0
+  }
+
+  function bumpAccountEpoch(id: string): void {
+    accountEpochs.value = { ...accountEpochs.value, [id]: getAccountEpoch(id) + 1 }
+  }
+
+  function restoreAccountEpoch(id: string, epoch: number): void {
+    accountEpochs.value = { ...accountEpochs.value, [id]: epoch }
+  }
+
   let loadPromise: Promise<void> | null = null
 
   const activeAccount = computed(
@@ -329,6 +347,12 @@ export const useAccountsStore = defineStore('accounts', () => {
       return
     }
 
+    // Quiesce the account before archiving: advancing the epoch fences any in-flight job that
+    // captured the prior epoch, so a late owned-record write cannot slip in after archival has
+    // already scanned the store (ARCHITECTURE.md §3, criterion 4). Rolled back if removal aborts.
+    const previousEpoch = getAccountEpoch(id)
+    bumpAccountEpoch(id)
+
     try {
       if (removedAccount.type === 'user') {
         const [{ backupManager }, { chatHistoryService }] = await Promise.all([
@@ -342,6 +366,7 @@ export const useAccountsStore = defineStore('accounts', () => {
         ])
       }
     } catch (error) {
+      restoreAccountEpoch(id, previousEpoch)
       console.error('Failed to archive account-owned data before removing account:', error)
       throw error
     }
@@ -364,6 +389,7 @@ export const useAccountsStore = defineStore('accounts', () => {
       accounts.value = previousAccounts
       activeAccountId.value = previousActiveAccountId
       sessionStateByAccountId.value = previousSessionState
+      restoreAccountEpoch(id, previousEpoch)
       throw error
     }
   }
@@ -483,5 +509,6 @@ export const useAccountsStore = defineStore('accounts', () => {
     markAccountSessionReady,
     markAccountNeedsLogin,
     clearAccountSessionState,
+    getAccountEpoch,
   }
 })
