@@ -100,6 +100,29 @@ describe('normalizeOwnership (fail-closed validation)', () => {
     expect(n.health).toBe('quarantined')
     expect(n.quarantineReason).toBe('invalid_ownership_state')
   })
+
+  it('quarantines a legacy record that still carries a principal (fails closed, not claimable)', () => {
+    const record: StoredRecordOwnership = { ownershipState: 'legacy', ownerPrincipal: principal100 }
+    const n = normalizeOwnership(record)
+    expect(n.health).toBe('quarantined')
+    expect(n.quarantineReason).toBe('invalid_ownership_state')
+    // Must not be claimable by an arbitrary account while inconsistent.
+    expect(isLegacyClaimable(record)).toBe(false)
+    expect(isVisibleToAccount(record, makeAccount())).toBe(false)
+  })
+
+  it('quarantines an unverified record that carries a principal (no invisible orphan)', () => {
+    const record: StoredRecordOwnership = {
+      ownerVerification: 'unverified',
+      ownerPrincipal: principal100,
+    }
+    const n = normalizeOwnership(record)
+    expect(n.health).toBe('quarantined')
+    expect(n.quarantineReason).toBe('invalid_ownership_state')
+    // It is neither owned nor visible, but it is surfaced via the quarantine list for repair.
+    expect(isOwnedByAccount(record, makeAccount())).toBe(false)
+    expect(isVisibleToAccount(record, makeAccount())).toBe(false)
+  })
 })
 
 describe('legacy mirror + serialization', () => {
@@ -248,9 +271,34 @@ describe('archive + claim', () => {
     expect(archived.archivedReason).toBe('account_removed')
   })
 
+  it('does not re-archive an already-archived record (illegal transition is a no-op)', () => {
+    const first = archiveOwnership(createOwnedOwnership(makeAccount()))
+    const second = archiveOwnership(first, 'quota_cleanup')
+    // The original archive metadata is preserved; the illegal repeat cannot reset it.
+    expect(second).toBe(first)
+    expect(second.archivedReason).toBe('account_removed')
+  })
+
   it('claims a legacy record for the account', () => {
     const claimed = claimOwnership(normalizeOwnership({ ownershipState: 'legacy' }), makeAccount())
     expect(claimed).toMatchObject({ verification: 'verified', lifecycle: 'active', ownerAccountId: 'account-1' })
     expect(claimed.ownerPrincipal).toEqual(principal100)
+  })
+
+  it('does not inherit a foreign principal when a principal-less account claims a record', () => {
+    // Reconciling a quarantined record that carries someone else's principal must bind to the
+    // claiming account only, never resurrect an inconsistent unverified+principal shape.
+    const quarantined = normalizeOwnership({
+      ownerVerification: 'unverified',
+      ownerPrincipal: { kind: 'user', telegramUserId: '999' },
+    })
+    const account = makeAccount({ id: 'local-only', principal: undefined })
+    const claimed = claimOwnership(quarantined, account)
+
+    expect(claimed.ownerPrincipal).toBeUndefined()
+    expect(claimed.verification).toBe('unverified')
+    expect(claimed.health).toBe('healthy')
+    // The claimed record is now consistently owned/visible by the claiming account.
+    expect(isOwnedByAccount(toStoredOwnership(claimed), account)).toBe(true)
   })
 })

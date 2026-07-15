@@ -81,10 +81,16 @@ function ownershipQuarantineReason(
   ownerPrincipal: TelegramPrincipal | undefined,
   ownerAccountId: string | undefined,
 ): RecordQuarantineReason | undefined {
+  // A principal is proof of verified identity. Any non-verified record that still carries one is
+  // internally inconsistent (e.g. legacy+principal would be claimable by anyone, unverified+principal
+  // would be neither owned nor claimable). Fail closed instead of exposing it under a false owner.
+  if (verification !== 'verified' && ownerPrincipal) {
+    return 'invalid_ownership_state'
+  }
   if (verification === 'verified' && !ownerPrincipal) {
     return 'owner_metadata_missing'
   }
-  if (verification === 'unverified' && !ownerAccountId && !ownerPrincipal) {
+  if (verification === 'unverified' && !ownerAccountId) {
     return 'owner_metadata_missing'
   }
   return undefined
@@ -176,6 +182,12 @@ export function archiveOwnership(
   ownership: NormalizedOwnership,
   reason: StoredRecordArchiveReason = 'account_removed',
 ): NormalizedOwnership {
+  // Legal transition is active -> archived only. Re-archiving is a no-op so an illegal repeat
+  // cannot reset the original archive metadata.
+  if (ownership.lifecycle === 'archived') {
+    return ownership
+  }
+
   return {
     ...ownership,
     lifecycle: 'archived',
@@ -276,7 +288,7 @@ export function recoverOwnership(
   return recovered
 }
 
-/** Explicit user action: bind a legacy (unclaimed) record to `account`. */
+/** Explicit user action: bind a legacy or quarantined record to `account`. */
 export function claimOwnership(
   ownership: NormalizedOwnership,
   account: SavedAccount,
@@ -285,7 +297,9 @@ export function claimOwnership(
     ...ownership,
     ownerAccountId: account.id,
     ownerAccountPhone: account.phone ?? ownership.ownerAccountPhone,
-    ownerPrincipal: account.principal ?? ownership.ownerPrincipal,
+    // The claiming account is the sole authority: never inherit a foreign principal, since a
+    // principal-less account keeping one would produce an inconsistent unverified+principal record.
+    ownerPrincipal: account.principal,
     verification: account.principal ? 'verified' : 'unverified',
     lifecycle: 'active',
     health: 'healthy',
