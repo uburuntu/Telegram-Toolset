@@ -8,6 +8,7 @@ import { getBotInfo, isValidTokenFormat } from '@/services/telegram/bot-api'
 import { telegramService } from '@/services/telegram/client'
 import { useAccountsStore, useUiStore } from '@/stores'
 import type { AccountType, SavedAccount, UserInfo } from '@/types'
+import { createBotPrincipal, createUserPrincipal, principalsMatch } from '@/utils/principal'
 
 const props = defineProps<{
   requiredType?: 'user' | 'bot' | 'any'
@@ -372,29 +373,79 @@ async function persistUserAuth(
 }> {
   const sessionString = telegramService.getSessionString()
   const authenticatedPhone = user.phone || submittedPhone
+  const authenticatedPrincipal = createUserPrincipal(user.id)
   const replacementAccount = replacementUserAccount.value
+  const defaultLabel = `User ${submittedPhone.slice(-4)}`
 
-  if (replacementAccount) {
+  // Degenerate: Telegram returned no usable identity. Preserve pre-principal behavior instead of
+  // fabricating a bogus principal or spawning duplicate accounts on re-login.
+  if (!authenticatedPrincipal) {
+    if (replacementAccount) {
+      await accountsStore.updateAccount(replacementAccount.id, {
+        label: user.firstName || replacementAccount.label || defaultLabel,
+        firstName: user.firstName || replacementAccount.firstName,
+        username: user.username,
+        phone: replacementAccount.phone || authenticatedPhone,
+        sessionString,
+      })
+      return { accountId: replacementAccount.id, successMessageKey: 'auth.reloginSuccess' }
+    }
+
+    const created = await accountsStore.addAccount({
+      type: 'user',
+      label: user.firstName || defaultLabel,
+      firstName: user.firstName,
+      username: user.username,
+      phone: authenticatedPhone,
+      sessionString,
+    })
+    return { accountId: created.id, successMessageKey: 'auth.success' }
+  }
+
+  const existingByPrincipal = accountsStore.findUserAccountByPrincipal(authenticatedPrincipal)
+
+  // Re-login into a specific account is only allowed to update that account when it is (or can
+  // become, via first-time backfill) the authenticated Telegram identity. A mismatch must never
+  // rebind an existing account and its owned data to a different identity (ARCHITECTURE.md §1).
+  if (
+    replacementAccount &&
+    (!existingByPrincipal || existingByPrincipal.id === replacementAccount.id) &&
+    (!replacementAccount.principal ||
+      principalsMatch(replacementAccount.principal, authenticatedPrincipal))
+  ) {
     await accountsStore.updateAccount(replacementAccount.id, {
-      label: user.firstName || replacementAccount.label || `User ${submittedPhone.slice(-4)}`,
+      label: user.firstName || replacementAccount.label || defaultLabel,
       firstName: user.firstName || replacementAccount.firstName,
       username: user.username,
       phone: replacementAccount.phone || authenticatedPhone,
       sessionString,
+      principal: authenticatedPrincipal,
     })
-    return {
-      accountId: replacementAccount.id,
-      successMessageKey: 'auth.reloginSuccess',
-    }
+    return { accountId: replacementAccount.id, successMessageKey: 'auth.reloginSuccess' }
+  }
+
+  // Otherwise resolve to the account that actually owns the authenticated identity. Reusing the
+  // existing account (instead of creating a duplicate) keeps one local record per principal.
+  if (existingByPrincipal) {
+    await accountsStore.updateAccount(existingByPrincipal.id, {
+      label: user.firstName || existingByPrincipal.label || defaultLabel,
+      firstName: user.firstName || existingByPrincipal.firstName,
+      username: user.username,
+      phone: existingByPrincipal.phone || authenticatedPhone,
+      sessionString,
+      principal: authenticatedPrincipal,
+    })
+    return { accountId: existingByPrincipal.id, successMessageKey: 'auth.reloginSuccess' }
   }
 
   const newAccount = await accountsStore.addAccount({
     type: 'user',
-    label: user.firstName || `User ${submittedPhone.slice(-4)}`,
+    label: user.firstName || defaultLabel,
     firstName: user.firstName,
     username: user.username,
     phone: authenticatedPhone,
     sessionString,
+    principal: authenticatedPrincipal,
   })
   return { accountId: newAccount.id, successMessageKey: 'auth.success' }
 }
@@ -770,6 +821,7 @@ async function handleBotTokenSubmit(): Promise<void> {
   const info = botInfo.value
   const existingAccount = existingBotAccount.value
   const token = botToken.value
+  const botPrincipal = createBotPrincipal(info.id) ?? undefined
   pendingSubmissionStep.value = 'token'
   try {
     let accountId: string
@@ -782,6 +834,7 @@ async function handleBotTokenSubmit(): Promise<void> {
           firstName: info.first_name,
           username: info.username,
           botToken: token,
+          principal: existingAccount.principal ?? botPrincipal,
           canJoinGroups: info.can_join_groups,
           canReadAllGroupMessages: info.can_read_all_group_messages,
           supportsInlineQueries: info.supports_inline_queries,
@@ -799,6 +852,7 @@ async function handleBotTokenSubmit(): Promise<void> {
           username: info.username,
           botToken: token,
           botTelegramId: info.id,
+          principal: botPrincipal,
           canJoinGroups: info.can_join_groups,
           canReadAllGroupMessages: info.can_read_all_group_messages,
           supportsInlineQueries: info.supports_inline_queries,

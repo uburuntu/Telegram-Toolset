@@ -284,4 +284,53 @@ describe('accounts store', () => {
     expect(vaultState.accountSecrets.has(account.id)).toBe(false)
     expect(store.accounts).toHaveLength(0)
   })
+
+  it('persists the Telegram principal and finds accounts by it', async () => {
+    const store = useAccountsStore()
+    const account = await store.addAccount({
+      type: 'user',
+      label: 'Principal User',
+      phone: '+1234567890',
+      principal: { kind: 'user', telegramUserId: '555' },
+      sessionString: 'saved-session',
+    })
+
+    expect(store.findUserAccountByPrincipal({ kind: 'user', telegramUserId: '555' })?.id).toBe(
+      account.id,
+    )
+    expect(store.findAccountByPrincipal({ kind: 'user', telegramUserId: '555' })?.id).toBe(
+      account.id,
+    )
+    // Kind is part of identity: a bot with the same numeric ID must not match a user principal.
+    expect(store.findUserAccountByPrincipal({ kind: 'bot', telegramUserId: '555' })).toBeNull()
+    expect(store.findUserAccountByPrincipal({ kind: 'user', telegramUserId: '999' })).toBeNull()
+
+    const persisted = JSON.parse(localStorage.getItem('telegram_accounts') ?? '[]')
+    expect(persisted[0].principal).toEqual({ kind: 'user', telegramUserId: '555' })
+  })
+
+  it('rehydrates the principal from stored metadata', async () => {
+    localStorage.setItem(
+      'telegram_accounts',
+      JSON.stringify([
+        {
+          id: 'user-1',
+          type: 'user',
+          label: 'Test User',
+          phone: '+1234567890',
+          principal: { kind: 'user', telegramUserId: '777' },
+          createdAt: '2026-04-20T10:00:00.000Z',
+          lastUsedAt: '2026-04-24T10:00:00.000Z',
+        },
+      ]),
+    )
+
+    const store = useAccountsStore()
+    await store.loadFromStorage()
+
+    expect(store.accounts[0]?.principal).toEqual({ kind: 'user', telegramUserId: '777' })
+    expect(store.findUserAccountByPrincipal({ kind: 'user', telegramUserId: '777' })?.id).toBe(
+      'user-1',
+    )
+  })
 })

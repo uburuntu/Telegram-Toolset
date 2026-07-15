@@ -5,8 +5,10 @@ import { i18n } from '@/i18n'
 const mockAccountsStore = {
   activeAccountId: 'account-1',
   apiCredentials: null,
-  accounts: [],
+  accounts: [] as Array<Record<string, unknown>>,
   findBotByTelegramId: vi.fn(),
+  findAccountByPrincipal: vi.fn(() => null),
+  findUserAccountByPrincipal: vi.fn(() => null),
   setApiCredentials: vi.fn(),
   addAccount: vi.fn(),
   setActiveAccount: vi.fn(),
@@ -63,6 +65,11 @@ describe('LoginModal', () => {
     vi.clearAllMocks()
     mockAccountsStore.apiCredentials = null
     mockAccountsStore.accounts = []
+    mockAccountsStore.findUserAccountByPrincipal.mockReturnValue(null)
+    mockAccountsStore.findAccountByPrincipal.mockReturnValue(null)
+    mockAccountsStore.addAccount.mockResolvedValue({ id: 'new-account' } as never)
+    mockAccountsStore.updateAccount.mockResolvedValue(undefined as never)
+    mockAccountsStore.setApiCredentials.mockResolvedValue(undefined as never)
     vi.mocked(telegramService.abortCurrentUserAuth).mockResolvedValue(undefined)
     vi.mocked(telegramService.beginActiveAccountTransition).mockReturnValue(1)
     vi.mocked(isValidTokenFormat).mockImplementation((token: string) =>
@@ -698,6 +705,191 @@ describe('LoginModal', () => {
     expect(mockAccountsStore.setActiveAccount).toHaveBeenCalledWith('account-1')
 
     vi.runAllTimers()
+  })
+
+  it('stamps the Telegram principal on a newly authenticated user account', async () => {
+    mockAccountsStore.apiCredentials = {
+      apiId: 123456,
+      apiHash: '0123456789abcdef',
+    }
+    mockAccountsStore.accounts = []
+    vi.mocked(mockAccountsStore.findUserAccountByPrincipal).mockReturnValue(null)
+    vi.mocked(mockAccountsStore.addAccount).mockResolvedValue({ id: 'new-1' } as never)
+
+    const service = telegramService as any
+    let resolveAuth!: (user: {
+      id: bigint
+      firstName: string
+      username: string
+      phone: string
+    }) => void
+    const authPromise = new Promise((resolve) => {
+      resolveAuth = resolve as never
+    })
+    service.resetForNewUserLogin.mockResolvedValue(undefined)
+    service.initClient.mockResolvedValue(undefined)
+    service.startUserAuth.mockImplementation((_phone: string, options?: { onCodeNeeded?: () => void }) => {
+      options?.onCodeNeeded?.()
+      return authPromise
+    })
+    service.provideCode.mockImplementation(() => {
+      resolveAuth({ id: BigInt(555), firstName: 'New', username: 'newbie', phone: '+10005550' })
+      return true
+    })
+    service.getSessionString.mockReturnValue('fresh-session')
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user' },
+      global: { plugins: [i18n] },
+    })
+
+    const useSaved = wrapper.findAll('button').find((b) => b.text().includes('Use saved credentials'))
+    await useSaved?.trigger('click')
+    await wrapper.get('#login-modal-phone').setValue('+10005550')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    await wrapper.get('input[inputmode="numeric"]').setValue('12345')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(mockAccountsStore.addAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'user',
+        principal: { kind: 'user', telegramUserId: '555' },
+      }),
+    )
+    expect(service.markActiveUserSession).toHaveBeenCalledWith('new-1')
+    expect(mockAccountsStore.setActiveAccount).toHaveBeenCalledWith('new-1')
+  })
+
+  it('does not rebind an existing account when re-login authenticates a different identity', async () => {
+    mockAccountsStore.apiCredentials = {
+      apiId: 123456,
+      apiHash: '0123456789abcdef',
+    }
+    mockAccountsStore.accounts = [
+      {
+        id: 'account-1',
+        type: 'user',
+        label: 'Ramzan',
+        firstName: 'Ramzan',
+        phone: '+79261247596',
+        principal: { kind: 'user', telegramUserId: '111' },
+        sessionString: 'expired-session',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]
+    vi.mocked(mockAccountsStore.findUserAccountByPrincipal).mockReturnValue(null)
+    vi.mocked(mockAccountsStore.addAccount).mockResolvedValue({ id: 'new-2' } as never)
+
+    const service = telegramService as any
+    service.resetForNewUserLogin.mockResolvedValue(undefined)
+    service.initClient.mockResolvedValue(undefined)
+    service.startUserAuth.mockResolvedValue({
+      id: BigInt(222),
+      firstName: 'Other',
+      username: 'other',
+      phone: '+10002220',
+    })
+    service.getSessionString.mockReturnValue('fresh-session')
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user', replaceAccountId: 'account-1' },
+      global: { plugins: [i18n] },
+    })
+
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(mockAccountsStore.updateAccount).not.toHaveBeenCalled()
+    expect(mockAccountsStore.addAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'user',
+        principal: { kind: 'user', telegramUserId: '222' },
+      }),
+    )
+    expect(mockAccountsStore.setActiveAccount).toHaveBeenCalledWith('new-2')
+  })
+
+  it('reuses the account that already owns the authenticated principal', async () => {
+    mockAccountsStore.apiCredentials = {
+      apiId: 123456,
+      apiHash: '0123456789abcdef',
+    }
+    mockAccountsStore.accounts = []
+    vi.mocked(mockAccountsStore.findUserAccountByPrincipal).mockReturnValue({
+      id: 'account-9',
+      type: 'user',
+      label: 'Dup',
+      firstName: 'Dup',
+      phone: '+19990000',
+      principal: { kind: 'user', telegramUserId: '333' },
+    } as never)
+
+    const service = telegramService as any
+    service.resetForNewUserLogin.mockResolvedValue(undefined)
+    service.initClient.mockResolvedValue(undefined)
+    service.startUserAuth.mockResolvedValue({
+      id: BigInt(333),
+      firstName: 'Dup',
+      username: 'dup',
+      phone: '+19990000',
+    })
+    service.getSessionString.mockReturnValue('fresh-session')
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user' },
+      global: { plugins: [i18n] },
+    })
+
+    const useSaved = wrapper.findAll('button').find((b) => b.text().includes('Use saved credentials'))
+    await useSaved?.trigger('click')
+    await wrapper.get('#login-modal-phone').setValue('+19990000')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(mockAccountsStore.addAccount).not.toHaveBeenCalled()
+    expect(mockAccountsStore.updateAccount).toHaveBeenCalledWith(
+      'account-9',
+      expect.objectContaining({ principal: { kind: 'user', telegramUserId: '333' } }),
+    )
+    expect(mockAccountsStore.setActiveAccount).toHaveBeenCalledWith('account-9')
+  })
+
+  it('stamps the bot principal when adding a bot account', async () => {
+    mockAccountsStore.accounts = []
+    vi.mocked(mockAccountsStore.findBotByTelegramId).mockReturnValue(null as never)
+    vi.mocked(mockAccountsStore.addAccount).mockResolvedValue({ id: 'bot-1' } as never)
+    vi.mocked(getBotInfo).mockResolvedValue({
+      id: 777,
+      is_bot: true,
+      first_name: 'MyBot',
+      username: 'my_bot',
+      can_join_groups: true,
+      can_read_all_group_messages: false,
+      supports_inline_queries: false,
+      has_main_web_app: false,
+    } as never)
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'bot' },
+      global: { plugins: [i18n] },
+    })
+
+    await wrapper.get('#login-modal-bot-token').setValue('777777:AAAAAAAAAAAAAAAAAAAAAA')
+    await flushPromises()
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(mockAccountsStore.addAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'bot',
+        botTelegramId: 777,
+        principal: { kind: 'bot', telegramUserId: '777' },
+      }),
+    )
   })
 
   it('ignores stale bot validation responses', async () => {

@@ -16,6 +16,8 @@ import {
   saveSecureApiCredentials,
 } from '@/services/storage/secure-account-vault'
 import type { ApiCredentials, SavedAccount } from '@/types/account'
+import type { TelegramPrincipal } from '@/types/principal'
+import { principalsMatch } from '@/utils/principal'
 
 const ACCOUNTS_STORAGE_KEY = 'telegram_accounts'
 const ACTIVE_ACCOUNT_KEY = 'telegram_active_account'
@@ -399,6 +401,20 @@ export const useAccountsStore = defineStore('accounts', () => {
     return botAccounts.value.find((account) => account.botTelegramId === telegramBotId) ?? null
   }
 
+  function findAccountByPrincipal(principal: TelegramPrincipal): SavedAccount | null {
+    return accounts.value.find((account) => principalsMatch(account.principal, principal)) ?? null
+  }
+
+  function findUserAccountByPrincipal(principal: TelegramPrincipal): SavedAccount | null {
+    if (principal.kind !== 'user') {
+      return null
+    }
+
+    return (
+      userAccounts.value.find((account) => principalsMatch(account.principal, principal)) ?? null
+    )
+  }
+
   function getAccountSessionState(accountId: string | null | undefined): AccountSessionState {
     if (!accountId) {
       return 'unknown'
@@ -461,6 +477,8 @@ export const useAccountsStore = defineStore('accounts', () => {
     hasCompatibleAccount,
     isActiveAccountCompatible,
     findBotByTelegramId,
+    findAccountByPrincipal,
+    findUserAccountByPrincipal,
     getAccountSessionState,
     markAccountSessionReady,
     markAccountNeedsLogin,
