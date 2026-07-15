@@ -17,6 +17,7 @@ import uz from './locales/uz.json'
 export type SupportedLocale = 'en' | 'ru' | 'es' | 'id' | 'pt' | 'fa' | 'ar' | 'uz' | 'tr' | 'uk'
 
 const LOCALE_STORAGE_KEY = 'app_locale'
+const RTL_LANGUAGES: SupportedLocale[] = ['ar', 'fa']
 
 const SUPPORTED_LOCALES: SupportedLocale[] = [
   'en',
@@ -52,19 +53,21 @@ function getStoredLocale(): SupportedLocale {
   return 'en'
 }
 
+function updateDocumentLocale(locale: SupportedLocale): void {
+  if (typeof document === 'undefined') {
+    return
+  }
+
+  document.documentElement.lang = locale
+  document.documentElement.dir = RTL_LANGUAGES.includes(locale) ? 'rtl' : 'ltr'
+}
+
 export function setLocale(locale: SupportedLocale): void {
   if (typeof localStorage !== 'undefined' && typeof localStorage.setItem === 'function') {
     localStorage.setItem(LOCALE_STORAGE_KEY, locale)
   }
   i18n.global.locale.value = locale
-
-  // Handle RTL languages
-  const rtlLanguages = ['ar', 'fa']
-  if (typeof document !== 'undefined' && rtlLanguages.includes(locale)) {
-    document.documentElement.dir = 'rtl'
-  } else if (typeof document !== 'undefined') {
-    document.documentElement.dir = 'ltr'
-  }
+  updateDocumentLocale(locale)
 }
 
 export const i18n = createI18n({
@@ -87,9 +90,6 @@ export const i18n = createI18n({
 
 // Initialize direction on load
 const initialLocale = getStoredLocale()
-const rtlLanguages = ['ar', 'fa']
-if (typeof document !== 'undefined' && rtlLanguages.includes(initialLocale)) {
-  document.documentElement.dir = 'rtl'
-}
+updateDocumentLocale(initialLocale)
 
 export default i18n
