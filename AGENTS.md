@@ -246,6 +246,19 @@ At every stage, preserve the modular product surface and keep `Scheduled Message
 
 ## Service Layer Architecture
 
+### Session Coordinator (`services/telegram/session-coordinator.ts`)
+
+The single owner of user-session lifecycle transitions (ARCHITECTURE.md §2). It is framework-agnostic and backend-injected so it is unit-testable with deferred promises.
+- **Serialized command queue**: `activate()`, `deactivate()`, `hold()` run one-at-a-time through one queue.
+- **Monotonic generation**: every request is stamped; async completions only publish a typed `SessionSnapshot` when still the latest request, so "last request wins" and "no stale activation after a later deactivation" are structural.
+- **Typed snapshot**: `idle | active | needs_login | error`; stores/UIs consume this instead of inferring state from the GramJS client.
+- **Bounded pre-swap cancellation**: before a swap it cancels account-affine mutations but waits only to a deadline; a never-settling mutation cannot block a later activation, and the generation fence prevents late completions from publishing state or starting work.
+- **Instance/backends**: `session-coordinator-instance.ts` binds the coordinator to `telegramService` + `resendService`; `useActiveUserSessionSync` computes the desired session and delegates all serialization to it. Richer per-job `abandoned` / `delivery_uncertain` fencing belongs to the Stage B job runtime.
+
+### Candidate credentials (`components/auth/LoginModal.vue`)
+
+Entered API credentials are held in-form and committed to shared storage only after Telegram accepts the login (commit-on-success). A failed or abandoned login never overwrites working shared credentials; replacing them stays a discrete, rollback-safe account-store operation.
+
 ### Telegram Service (`services/telegram/client.ts`)
 
 Central singleton for all Telegram MTProto operations via GramJS:
@@ -461,6 +474,8 @@ Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#lit
 - Direct Telegram connection-state tests
 - App-level live-region improvements for shared errors and toast messages
 - App shell cleanup: first-run privacy gate removed, active user session sync extracted from `App.vue` into a composable
+- Session coordinator: serialized command queue with monotonic generation fencing, typed session snapshot, and bounded pre-swap mutation cancellation; `useActiveUserSessionSync` delegates all serialization to it
+- Candidate API credentials scoped to a login attempt and committed only after Telegram accepts the login
 - BigInt-safe JSON serialization utilities
 - `_rawMessage` stripping at persistence boundaries
 - Resend HTML escaping for user safety
