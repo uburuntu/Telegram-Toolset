@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ChatInfo, ScheduledMessage } from '@/types'
+import type { ChatInfo, PeerOutcome, ScheduledMessage } from '@/types'
 
 const { createFloodWaitSubscription, withRetry, formatRelativeTimeFromNow } = vi.hoisted(() => ({
   createFloodWaitSubscription: vi.fn(() => vi.fn()),
@@ -197,5 +197,76 @@ describe('scheduledService', () => {
       'in 1 hour',
     )
     expect(formatRelativeTimeFromNow).toHaveBeenCalledTimes(1)
+  })
+
+  describe('deleteScheduledMessagesByPeer', () => {
+    it('returns a delivered outcome per peer and settles each as it completes', async () => {
+      const settled: PeerOutcome[] = []
+      const result = await scheduledService.deleteScheduledMessagesByPeer(
+        [
+          [BigInt(10), [1, 2]],
+          [BigInt(20), [3]],
+        ],
+        { onPeerSettled: (outcome) => settled.push(outcome) },
+      )
+
+      expect(telegramGateway.scheduled.deleteScheduledMessages).toHaveBeenCalledWith(BigInt(10), [
+        1, 2,
+      ])
+      expect(telegramGateway.scheduled.deleteScheduledMessages).toHaveBeenCalledWith(BigInt(20), [3])
+      expect(result.outcomes).toEqual([
+        { peerId: '10', status: 'delivered', affected: 2 },
+        { peerId: '20', status: 'delivered', affected: 1 },
+      ])
+      expect(settled).toEqual(result.outcomes)
+    })
+
+    it('records a failed peer without discarding earlier successes and keeps going', async () => {
+      vi.mocked(telegramGateway.scheduled.deleteScheduledMessages).mockImplementation(
+        async (chatId) => {
+          if (chatId === BigInt(20)) {
+            throw new Error('CHAT_ADMIN_REQUIRED')
+          }
+        },
+      )
+
+      const result = await scheduledService.deleteScheduledMessagesByPeer([
+        [BigInt(10), [1]],
+        [BigInt(20), [2]],
+        [BigInt(30), [3]],
+      ])
+
+      expect(result.outcomes).toEqual([
+        { peerId: '10', status: 'delivered', affected: 1 },
+        { peerId: '20', status: 'failed', affected: 0, error: 'CHAT_ADMIN_REQUIRED' },
+        { peerId: '30', status: 'delivered', affected: 1 },
+      ])
+    })
+
+    it('skips every peer when the signal is already aborted', async () => {
+      const controller = new AbortController()
+      controller.abort()
+
+      const result = await scheduledService.deleteScheduledMessagesByPeer([[BigInt(10), [1]]], {
+        signal: controller.signal,
+      })
+
+      expect(telegramGateway.scheduled.deleteScheduledMessages).not.toHaveBeenCalled()
+      expect(result.outcomes).toEqual([{ peerId: '10', status: 'skipped', affected: 0 }])
+    })
+
+    it('marks a peer skipped when its deletion is aborted mid-flight', async () => {
+      vi.mocked(telegramGateway.scheduled.deleteScheduledMessages).mockImplementationOnce(
+        async () => {
+          const error = new Error('cancelled')
+          error.name = 'AbortError'
+          throw error
+        },
+      )
+
+      const result = await scheduledService.deleteScheduledMessagesByPeer([[BigInt(10), [1]]])
+
+      expect(result.outcomes).toEqual([{ peerId: '10', status: 'skipped', affected: 0 }])
+    })
   })
 })

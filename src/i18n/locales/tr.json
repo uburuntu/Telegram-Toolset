@@ -554,6 +554,8 @@
     "messageCount": "{count} mesaj",
     "confirmDelete": "{count} zamanlanmış mesajı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
     "deleteSuccess": "Zamanlanmış mesajlar başarıyla silindi",
+    "deletePartial": "Zamanlanmış mesajlar {total} sohbetin {succeeded} tanesinde silindi. {failed} başarısız oldu.",
+    "deleteError": "Zamanlanmış mesajlar silinemedi",
     "exportSuccess": "Zamanlanmış mesajlar JSON'a dışa aktarıldı",
     "cancelled": "İşlem iptal edildi"
   },

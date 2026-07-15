@@ -10,7 +10,7 @@ import {
 } from '@/services/scheduled/scheduled-service'
 import { telegramService } from '@/services/telegram/client'
 import { useAccountsStore, useUiStore } from '@/stores'
-import type { ChatInfo } from '@/types'
+import { type ChatInfo, summarizeMultiPeerResult } from '@/types'
 import { toUserFriendlyError } from '@/utils/error-messages'
 import { formatDateWithLocale } from '@/utils/locale-format'
 import {
@@ -324,21 +324,47 @@ async function deleteSelectedMessages() {
 
   try {
     const messagesByChat = groupScheduledMessageSelections(selectedMessages.value.values())
-
-    // Delete from each chat
+    const messageIdsByPeer = new Map<string, number[]>()
     for (const [chatId, messageIds] of messagesByChat) {
-      if (requestId !== scheduledRequestId || accountsStore.activeAccountId !== accountId) {
-        return
-      }
-      await scheduledService.deleteScheduledMessages(chatId, messageIds)
-      if (requestId !== scheduledRequestId || accountsStore.activeAccountId !== accountId) {
-        return
-      }
-
-      // Reconcile each confirmed chat immediately so a later failure cannot re-issue it.
-      removeDeletedMessages(chatId, messageIds)
+      messageIdsByPeer.set(chatId.toString(), messageIds)
     }
-    uiStore.showToast('success', t('scheduled.deleteSuccess'))
+
+    // Delete per chat, collecting a per-peer outcome so partial success is reported accurately and
+    // a later chat's failure cannot discard earlier confirmed deletions (ARCHITECTURE.md §3).
+    const result = await scheduledService.deleteScheduledMessagesByPeer(messagesByChat, {
+      onPeerSettled: (outcome) => {
+        if (requestId !== scheduledRequestId || accountsStore.activeAccountId !== accountId) {
+          return
+        }
+        // Reconcile each confirmed chat immediately so a later failure cannot re-issue it.
+        if (outcome.status === 'delivered') {
+          const ids = messageIdsByPeer.get(outcome.peerId)
+          if (ids) {
+            removeDeletedMessages(BigInt(outcome.peerId), ids)
+          }
+        }
+      },
+    })
+
+    if (requestId !== scheduledRequestId || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
+    const summary = summarizeMultiPeerResult(result)
+    if (summary.succeeded > 0 && summary.failed === 0 && summary.skipped === 0) {
+      uiStore.showToast('success', t('scheduled.deleteSuccess'))
+    } else if (summary.succeeded > 0) {
+      uiStore.showToast(
+        'warning',
+        t('scheduled.deletePartial', {
+          succeeded: summary.succeeded,
+          total: summary.total,
+          failed: summary.failed,
+        }),
+      )
+    } else {
+      uiStore.showToast('error', t('scheduled.deleteError'))
+    }
   } catch (e) {
     if (requestId !== scheduledRequestId || accountsStore.activeAccountId !== accountId) {
       return
