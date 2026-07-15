@@ -311,7 +311,18 @@ class TelegramService {
       this.setConnectionState('disconnected')
       return false
     } catch (error) {
+      // A thrown connect leaves no usable session. Release the socket and drop the client so a failed
+      // attempt cannot linger as a half-open connection waiting for the next transition to clean it
+      // up, while still reporting the honest 'error' typed state (ARCHITECTURE.md §2, criterion 4).
+      try {
+        await this.client?.disconnect()
+      } catch {
+        // Best-effort: the socket may already be unusable after the failed connect.
+      }
+      this.client = null
+      this.currentUser = null
       this._activeSessionAccountId = null
+      this.entityCache.clear()
       this.setConnectionState('error')
       throw error
     }
