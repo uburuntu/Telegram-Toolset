@@ -3,7 +3,8 @@
  * Validates vue-i18n locale files and user-facing source strings.
  *
  * Errors (blocking):
- *   - Unescaped special characters (@, {{) that cause silent runtime crashes
+ *   - Invalid vue-i18n message syntax that silently crashes a component at
+ *     runtime, validated with the real @intlify/message-compiler parser
  *   - Interpolation placeholders that differ from the English reference
  *
  * Warnings (non-blocking):
@@ -18,6 +19,7 @@
 import { readFileSync, readdirSync } from 'fs'
 import { join, relative } from 'path'
 import ts from 'typescript'
+import { analyzeMessageFormat, describeCompileError } from './i18n-message-format.mjs'
 
 const ROOT_DIR = join(import.meta.dirname, '..')
 const LOCALES_DIR = join(ROOT_DIR, 'src', 'i18n', 'locales')
@@ -113,13 +115,15 @@ function flattenKeys(obj, prefix = '') {
   return flattenEntries(obj, prefix).map(([key]) => key)
 }
 
-function getInterpolationPlaceholders(value) {
-  if (typeof value !== 'string') {
-    return []
-  }
+const messageAnalysisCache = new Map()
 
-  return [...new Set(Array.from(value.matchAll(/\{([A-Za-z_][\w.-]*|\d+)\}/g), (match) => match[1]))]
-    .sort()
+function analyzeMessage(value) {
+  let result = messageAnalysisCache.get(value)
+  if (!result) {
+    result = analyzeMessageFormat(value)
+    messageAnalysisCache.set(value, result)
+  }
+  return result
 }
 
 function getValueAtPath(obj, keyPath) {
@@ -285,30 +289,6 @@ function getLineNumber(sourceFile, node) {
   return sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1
 }
 
-// ---------------------------------------------------------------------------
-// 1. Special character validation (errors — blocks CI)
-// ---------------------------------------------------------------------------
-
-const SPECIAL_CHAR_RULES = [
-  {
-    name: 'unescaped @',
-    test: (value) => {
-      const cleaned = value.replace(/\{'[^']*'\}/g, '')
-      const noUrls = cleaned.replace(/https?:\/\/\S+/g, '')
-      return /@(?![:.])/.test(noUrls)
-    },
-    hint: "Use {'@'} for literal @ characters",
-  },
-  {
-    name: 'unescaped {{ (double brace)',
-    test: (value) => {
-      const cleaned = value.replace(/\{'[^']*'\}/g, '')
-      return /\{\{/.test(cleaned)
-    },
-    hint: 'Avoid {{ in i18n values — rewrite text to describe braces instead of showing them',
-  },
-]
-
 let errors = 0
 let warnings = 0
 
@@ -323,26 +303,22 @@ const localeData = new Map(
   ]),
 )
 
+// ---------------------------------------------------------------------------
+// 1. Message-format validation (errors — blocks CI)
+// ---------------------------------------------------------------------------
+
 for (const [file, data] of localeData.entries()) {
-  function checkSpecialChars(obj, keyPath) {
-    if (typeof obj === 'string') {
-      for (const rule of SPECIAL_CHAR_RULES) {
-        if (rule.test(obj)) {
-          console.error(`ERROR: ${file} ${keyPath}: ${rule.name}`)
-          console.error(`  Value: ${formatPreview(obj, 100)}`)
-          console.error(`  Fix: ${rule.hint}`)
-          console.error()
-          errors++
-        }
-      }
-    } else if (isPlainObject(obj)) {
-      for (const [key, val] of Object.entries(obj)) {
-        checkSpecialChars(val, keyPath ? `${keyPath}.${key}` : key)
-      }
+  for (const [keyPath, value] of flattenEntries(data)) {
+    if (typeof value !== 'string') continue
+
+    for (const compileError of analyzeMessage(value).errors) {
+      console.error(`ERROR: ${file} ${keyPath}: ${describeCompileError(compileError)}`)
+      console.error(`  Value: ${formatPreview(value, 100)}`)
+      console.error("  Fix: escape special characters — e.g. {'@'} for a literal @")
+      console.error()
+      errors++
     }
   }
-
-  checkSpecialChars(data, '')
 }
 
 // ---------------------------------------------------------------------------
@@ -386,8 +362,15 @@ for (const [file, data] of localeData.entries()) {
     const localeValue = getValueAtPath(data, keyPath)
     if (typeof localeValue !== 'string') continue
 
-    const expected = getInterpolationPlaceholders(englishValue)
-    const actual = getInterpolationPlaceholders(localeValue)
+    const reference = analyzeMessage(englishValue)
+    const candidate = analyzeMessage(localeValue)
+
+    // Placeholder parity is only meaningful when both messages parse cleanly;
+    // broken syntax is already reported as an error above.
+    if (reference.errors.length > 0 || candidate.errors.length > 0) continue
+
+    const expected = reference.placeholders
+    const actual = candidate.placeholders
     if (expected.join('\0') !== actual.join('\0')) {
       console.error(`ERROR: ${file} ${keyPath}: interpolation placeholders do not match`)
       console.error(`  Expected: ${expected.join(', ') || '(none)'}`)
