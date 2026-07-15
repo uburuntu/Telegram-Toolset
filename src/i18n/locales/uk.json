@@ -436,7 +436,12 @@
     "archivedTitle": "Archived local backups",
     "archivedHint": "Archived backups stay out of resend flows until the matching phone signs in again. Delete them only if you no longer need the local copy.",
     "archivedOn": "Archived",
-    "removedAccountPhone": "Removed account: {phone}"
+    "removedAccountPhone": "Removed account: {phone}",
+    "quarantinedTitle": "Локальні резервні копії, що потребують відновлення",
+    "quarantinedHint": "Ці резервні копії втратили зв’язок з обліковим записом і приховані до відновлення. Прив’яжіть копію до поточного облікового запису, щоб відновити її, або видаліть.",
+    "repair": "Відновити",
+    "repairSuccess": "Резервну копію відновлено в цей обліковий запис.",
+    "repairError": "Не вдалося відновити резервну копію."
   },
   "privacy": {
     "footer": "100% на пристрої. Дані не залишають ваш браузер.",
@@ -651,6 +656,11 @@
     "archivedTitle": "Archived local exports",
     "archivedHint": "Archived exports stay out of the active list until the matching phone signs in again. Delete them only if you no longer need the local copy.",
     "archivedOn": "Archived",
-    "removedAccountPhone": "Removed account: {phone}"
+    "removedAccountPhone": "Removed account: {phone}",
+    "quarantinedTitle": "Локальні експорти, що потребують відновлення",
+    "quarantinedHint": "Ці експорти втратили зв’язок з обліковим записом і приховані до відновлення. Прив’яжіть експорт до поточного облікового запису, щоб відновити його, або видаліть.",
+    "repair": "Відновити",
+    "repairSuccess": "Експорт відновлено в цей обліковий запис.",
+    "repairError": "Не вдалося відновити експорт."
   }
 }

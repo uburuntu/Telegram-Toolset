@@ -44,6 +44,8 @@ describe('ExportsList', () => {
             archivedAt: new Date('2024-03-11T12:00:00Z'),
           }),
         ],
+        quarantinedExports: [],
+        canReconcile: true,
         isLoadingList: false,
         isLoadingSelection: false,
       },
@@ -58,6 +60,61 @@ describe('ExportsList', () => {
     expect(wrapper.findAll('button').some((button) => button.text() === 'Claim')).toBe(true)
   })
 
+  it('surfaces quarantined exports with a repair action and emits reconcile', async () => {
+    const wrapper = mount(ExportsList, {
+      props: {
+        exports: [],
+        archivedExports: [],
+        quarantinedExports: [
+          createChatExport({
+            id: 'broken-export',
+            chatTitle: 'Broken Export',
+            ownerVerification: 'verified',
+            ownershipState: 'owned',
+          }),
+        ],
+        canReconcile: true,
+        isLoadingList: false,
+        isLoadingSelection: false,
+      },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    expect(wrapper.text()).toContain('Broken Export')
+    const repairButton = wrapper.findAll('button').find((button) => button.text() === 'Repair')
+    expect(repairButton).toBeDefined()
+    await repairButton!.trigger('click')
+
+    expect(wrapper.emitted('reconcile')?.[0]).toEqual(['broken-export'])
+  })
+
+  it('hides the repair action when the account cannot reconcile', () => {
+    const wrapper = mount(ExportsList, {
+      props: {
+        exports: [],
+        archivedExports: [],
+        quarantinedExports: [
+          createChatExport({
+            id: 'broken-export',
+            chatTitle: 'Broken Export',
+            ownerVerification: 'verified',
+            ownershipState: 'owned',
+          }),
+        ],
+        canReconcile: false,
+        isLoadingList: false,
+        isLoadingSelection: false,
+      },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    expect(wrapper.findAll('button').some((button) => button.text() === 'Repair')).toBe(false)
+  })
+
   it('emits claim for legacy exports', async () => {
     const wrapper = mount(ExportsList, {
       props: {
@@ -69,6 +126,8 @@ describe('ExportsList', () => {
           }),
         ],
         archivedExports: [],
+        quarantinedExports: [],
+        canReconcile: true,
         isLoadingList: false,
         isLoadingSelection: false,
       },

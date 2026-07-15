@@ -12,7 +12,9 @@ vi.mock('@/services/storage/backup-manager', () => ({
   backupManager: {
     listBackupsForAccount: vi.fn(),
     listArchivedBackups: vi.fn(),
+    listQuarantinedBackups: vi.fn(),
     claimLegacyBackup: vi.fn(),
+    reconcileBackup: vi.fn(),
     exportBackupToZip: vi.fn(),
     deleteBackup: vi.fn(),
   },
@@ -86,6 +88,7 @@ describe('BackupsView', () => {
       available: 2048,
       percentUsed: 33,
     })
+    vi.mocked(backupManager.listQuarantinedBackups).mockResolvedValue([])
   })
 
   it('renders legacy and archived lifecycle states', async () => {
@@ -176,6 +179,47 @@ describe('BackupsView', () => {
     expect(backupManager.listBackupsForAccount).toHaveBeenCalledTimes(2)
     expect(uiStore.toasts[0]?.message).toBe('Backup assigned to this account.')
     expect(backupsStore.backups[0]?.ownershipState).toBe('owned')
+  })
+
+  it('surfaces quarantined backups and repairs them on demand', async () => {
+    const account = createUserAccount()
+    vi.mocked(backupManager.listBackupsForAccount).mockResolvedValue([])
+    vi.mocked(backupManager.listArchivedBackups).mockResolvedValue([])
+    vi.mocked(backupManager.listQuarantinedBackups)
+      .mockResolvedValueOnce([
+        createBackup({
+          id: 'broken-backup',
+          chatTitle: 'Broken Backup',
+          ownerVerification: 'verified',
+          ownershipState: 'owned',
+        }),
+      ])
+      .mockResolvedValueOnce([])
+    vi.mocked(backupManager.reconcileBackup).mockResolvedValue(
+      createBackup({ id: 'broken-backup', chatTitle: 'Broken Backup', ownershipState: 'owned' }),
+    )
+
+    const wrapper = mount(BackupsView, {
+      global: {
+        plugins: [pinia, i18n],
+        stubs: {
+          RouterLink: {
+            template: '<a><slot /></a>',
+          },
+        },
+      },
+    })
+
+    await flushPromises()
+    expect(wrapper.text()).toContain('Broken Backup')
+
+    const repairButton = wrapper.findAll('button').find((button) => button.text() === 'Repair')
+    expect(repairButton).toBeDefined()
+    await repairButton!.trigger('click')
+    await flushPromises()
+
+    expect(backupManager.reconcileBackup).toHaveBeenCalledWith('broken-backup', account)
+    expect(useUiStore().toasts[0]?.message).toBe('Backup restored to this account.')
   })
 
   it('shows load failures instead of a valid empty state', async () => {

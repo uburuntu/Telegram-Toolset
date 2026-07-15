@@ -12,6 +12,7 @@ const accountsStore = useAccountsStore()
 const backupsStore = useBackupsStore()
 const uiStore = useUiStore()
 const archivedBackups = ref<Backup[]>([])
+const quarantinedBackups = ref<Backup[]>([])
 const loadError = ref('')
 let backupsRequestId = 0
 
@@ -28,6 +29,7 @@ async function loadBackups() {
       quotaManager.getStorageEstimate(),
     ])
     const archived = await backupManager.listArchivedBackups()
+    const quarantined = await backupManager.listQuarantinedBackups()
 
     if (requestId !== backupsRequestId || accountsStore.activeAccountId !== accountId) {
       return
@@ -35,6 +37,7 @@ async function loadBackups() {
 
     backupsStore.setBackups(backups)
     archivedBackups.value = archived
+    quarantinedBackups.value = quarantined
     backupsStore.setStorageEstimate(estimate)
   } catch (error) {
     if (requestId !== backupsRequestId || accountsStore.activeAccountId !== accountId) {
@@ -65,6 +68,7 @@ watch(
     backupsStore.setBackups([])
     backupsStore.clearSelection()
     archivedBackups.value = []
+    quarantinedBackups.value = []
     loadError.value = ''
     await loadBackups()
   },
@@ -111,6 +115,22 @@ async function handleClaim(id: string) {
   } catch (error) {
     console.error('Failed to claim backup:', error)
     uiStore.showToast('error', t('backups.claimError'))
+  }
+}
+
+async function handleReconcile(id: string) {
+  const activeAccount = accountsStore.activeAccount
+  if (!activeAccount || activeAccount.type !== 'user') {
+    return
+  }
+
+  try {
+    await backupManager.reconcileBackup(id, activeAccount)
+    await loadBackups()
+    uiStore.showToast('success', t('backups.repairSuccess'))
+  } catch (error) {
+    console.error('Failed to repair backup:', error)
+    uiStore.showToast('error', t('backups.repairError'))
   }
 }
 
@@ -275,6 +295,51 @@ async function handleDownload(id: string) {
         </div>
       </article>
     </div>
+
+    <section v-if="quarantinedBackups.length > 0" class="mt-8 space-y-4">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+          {{ t('backups.quarantinedTitle') }}
+        </h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          {{ t('backups.quarantinedHint') }}
+        </p>
+      </div>
+
+      <article
+        v-for="backup in quarantinedBackups"
+        :key="`quarantined-${backup.id}`"
+        class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-amber-200 dark:border-amber-900 shadow-sm"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <h3 class="font-medium text-gray-900 dark:text-white">
+              {{ backup.chatTitle }}
+            </h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              {{ formatDate(backup.createdAt) }} •
+              {{ t('backups.messages', { count: backup.messageCount }) }} •
+              {{ formatBytes(backup.storageSize) }}
+            </p>
+          </div>
+          <div class="flex flex-wrap justify-end gap-2">
+            <button
+              v-if="accountsStore.activeAccount?.type === 'user'"
+              @click="handleReconcile(backup.id)"
+              class="px-4 py-2 rounded-md font-medium text-sm transition-colors duration-100 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-900/70"
+            >
+              {{ t('backups.repair') }}
+            </button>
+            <button
+              @click="handleDelete(backup.id)"
+              class="px-4 py-2 rounded-md font-medium text-sm transition-colors duration-100 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/60"
+            >
+              {{ t('common.delete') }}
+            </button>
+          </div>
+        </div>
+      </article>
+    </section>
 
     <section v-if="archivedBackups.length > 0" class="mt-8 space-y-4">
       <div>

@@ -436,7 +436,12 @@
     "archivedTitle": "Archived local backups",
     "archivedHint": "Archived backups stay out of resend flows until the matching phone signs in again. Delete them only if you no longer need the local copy.",
     "archivedOn": "Archived",
-    "removedAccountPhone": "Removed account: {phone}"
+    "removedAccountPhone": "Removed account: {phone}",
+    "quarantinedTitle": "Backups locais que precisam de reparo",
+    "quarantinedHint": "Esses backups perderam o vínculo com uma conta e ficam ocultos até serem reparados. Atribua um à conta atual para restaurá-lo ou exclua-o.",
+    "repair": "Reparar",
+    "repairSuccess": "Backup restaurado nesta conta.",
+    "repairError": "Falha ao reparar o backup."
   },
   "privacy": {
     "footer": "100% no dispositivo. Nenhum dado sai do seu navegador.",
@@ -651,6 +656,11 @@
     "archivedTitle": "Archived local exports",
     "archivedHint": "Archived exports stay out of the active list until the matching phone signs in again. Delete them only if you no longer need the local copy.",
     "archivedOn": "Archived",
-    "removedAccountPhone": "Removed account: {phone}"
+    "removedAccountPhone": "Removed account: {phone}",
+    "quarantinedTitle": "Exportações locais que precisam de reparo",
+    "quarantinedHint": "Essas exportações perderam o vínculo com uma conta e ficam ocultas até serem reparadas. Atribua uma à conta atual para restaurá-la ou exclua-a.",
+    "repair": "Reparar",
+    "repairSuccess": "Exportação restaurada nesta conta.",
+    "repairError": "Falha ao reparar a exportação."
   }
 }

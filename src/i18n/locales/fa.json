@@ -436,7 +436,12 @@
     "archivedTitle": "Archived local backups",
     "archivedHint": "Archived backups stay out of resend flows until the matching phone signs in again. Delete them only if you no longer need the local copy.",
     "archivedOn": "Archived",
-    "removedAccountPhone": "Removed account: {phone}"
+    "removedAccountPhone": "Removed account: {phone}",
+    "quarantinedTitle": "پشتیبان‌های محلی نیازمند تعمیر",
+    "quarantinedHint": "این پشتیبان‌ها پیوند خود با یک حساب را از دست داده‌اند و تا زمان تعمیر پنهان می‌مانند. یکی را به حساب فعلی اختصاص دهید تا بازیابی شود، یا آن را حذف کنید.",
+    "repair": "تعمیر",
+    "repairSuccess": "پشتیبان به این حساب بازیابی شد.",
+    "repairError": "تعمیر پشتیبان ناموفق بود."
   },
   "privacy": {
     "footer": "۱۰۰٪ روی دستگاه. هیچ داده‌ای از مرورگر شما خارج نمی‌شود.",
@@ -651,6 +656,11 @@
     "archivedTitle": "Archived local exports",
     "archivedHint": "Archived exports stay out of the active list until the matching phone signs in again. Delete them only if you no longer need the local copy.",
     "archivedOn": "Archived",
-    "removedAccountPhone": "Removed account: {phone}"
+    "removedAccountPhone": "Removed account: {phone}",
+    "quarantinedTitle": "خروجی‌های محلی نیازمند تعمیر",
+    "quarantinedHint": "این خروجی‌ها پیوند خود با یک حساب را از دست داده‌اند و تا زمان تعمیر پنهان می‌مانند. یکی را به حساب فعلی اختصاص دهید تا بازیابی شود، یا آن را حذف کنید.",
+    "repair": "تعمیر",
+    "repairSuccess": "خروجی به این حساب بازیابی شد.",
+    "repairError": "تعمیر خروجی ناموفق بود."
   }
 }
