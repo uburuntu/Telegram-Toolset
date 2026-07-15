@@ -112,7 +112,7 @@ describe('zipGenerator', () => {
     const archiveEntries = Object.keys(zip.files)
 
     expect(archiveEntries).toEqual(
-      expect.arrayContaining(['media/', 'media/.._.._quarterly_report___.pdf']),
+      expect.arrayContaining(['media/', 'media/11_.._.._quarterly_report___.pdf']),
     )
     expect(archiveEntries.some((entry) => entry.includes('../') || entry.includes('..\\'))).toBe(
       false,
@@ -162,5 +162,27 @@ describe('zipGenerator', () => {
 
     expect(archiveEntries).toEqual(expect.arrayContaining(['media/21.pdf']))
     expect(archiveEntries).not.toContain('media/.._.._raw_report.pdf')
+  })
+
+  it('keeps media files distinct when Telegram filenames collide', async () => {
+    const backup = createBackup(
+      [
+        createMessage({ id: 31, mediaFilename: 'report?.pdf' }),
+        createMessage({ id: 32, mediaFilename: 'report*.pdf' }),
+      ],
+      new Map([
+        [31, new Blob(['first'], { type: 'application/pdf' })],
+        [32, new Blob(['second'], { type: 'application/pdf' })],
+      ]),
+    )
+
+    const blob = await generateDownloadedZip(backup)
+    const zip = await JSZip.loadAsync(blob)
+
+    expect(Object.keys(zip.files)).toEqual(
+      expect.arrayContaining(['media/31_report_.pdf', 'media/32_report_.pdf']),
+    )
+    await expect(zip.file('media/31_report_.pdf')?.async('text')).resolves.toBe('first')
+    await expect(zip.file('media/32_report_.pdf')?.async('text')).resolves.toBe('second')
   })
 })
