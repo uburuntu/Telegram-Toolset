@@ -376,6 +376,21 @@ class TelegramService {
   }
 
   /**
+   * Record that the currently connected client belongs to this account.
+   *
+   * A fresh interactive login authenticates through `client.start()`, which
+   * connects without going through `connect()` and therefore never stamps
+   * session ownership. Without this, the next account-affine call would see a
+   * mismatched owner and needlessly tear the just-authenticated session down to
+   * rebuild it from the stored string.
+   */
+  markActiveUserSession(accountId: string): void {
+    if (accountId) {
+      this._activeSessionAccountId = accountId
+    }
+  }
+
+  /**
    * Try to restore the session from stored account data.
    * This is called when the client is null but we may have credentials in localStorage.
    *
@@ -459,6 +474,18 @@ class TelegramService {
 
     const initPromise = (async () => {
       try {
+        // A just-authenticated login already owns a live, connected client for
+        // this account. Rebuilding it from the stored string only adds latency
+        // and can bounce a fresh login to needs-login on a transient failure.
+        if (
+          data.accountId &&
+          this.client?.connected &&
+          this._activeSessionAccountId === data.accountId
+        ) {
+          await this.setAccountSessionState('ready', data.accountId)
+          return true
+        }
+
         await this.disconnect()
         this.currentUser = null
         this.entityCache.clear()
@@ -742,6 +769,9 @@ class TelegramService {
     }
 
     this.currentUser = null
+    // The client is gone, so no account owns the live session anymore. Leaving a
+    // stale owner here lets a later login appear to belong to the previous account.
+    this._activeSessionAccountId = null
     this.entityCache.clear()
     this.session = new StringSession('')
     this.setConnectionState('disconnected')
