@@ -149,6 +149,11 @@ export function toStoredOwnership(ownership: NormalizedOwnership): StoredRecordO
   return stored
 }
 
+/** Ownership for an unclaimed (legacy) record with no recorded owner. */
+export function legacyOwnership(): NormalizedOwnership {
+  return { verification: 'legacy', lifecycle: 'active', health: 'healthy' }
+}
+
 /** Ownership for a freshly created record owned by `account`. */
 export function createOwnedOwnership(account: SavedAccount): NormalizedOwnership {
   const principal = account.principal
@@ -160,6 +165,11 @@ export function createOwnedOwnership(account: SavedAccount): NormalizedOwnership
     lifecycle: 'active',
     health: 'healthy',
   }
+}
+
+/** Ownership for a new record: owned by `account`, or legacy when there is no owner. */
+export function ownershipForAccount(account: SavedAccount | null | undefined): NormalizedOwnership {
+  return account ? createOwnedOwnership(account) : legacyOwnership()
 }
 
 export function archiveOwnership(

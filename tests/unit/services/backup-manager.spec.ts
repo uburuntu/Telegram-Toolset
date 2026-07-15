@@ -191,6 +191,105 @@ describe('backupManager ownership', () => {
     ])
   })
 
+  it('stamps the owning principal and verified state on new backups', async () => {
+    dbMocks.countMediaTypes.mockResolvedValue(emptyMediaTypes)
+    const account = createUserAccount({ principal: { kind: 'user', telegramUserId: '500' } })
+
+    const backup = await backupManager.createBackup(
+      { chatId: BigInt('1'), chatTitle: 'Chat', exportMode: 'all', storageStrategy: 'indexeddb' },
+      [],
+      new Map(),
+      account,
+    )
+
+    expect(backup).toMatchObject({
+      ownerPrincipal: { kind: 'user', telegramUserId: '500' },
+      ownerVerification: 'verified',
+      lifecycle: 'active',
+      ownershipState: 'owned',
+    })
+    expect(dbMocks.saveBackupBundle).toHaveBeenCalled()
+  })
+
+  it('recovers archived backups by principal across a new local account id and phone', async () => {
+    // Same Telegram identity, but a fresh install: different local UUID and re-formatted phone.
+    const reinstalledAccount = createUserAccount({
+      id: 'acct-new',
+      phone: '+40000000',
+      principal: { kind: 'user', telegramUserId: '500' },
+    })
+
+    state.backups = [
+      createBackup({
+        id: 'archived-by-principal',
+        ownerAccountId: 'acct-old',
+        ownerAccountPhone: '+1234567890',
+        ownerPrincipal: { kind: 'user', telegramUserId: '500' },
+        ownershipState: 'archived',
+        archivedAt: new Date('2024-03-11T12:00:00Z'),
+      }),
+    ]
+
+    const visible = await backupManager.listBackupsForAccount(reinstalledAccount)
+
+    expect(dbMocks.saveBackup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'archived-by-principal',
+        ownerAccountId: 'acct-new',
+        ownerVerification: 'verified',
+        lifecycle: 'active',
+        archivedAt: undefined,
+      }),
+    )
+    expect(visible.map((backup) => backup.id)).toEqual(['archived-by-principal'])
+  })
+
+  it('never recovers or shows another principal\'s archived backups', async () => {
+    const otherAccount = createUserAccount({
+      id: 'acct-other',
+      principal: { kind: 'user', telegramUserId: '999' },
+    })
+
+    state.backups = [
+      createBackup({
+        id: 'archived-by-principal',
+        ownerAccountId: 'acct-old',
+        ownerAccountPhone: '+1234567890',
+        ownerPrincipal: { kind: 'user', telegramUserId: '500' },
+        ownershipState: 'archived',
+        archivedAt: new Date('2024-03-11T12:00:00Z'),
+      }),
+    ]
+
+    const visible = await backupManager.listBackupsForAccount(otherAccount)
+
+    expect(visible).toEqual([])
+    expect(dbMocks.saveBackup).not.toHaveBeenCalled()
+  })
+
+  it('archives verified backups by principal even when the local account id changed', async () => {
+    // A verified backup owned by principal 500, created under an old local UUID.
+    const reinstalledAccount = createUserAccount({
+      id: 'acct-new',
+      principal: { kind: 'user', telegramUserId: '500' },
+    })
+    state.backups = [
+      createBackup({
+        id: 'verified-backup',
+        ownerAccountId: 'acct-old',
+        ownerPrincipal: { kind: 'user', telegramUserId: '500' },
+        ownershipState: 'owned',
+      }),
+    ]
+
+    const archivedCount = await backupManager.archiveBackupsForRemovedAccount(reinstalledAccount)
+
+    expect(archivedCount).toBe(1)
+    expect(dbMocks.saveBackup).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'verified-backup', lifecycle: 'archived' }),
+    )
+  })
+
   it('claims a legacy backup for the current account', async () => {
     const account = createUserAccount()
 

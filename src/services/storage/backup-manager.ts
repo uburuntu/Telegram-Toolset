@@ -13,33 +13,36 @@ import type {
 import { safeJsonStringify, stripRawMessage } from '@/utils/message-serialization'
 import { zipGenerator } from '../export/zip-generator'
 import * as db from './indexed-db'
+import {
+  archiveOwnership,
+  claimOwnership,
+  isLegacyClaimable,
+  isOwnedByAccount,
+  isVisibleToAccount,
+  type NormalizedOwnership,
+  normalizeOwnership,
+  ownershipForAccount,
+  recoverOwnership,
+  recoveryChannelForAccount,
+  toStoredOwnership,
+} from './record-ownership'
 
-interface BackupOwnerContext {
-  id: string
-  phone?: string
+/** Overlay a normalized ownership onto a backup, setting every ownership field deterministically. */
+function applyOwnership(backup: Backup, ownership: NormalizedOwnership): Backup {
+  return {
+    ...backup,
+    ...toStoredOwnership(ownership),
+    ownerAccountId: ownership.ownerAccountId,
+    ownerAccountPhone: ownership.ownerAccountPhone,
+    ownerPrincipal: ownership.ownerPrincipal,
+    archivedAt: ownership.archivedAt,
+    archivedReason: ownership.archivedReason,
+    quarantineReason: ownership.quarantineReason,
+  }
 }
 
 function normalizeBackup(backup: Backup): Backup {
-  return {
-    ...backup,
-    ownershipState: backup.ownershipState ?? (backup.ownerAccountId ? 'owned' : 'legacy'),
-    archivedAt:
-      backup.archivedAt && !(backup.archivedAt instanceof Date)
-        ? new Date(backup.archivedAt)
-        : backup.archivedAt,
-  }
-}
-
-function isBackupVisibleToAccount(backup: Backup, account: SavedAccount | null): boolean {
-  if (!account || account.type !== 'user') {
-    return false
-  }
-
-  if (backup.ownershipState === 'legacy') {
-    return true
-  }
-
-  return backup.ownershipState === 'owned' && backup.ownerAccountId === account.id
+  return applyOwnership(backup, normalizeOwnership(backup))
 }
 
 function sortBackupsByCreatedAt(backups: Backup[]): Backup[] {
@@ -68,12 +71,14 @@ class BackupManager {
     await this.recoverArchivedBackupsForAccount(account)
 
     const backups = await this.listBackups()
-    return backups.filter((backup) => isBackupVisibleToAccount(backup, account))
+    return backups.filter((backup) => isVisibleToAccount(backup, account))
   }
 
   async listArchivedBackups(): Promise<Backup[]> {
     const backups = await this.listBackups()
-    return sortArchivedBackups(backups.filter((backup) => backup.ownershipState === 'archived'))
+    return sortArchivedBackups(
+      backups.filter((backup) => normalizeOwnership(backup).lifecycle === 'archived'),
+    )
   }
 
   async getBackup(id: string): Promise<BackupWithMessages | null> {
@@ -94,7 +99,21 @@ class BackupManager {
     config: ExportConfig,
     messages: DeletedMessage[],
     mediaBlobs: Map<number, Blob>,
-    ownerAccount?: BackupOwnerContext | null,
+    ownerAccount?: SavedAccount | null,
+  ): Promise<Backup> {
+    return this.createBackupWithOwnership(
+      config,
+      messages,
+      mediaBlobs,
+      ownershipForAccount(ownerAccount),
+    )
+  }
+
+  private async createBackupWithOwnership(
+    config: ExportConfig,
+    messages: DeletedMessage[],
+    mediaBlobs: Map<number, Blob>,
+    ownership: NormalizedOwnership,
   ): Promise<Backup> {
     const id = uuidv4()
 
@@ -114,22 +133,22 @@ class BackupManager {
       mediaEntries.reduce((total, entry) => total + entry.blob.size, 0) +
       safeJsonStringify(messages.map((message) => stripRawMessage(message))).length
 
-    const backup: Backup = {
-      id,
-      chatId: config.chatId,
-      chatTitle: config.chatTitle,
-      chatType: 'channel', // Will be determined from chat info
-      createdAt: new Date(),
-      messageCount: messages.length,
-      mediaCount: mediaBlobs.size,
-      storageSize,
-      hasMedia: mediaBlobs.size > 0,
-      mediaTypes,
-      exportMode: config.exportMode,
-      ownerAccountId: ownerAccount?.id,
-      ownerAccountPhone: ownerAccount?.phone,
-      ownershipState: ownerAccount ? 'owned' : 'legacy',
-    }
+    const backup: Backup = applyOwnership(
+      {
+        id,
+        chatId: config.chatId,
+        chatTitle: config.chatTitle,
+        chatType: 'channel', // Will be determined from chat info
+        createdAt: new Date(),
+        messageCount: messages.length,
+        mediaCount: mediaBlobs.size,
+        storageSize,
+        hasMedia: mediaBlobs.size > 0,
+        mediaTypes,
+        exportMode: config.exportMode,
+      },
+      ownership,
+    )
 
     await db.saveBackupBundle(backup, messages, mediaEntries)
 
@@ -150,19 +169,14 @@ class BackupManager {
       throw new Error('Backup not found')
     }
 
-    const backup = normalizeBackup(storedBackup)
-    if (backup.ownershipState !== 'legacy') {
+    if (!isLegacyClaimable(storedBackup)) {
       throw new Error('Only legacy backups can be claimed')
     }
 
-    const claimedBackup: Backup = {
-      ...backup,
-      ownerAccountId: account.id,
-      ownerAccountPhone: account.phone,
-      ownershipState: 'owned',
-      archivedAt: undefined,
-      archivedReason: undefined,
-    }
+    const claimedBackup = applyOwnership(
+      normalizeBackup(storedBackup),
+      claimOwnership(normalizeOwnership(storedBackup), account),
+    )
 
     await db.saveBackup(claimedBackup)
 
@@ -231,7 +245,8 @@ class BackupManager {
       (a, b) => a.date.getTime() - b.date.getTime(),
     )
 
-    const mergedBackup = await this.createBackup(
+    // Preserve the source ownership (principal + axes) rather than downgrading to legacy.
+    const mergedBackup = await this.createBackupWithOwnership(
       {
         chatId: chatId!,
         chatTitle: backups[0]?.chatTitle ?? 'Merged Backup',
@@ -240,12 +255,7 @@ class BackupManager {
       },
       messages,
       mediaMap,
-      backups[0]?.ownerAccountId
-        ? {
-            id: backups[0].ownerAccountId,
-            phone: backups[0].ownerAccountPhone,
-          }
-        : null,
+      backups[0] ? normalizeOwnership(backups[0]) : ownershipForAccount(null),
     )
 
     // Delete original backups
@@ -267,19 +277,11 @@ class BackupManager {
     }
 
     const backups = await this.listBackups()
-    const ownedBackups = backups.filter(
-      (backup) => backup.ownershipState === 'owned' && backup.ownerAccountId === account.id,
-    )
+    const ownedBackups = backups.filter((backup) => isOwnedByAccount(backup, account))
 
     await Promise.all(
       ownedBackups.map((backup) =>
-        db.saveBackup({
-          ...backup,
-          ownershipState: 'archived',
-          archivedAt: new Date(),
-          archivedReason: 'account_removed',
-          ownerAccountPhone: backup.ownerAccountPhone ?? account.phone,
-        }),
+        db.saveBackup(applyOwnership(backup, archiveOwnership(normalizeOwnership(backup)))),
       ),
     )
 
@@ -287,30 +289,24 @@ class BackupManager {
   }
 
   async recoverArchivedBackupsForAccount(account: SavedAccount): Promise<number> {
-    if (account.type !== 'user' || !account.phone) {
+    if (account.type !== 'user') {
       return 0
     }
 
     const backups = await this.listBackups()
-    const recoverableBackups = backups.filter(
-      (backup) =>
-        backup.ownershipState === 'archived' && backup.ownerAccountPhone === account.phone,
-    )
+    const recoverable = backups
+      .map((backup) => ({ backup, channel: recoveryChannelForAccount(backup, account) }))
+      .filter((entry) => entry.channel !== null)
 
     await Promise.all(
-      recoverableBackups.map((backup) =>
-        db.saveBackup({
-          ...backup,
-          ownerAccountId: account.id,
-          ownerAccountPhone: account.phone,
-          ownershipState: 'owned',
-          archivedAt: undefined,
-          archivedReason: undefined,
-        }),
+      recoverable.map(({ backup, channel }) =>
+        db.saveBackup(
+          applyOwnership(backup, recoverOwnership(normalizeOwnership(backup), account, channel!)),
+        ),
       ),
     )
 
-    return recoverableBackups.length
+    return recoverable.length
   }
 }
 
