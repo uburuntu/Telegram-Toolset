@@ -28,7 +28,9 @@ import {
   listArchivedChatExports,
   listChatExports,
   listChatExportsForAccount,
+  listQuarantinedChatExports,
   loadChatExportBundle,
+  reconcileChatExport,
   recoverArchivedChatExportsForAccount,
   saveChatExportBundle,
 } from './store'
@@ -246,12 +248,20 @@ class ChatHistoryService {
     return listArchivedChatExports()
   }
 
+  async listQuarantinedChatExports(): Promise<ChatExport[]> {
+    return listQuarantinedChatExports()
+  }
+
   async deleteChatExport(exportId: string): Promise<void> {
     await deleteChatExport(exportId)
   }
 
   async claimLegacyChatExport(exportId: string, account: SavedAccount): Promise<ChatExport> {
     return claimLegacyChatExport(exportId, account)
+  }
+
+  async reconcileChatExport(exportId: string, account: SavedAccount): Promise<ChatExport> {
+    return reconcileChatExport(exportId, account)
   }
 
   async getChatMessages(exportId: string): Promise<ChatMessage[]> {

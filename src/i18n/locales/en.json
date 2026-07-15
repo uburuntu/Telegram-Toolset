@@ -436,7 +436,12 @@
     "archivedTitle": "Archived local backups",
     "archivedHint": "Archived backups stay out of resend flows until the matching phone signs in again. Delete them only if you no longer need the local copy.",
     "archivedOn": "Archived",
-    "removedAccountPhone": "Removed account: {phone}"
+    "removedAccountPhone": "Removed account: {phone}",
+    "quarantinedTitle": "Local backups needing repair",
+    "quarantinedHint": "These backups lost their link to an account and stay hidden until repaired. Assign one to the current account to restore it, or delete it.",
+    "repair": "Repair",
+    "repairSuccess": "Backup restored to this account.",
+    "repairError": "Failed to repair backup."
   },
   "privacy": {
     "footer": "100% on-device. No data leaves your browser.",
@@ -594,6 +599,11 @@
     "archivedHint": "Archived exports stay out of the active list until the matching phone signs in again. Delete them only if you no longer need the local copy.",
     "archivedOn": "Archived",
     "removedAccountPhone": "Removed account: {phone}",
+    "quarantinedTitle": "Local exports needing repair",
+    "quarantinedHint": "These exports lost their link to an account and stay hidden until repaired. Assign one to the current account to restore it, or delete it.",
+    "repair": "Repair",
+    "repairSuccess": "Export restored to this account.",
+    "repairError": "Failed to repair export.",
     "selectExport": "Select an export",
     "selectExportDesc": "Choose a cached export from the list to configure its format",
     "formatConfig": "Format Configuration",

@@ -5,6 +5,8 @@ import type { ChatExport } from '@/types'
 const props = defineProps<{
   exports: ChatExport[]
   archivedExports: ChatExport[]
+  quarantinedExports: ChatExport[]
+  canReconcile: boolean
   selectedExportId?: string
   isLoadingList: boolean
   isLoadingSelection: boolean
@@ -15,6 +17,7 @@ const emit = defineEmits<{
   select: [chatExport: ChatExport]
   delete: [exportId: string]
   claim: [exportId: string]
+  reconcile: [exportId: string]
 }>()
 
 const { t } = useI18n()
@@ -173,6 +176,60 @@ function handleDelete(exportId: string) {
         </div>
       </article>
     </div>
+
+    <section v-if="props.quarantinedExports.length > 0" class="space-y-2 pt-2">
+      <div>
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+          {{ t('llmExport.quarantinedTitle') }}
+        </h3>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          {{ t('llmExport.quarantinedHint') }}
+        </p>
+      </div>
+
+      <article
+        v-for="chatExport in props.quarantinedExports"
+        :key="`quarantined-${chatExport.id}`"
+        class="p-3 bg-white dark:bg-gray-900 rounded-lg border border-amber-200 dark:border-amber-900 shadow-sm"
+      >
+        <div class="flex items-start gap-3">
+          <div
+            class="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-lg flex-shrink-0"
+          >
+            {{ getChatIcon(chatExport.chatType) }}
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <div class="font-medium text-sm text-gray-900 dark:text-white break-words">
+              {{ chatExport.chatTitle }}
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 break-words">
+              <span>{{ chatExport.messageCount.toLocaleString() }} {{ t('llmExport.messages') }}</span>
+            </div>
+            <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+              {{ t('llmExport.exported') }} {{ formatDate(chatExport.createdAt) }}
+            </div>
+          </div>
+
+          <div class="flex flex-wrap justify-end gap-2">
+            <button
+              v-if="props.canReconcile"
+              class="px-3 py-1.5 rounded-md font-medium text-sm bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-900/70 transition-colors duration-100"
+              @click="emit('reconcile', chatExport.id)"
+            >
+              {{ t('llmExport.repair') }}
+            </button>
+            <button
+              class="px-3 py-1.5 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-300 transition-colors duration-100"
+              :title="t('common.delete')"
+              @click="handleDelete(chatExport.id)"
+            >
+              {{ t('common.delete') }}
+            </button>
+          </div>
+        </div>
+      </article>
+    </section>
 
     <section v-if="props.archivedExports.length > 0" class="space-y-2 pt-2">
       <div>

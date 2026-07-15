@@ -49,6 +49,7 @@ const archiveProgress = ref<ChatArchiveProgress | null>(null)
 
 const cachedExports = ref<ChatExport[]>([])
 const archivedExports = ref<ChatExport[]>([])
+const quarantinedExports = ref<ChatExport[]>([])
 const isLoadingExportsList = ref(false)
 const exportsError = ref('')
 const selectedExport = ref<ChatExport | null>(null)
@@ -119,6 +120,7 @@ watch(
     exportMessages.value = []
     cachedExports.value = []
     archivedExports.value = []
+    quarantinedExports.value = []
     isLoadingChats.value = false
     isLoadingExportsList.value = false
     isLoadingSelectedExport.value = false
@@ -130,6 +132,7 @@ watch(
       chats.value = []
       cachedExports.value = []
       archivedExports.value = []
+      quarantinedExports.value = []
       return
     }
 
@@ -178,12 +181,14 @@ async function loadStoredExports() {
   try {
     const visibleExports = await chatHistoryService.listChatExportsForAccount(account)
     const archived = await chatHistoryService.listArchivedChatExports()
+    const quarantined = await chatHistoryService.listQuarantinedChatExports()
     if (requestId !== storedExportsRequestId || accountsStore.activeAccountId !== accountId) {
       return
     }
 
     cachedExports.value = sortChatExportsByNewest(visibleExports)
     archivedExports.value = sortChatExportsByNewest(archived)
+    quarantinedExports.value = sortChatExportsByNewest(quarantined)
 
     if (
       selectedExport.value &&
@@ -343,6 +348,21 @@ async function handleExportClaim(exportId: string) {
     uiStore.showToast('success', t('llmExport.claimSuccess'))
   } catch {
     uiStore.showToast('error', t('llmExport.claimError'))
+  }
+}
+
+async function handleExportReconcile(exportId: string) {
+  const activeAccount = accountsStore.activeAccount
+  if (!activeAccount || activeAccount.type !== 'user') {
+    return
+  }
+
+  try {
+    await chatHistoryService.reconcileChatExport(exportId, activeAccount)
+    await loadStoredExports()
+    uiStore.showToast('success', t('llmExport.repairSuccess'))
+  } catch {
+    uiStore.showToast('error', t('llmExport.repairError'))
   }
 }
 
@@ -577,6 +597,8 @@ function cancelArchiveDownload() {
         <ExportsList
           :exports="cachedExports"
           :archived-exports="archivedExports"
+          :quarantined-exports="quarantinedExports"
+          :can-reconcile="accountsStore.activeAccount?.type === 'user'"
           :selected-export-id="selectedExport?.id"
           :is-loading-list="isLoadingExportsList"
           :is-loading-selection="isLoadingSelectedExport"
@@ -584,6 +606,7 @@ function cancelArchiveDownload() {
           @select="handleExportSelect"
           @delete="handleExportDelete"
           @claim="handleExportClaim"
+          @reconcile="handleExportReconcile"
         />
       </div>
 

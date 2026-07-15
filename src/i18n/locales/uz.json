@@ -436,7 +436,12 @@
     "archivedTitle": "Archived local backups",
     "archivedHint": "Archived backups stay out of resend flows until the matching phone signs in again. Delete them only if you no longer need the local copy.",
     "archivedOn": "Archived",
-    "removedAccountPhone": "Removed account: {phone}"
+    "removedAccountPhone": "Removed account: {phone}",
+    "quarantinedTitle": "Tiklashni talab qiladigan mahalliy zaxira nusxalari",
+    "quarantinedHint": "Bu zaxira nusxalari hisob bilan bog‘lanishini yo‘qotgan va tiklanmaguncha yashirin bo‘ladi. Uni tiklash uchun joriy hisobga bog‘lang yoki o‘chirib tashlang.",
+    "repair": "Tiklash",
+    "repairSuccess": "Zaxira nusxasi ushbu hisobga tiklandi.",
+    "repairError": "Zaxira nusxasini tiklab bo‘lmadi."
   },
   "privacy": {
     "footer": "100% qurilmada. Brauzeringizdan hech qanday ma'lumot chiqmaydi.",
@@ -651,6 +656,11 @@
     "archivedTitle": "Archived local exports",
     "archivedHint": "Archived exports stay out of the active list until the matching phone signs in again. Delete them only if you no longer need the local copy.",
     "archivedOn": "Archived",
-    "removedAccountPhone": "Removed account: {phone}"
+    "removedAccountPhone": "Removed account: {phone}",
+    "quarantinedTitle": "Tiklashni talab qiladigan mahalliy eksportlar",
+    "quarantinedHint": "Bu eksportlar hisob bilan bog‘lanishini yo‘qotgan va tiklanmaguncha yashirin bo‘ladi. Uni tiklash uchun joriy hisobga bog‘lang yoki o‘chirib tashlang.",
+    "repair": "Tiklash",
+    "repairSuccess": "Eksport ushbu hisobga tiklandi.",
+    "repairError": "Eksportni tiklab bo‘lmadi."
   }
 }
