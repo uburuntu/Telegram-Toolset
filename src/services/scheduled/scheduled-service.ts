@@ -7,7 +7,7 @@
  * - Delete scheduled messages
  */
 
-import type { ChatInfo, ScheduledMessage } from '@/types'
+import type { ChatInfo, MultiPeerResult, PeerOutcome, ScheduledMessage } from '@/types'
 import { formatRelativeTimeFromNow } from '@/utils/locale-format'
 import { safeJsonStringify } from '@/utils/message-serialization'
 import { telegramGateway } from '../telegram/gateway'
@@ -219,6 +219,59 @@ class ScheduledService {
    */
   async deleteScheduledMessages(chatId: bigint, messageIds: number[]): Promise<void> {
     await telegramGateway.scheduled.deleteScheduledMessages(chatId, messageIds)
+  }
+
+  /**
+   * Delete scheduled messages across multiple chats, returning one outcome per peer
+   * (ARCHITECTURE.md §3). Confirmed deletions are preserved even when a later peer fails, so callers
+   * can report partial success accurately and reconcile each peer as soon as it settles.
+   *
+   * Cancellation via `signal` stops issuing new deletions; already-confirmed peers keep their
+   * `delivered` outcome and not-yet-attempted peers are reported as `skipped`.
+   */
+  async deleteScheduledMessagesByPeer(
+    messagesByChat: Iterable<[bigint, number[]]>,
+    options: {
+      signal?: AbortSignal
+      onPeerSettled?: (outcome: PeerOutcome) => void
+    } = {},
+  ): Promise<MultiPeerResult> {
+    const outcomes: PeerOutcome[] = []
+    const record = (outcome: PeerOutcome): void => {
+      outcomes.push(outcome)
+      options.onPeerSettled?.(outcome)
+    }
+
+    for (const [chatId, messageIds] of messagesByChat) {
+      const peerId = chatId.toString()
+
+      if (options.signal?.aborted) {
+        record({ peerId, status: 'skipped', affected: 0 })
+        continue
+      }
+
+      try {
+        await telegramGateway.scheduled.deleteScheduledMessages(chatId, messageIds)
+        record({ peerId, status: 'delivered', affected: messageIds.length })
+      } catch (error) {
+        if ((error as Error).name === 'AbortError') {
+          // Cancellation: this peer did not complete; report it as skipped and stop issuing more.
+          record({ peerId, status: 'skipped', affected: 0 })
+          continue
+        }
+
+        // A per-peer failure must not discard earlier confirmed deletions. Ambiguous transport
+        // failures are classified as delivery_uncertain once the typed gateway lands (Stage D §5).
+        record({
+          peerId,
+          status: 'failed',
+          affected: 0,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+
+    return { outcomes }
   }
 
   /**

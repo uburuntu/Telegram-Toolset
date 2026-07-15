@@ -554,6 +554,8 @@
     "messageCount": "{count} message | {count} messages",
     "confirmDelete": "Are you sure you want to delete {count} scheduled message(s)? This cannot be undone.",
     "deleteSuccess": "Scheduled messages deleted successfully",
+    "deletePartial": "Deleted scheduled messages in {succeeded} of {total} chats. {failed} failed.",
+    "deleteError": "Failed to delete scheduled messages",
     "exportSuccess": "Scheduled messages exported to JSON",
     "cancelled": "Operation cancelled"
   },

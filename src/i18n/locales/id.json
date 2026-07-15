@@ -554,6 +554,8 @@
     "messageCount": "{count} pesan",
     "confirmDelete": "Apakah Anda yakin ingin menghapus {count} pesan terjadwal? Tindakan ini tidak dapat dibatalkan.",
     "deleteSuccess": "Pesan terjadwal berhasil dihapus",
+    "deletePartial": "Pesan terjadwal dihapus di {succeeded} dari {total} obrolan. {failed} gagal.",
+    "deleteError": "Gagal menghapus pesan terjadwal",
     "exportSuccess": "Pesan terjadwal diekspor ke JSON",
     "cancelled": "Operasi dibatalkan"
   },

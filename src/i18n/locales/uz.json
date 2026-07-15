@@ -554,6 +554,8 @@
     "messageCount": "{count} xabar",
     "confirmDelete": "Siz {count} ta rejalashtirilgan xabarni o'chirmoqchimisiz? Bu amalni bekor qilib bo'lmaydi.",
     "deleteSuccess": "Rejalashtirilgan xabarlar muvaffaqiyatli o'chirildi",
+    "deletePartial": "Rejalashtirilgan xabarlar {total} ta suhbatdan {succeeded} tasida oʻchirildi. {failed} tasi muvaffaqiyatsiz.",
+    "deleteError": "Rejalashtirilgan xabarlarni oʻchirib boʻlmadi",
     "exportSuccess": "Rejalashtirilgan xabarlar JSON formatida eksport qilindi",
     "cancelled": "Amal bekor qilindi"
   },

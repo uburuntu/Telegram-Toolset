@@ -554,6 +554,8 @@
     "messageCount": "{count} mensagem | {count} mensagens",
     "confirmDelete": "Tem certeza de que deseja excluir {count} mensagem(ns) agendada(s)? Esta ação não pode ser desfeita.",
     "deleteSuccess": "Mensagens agendadas excluídas com sucesso",
+    "deletePartial": "Mensagens agendadas excluídas em {succeeded} de {total} conversas. {failed} falharam.",
+    "deleteError": "Falha ao excluir mensagens agendadas",
     "exportSuccess": "Mensagens agendadas exportadas para JSON",
     "cancelled": "Operação cancelada"
   },

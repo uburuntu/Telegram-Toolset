@@ -554,6 +554,8 @@
     "messageCount": "{count} mensaje | {count} mensajes",
     "confirmDelete": "¿Está seguro de que desea eliminar {count} mensaje(s) programado(s)? Esta acción no se puede deshacer.",
     "deleteSuccess": "Mensajes programados eliminados exitosamente",
+    "deletePartial": "Se eliminaron los mensajes programados en {succeeded} de {total} chats. {failed} fallaron.",
+    "deleteError": "No se pudieron eliminar los mensajes programados",
     "exportSuccess": "Mensajes programados exportados a JSON",
     "cancelled": "Operación cancelada"
   },

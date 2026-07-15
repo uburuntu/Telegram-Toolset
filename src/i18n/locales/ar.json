@@ -554,6 +554,8 @@
     "messageCount": "{count} رسالة",
     "confirmDelete": "هل أنت متأكد أنك تريد حذف {count} رسالة مجدولة؟ لا يمكن التراجع عن هذا الإجراء.",
     "deleteSuccess": "تم حذف الرسائل المجدولة بنجاح",
+    "deletePartial": "تم حذف الرسائل المجدولة في {succeeded} من {total} محادثة. فشل: {failed}.",
+    "deleteError": "فشل حذف الرسائل المجدولة",
     "exportSuccess": "تم تصدير الرسائل المجدولة إلى JSON",
     "cancelled": "تم إلغاء العملية"
   },
