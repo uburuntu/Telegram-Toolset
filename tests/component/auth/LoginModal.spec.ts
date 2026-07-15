@@ -892,6 +892,90 @@ describe('LoginModal', () => {
     )
   })
 
+  it('commits candidate credentials only after Telegram accepts a new-account login', async () => {
+    mockAccountsStore.apiCredentials = null
+    mockAccountsStore.accounts = []
+    vi.mocked(mockAccountsStore.findUserAccountByPrincipal).mockReturnValue(null)
+    vi.mocked(mockAccountsStore.addAccount).mockResolvedValue({ id: 'new-1' } as never)
+
+    const service = telegramService as any
+    let resolveAuth!: (user: {
+      id: bigint
+      firstName: string
+      username: string
+      phone: string
+    }) => void
+    const authPromise = new Promise((resolve) => {
+      resolveAuth = resolve as never
+    })
+    service.resetForNewUserLogin.mockResolvedValue(undefined)
+    service.initClient.mockResolvedValue(undefined)
+    service.startUserAuth.mockImplementation(
+      (_phone: string, options?: { onCodeNeeded?: () => void }) => {
+        options?.onCodeNeeded?.()
+        return authPromise
+      },
+    )
+    service.provideCode.mockImplementation(() => {
+      resolveAuth({ id: BigInt(555), firstName: 'New', username: 'newbie', phone: '+10005550' })
+      return true
+    })
+    service.getSessionString.mockReturnValue('fresh-session')
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user' },
+      global: { plugins: [i18n] },
+    })
+
+    await wrapper.get('#login-modal-api-id').setValue('987654')
+    await wrapper.get('#login-modal-api-hash').setValue('abcdef0123456789')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    // The credentials step must not persist anything before authentication succeeds.
+    expect(mockAccountsStore.setApiCredentials).not.toHaveBeenCalled()
+
+    await wrapper.get('#login-modal-phone').setValue('+10005550')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    await wrapper.get('input[inputmode="numeric"]').setValue('12345')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(mockAccountsStore.setApiCredentials).toHaveBeenCalledWith({
+      apiId: 987654,
+      apiHash: 'abcdef0123456789',
+    })
+    expect(mockAccountsStore.addAccount).toHaveBeenCalled()
+  })
+
+  it('does not replace working credentials when a new-account login fails', async () => {
+    mockAccountsStore.apiCredentials = null
+    mockAccountsStore.accounts = []
+
+    const service = telegramService as any
+    service.resetForNewUserLogin.mockResolvedValue(undefined)
+    service.initClient.mockResolvedValue(undefined)
+    service.startUserAuth.mockRejectedValue(new Error('PHONE_NUMBER_INVALID'))
+
+    const wrapper = mount(LoginModal, {
+      props: { requiredType: 'user' },
+      global: { plugins: [i18n] },
+    })
+
+    await wrapper.get('#login-modal-api-id').setValue('987654')
+    await wrapper.get('#login-modal-api-hash').setValue('abcdef0123456789')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    await wrapper.get('#login-modal-phone').setValue('+10005550')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(mockAccountsStore.setApiCredentials).not.toHaveBeenCalled()
+  })
+
   it('ignores stale bot validation responses', async () => {
     let resolveFirstValidation!: (value: {
       id: number

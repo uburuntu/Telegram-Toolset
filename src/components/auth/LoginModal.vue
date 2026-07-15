@@ -364,6 +364,26 @@ function handleRecoverableAuthError(authError: unknown, stage: RecoverableAuthSt
   step.value = 'code'
 }
 
+/**
+ * Commit the in-form candidate API credentials to shared storage. Called only after Telegram has
+ * accepted them, and skipped when the active session already uses the same credentials (e.g. the
+ * saved-credentials path). Replacing shared credentials is a discrete, rollback-safe operation
+ * owned by the account store (ARCHITECTURE.md §2).
+ */
+async function commitCandidateCredentials(): Promise<void> {
+  const parsedApiId = parseInt(apiId.value, 10)
+  if (Number.isNaN(parsedApiId) || parsedApiId <= 0 || apiHash.value.length < 10) {
+    return
+  }
+
+  const current = accountsStore.apiCredentials
+  if (current && current.apiId === parsedApiId && current.apiHash === apiHash.value) {
+    return
+  }
+
+  await accountsStore.setApiCredentials({ apiId: parsedApiId, apiHash: apiHash.value })
+}
+
 async function persistUserAuth(
   user: UserInfo,
   submittedPhone: string,
@@ -457,6 +477,16 @@ async function observeUserAuth(
 ): Promise<void> {
   try {
     const user = await pendingAuth
+    if (
+      !isModalActive ||
+      userAuthPromise.value !== pendingAuth ||
+      userAuthAttemptId !== attemptId
+    ) {
+      return
+    }
+
+    // Telegram accepted these credentials, so it is now safe to replace the shared credentials.
+    await trackAccountPersistence(commitCandidateCredentials())
     if (
       !isModalActive ||
       userAuthPromise.value !== pendingAuth ||
@@ -636,7 +666,7 @@ function useSavedCredentials(): void {
   }
 }
 
-async function handleCredentialsSubmit(): Promise<void> {
+function handleCredentialsSubmit(): void {
   error.value = ''
 
   const id = parseInt(apiId.value, 10)
@@ -651,25 +681,10 @@ async function handleCredentialsSubmit(): Promise<void> {
     return
   }
 
-  pendingSubmissionStep.value = 'credentials'
-  try {
-    await trackAccountPersistence(
-      accountsStore.setApiCredentials({ apiId: id, apiHash: submittedApiHash }),
-    )
-    if (!isModalActive) {
-      return
-    }
-
-    step.value = 'phone'
-  } catch (e) {
-    if (isModalActive) {
-      error.value = e instanceof Error ? e.message : t('common.error')
-    }
-  } finally {
-    if (pendingSubmissionStep.value === 'credentials') {
-      pendingSubmissionStep.value = null
-    }
-  }
+  // Candidate credentials stay in the form and are only committed to shared storage after Telegram
+  // accepts them (ARCHITECTURE.md §2). A failed or abandoned login must not replace working
+  // shared credentials, so nothing is persisted at this step.
+  step.value = 'phone'
 }
 
 async function handlePhoneSubmit(): Promise<void> {
