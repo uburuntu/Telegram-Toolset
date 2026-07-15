@@ -30,6 +30,9 @@ jobs:
           node-version-file: ${{ env.NODE_VERSION_FILE }}
           cache: 'npm'
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Install dependencies
         run: npm ci
 
@@ -54,6 +57,9 @@ jobs:
         with:
           node-version-file: ${{ env.NODE_VERSION_FILE }}
           cache: 'npm'
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Install dependencies
         run: npm ci
@@ -81,6 +87,9 @@ jobs:
         with:
           node-version-file: ${{ env.NODE_VERSION_FILE }}
           cache: 'npm'
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Install dependencies
         run: npm ci
@@ -122,6 +131,9 @@ jobs:
           node-version-file: ${{ env.NODE_VERSION_FILE }}
           cache: 'npm'
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Install dependencies
         run: npm ci
 
@@ -152,6 +164,9 @@ jobs:
         with:
           node-version-file: ${{ env.NODE_VERSION_FILE }}
           cache: 'npm'
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Install dependencies
         run: npm ci
@@ -196,6 +211,9 @@ jobs:
         with:
           node-version-file: ${{ env.NODE_VERSION_FILE }}
           cache: 'npm'
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Install dependencies
         run: npm ci
@@ -269,20 +287,49 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # GitHub concurrency queues are not strictly FIFO, so a slower older run
+      # could publish after a newer commit and roll Pages back. Only deploy when
+      # this run's commit is still the tip of main; the newer run will publish.
+      - name: Verify this run deploys the latest commit on main
+        id: freshness
+        uses: actions/github-script@v9.0.0
+        with:
+          script: |
+            const { data: branch } = await github.rest.repos.getBranch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: 'main',
+            });
+            const latest = branch.commit.sha;
+            const current = context.sha;
+            core.info(`Latest main: ${latest}`);
+            core.info(`This run:    ${current}`);
+            const isLatest = latest === current;
+            core.setOutput('is_latest', String(isLatest));
+            if (!isLatest) {
+              core.warning(
+                `Skipping Pages deploy for ${current}; a newer commit (${latest}) is already on main.`,
+              );
+            }
+
       - name: Setup Pages
+        if: steps.freshness.outputs.is_latest == 'true'
         uses: actions/configure-pages@v6.0.0
 
       - name: Download build artifact
+        if: steps.freshness.outputs.is_latest == 'true'
         uses: actions/download-artifact@v8.0.1
         with:
           name: dist
           path: dist
 
       - name: Upload artifact
+        if: steps.freshness.outputs.is_latest == 'true'
         uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: dist
 
       - name: Deploy to GitHub Pages
         id: deployment
+        if: steps.freshness.outputs.is_latest == 'true'
         uses: actions/deploy-pages@v5.0.0
