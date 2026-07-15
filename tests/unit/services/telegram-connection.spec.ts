@@ -70,6 +70,35 @@ describe('telegramService connection state', () => {
     unsubscribe()
   })
 
+  it('releases the client and reports error when connect throws', async () => {
+    const stateListener = vi.fn()
+    const unsubscribe = telegramService.onConnectionStateChange(stateListener)
+
+    const disconnectMock = vi.fn().mockResolvedValue(undefined)
+    service.client = {
+      connect: vi.fn().mockRejectedValue(new Error('network down')),
+      disconnect: disconnectMock,
+      isUserAuthorized: vi.fn(),
+      getMe: vi.fn(),
+    }
+    service.currentUser = { id: BigInt(7), firstName: 'Stale', lastName: undefined }
+    service.entityCache.set(BigInt(1), { id: BigInt(1) })
+    service._activeSessionAccountId = 'account-1'
+
+    await expect(telegramService.connect('account-1')).rejects.toThrow('network down')
+
+    // A failed connect must not linger as a half-open connection, but the typed state stays honest.
+    expect(disconnectMock).toHaveBeenCalledTimes(1)
+    expect(service.client).toBeNull()
+    expect(service.currentUser).toBeNull()
+    expect(service.entityCache.size).toBe(0)
+    expect(service._activeSessionAccountId).toBeNull()
+    expect(telegramService.connectionState).toBe('error')
+    expect(stateListener).toHaveBeenLastCalledWith('error')
+
+    unsubscribe()
+  })
+
   it('disconnect clears cached state and reports disconnected', async () => {
     const disconnectListener = vi.fn()
     const unsubscribe = telegramService.onConnectionStateChange(disconnectListener)
