@@ -23,6 +23,7 @@
     "test:component:coverage": "vitest run --config vitest.config.component.ts --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:e2e:dist": "playwright test --config playwright.dist.config.ts",
     "test:coverage": "npm run test:unit:coverage && npm run test:component:coverage",
     "check:i18n": "node scripts/check-i18n.js"
   },

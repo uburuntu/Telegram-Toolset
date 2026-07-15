@@ -1,16 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
+import { bypassLocalProxy } from './playwright.proxy'
 
-const noProxyHosts = new Set(
-  [process.env.NO_PROXY, process.env.no_proxy]
-    .flatMap((value) => value?.split(',') ?? [])
-    .map((host) => host.trim())
-    .filter(Boolean),
-)
-noProxyHosts.add('localhost')
-noProxyHosts.add('127.0.0.1')
-const normalizedNoProxy = [...noProxyHosts].join(',')
-process.env.NO_PROXY = normalizedNoProxy
-process.env.no_proxy = normalizedNoProxy
+bypassLocalProxy()
 
 export default defineConfig({
   testDir: './tests/e2e',

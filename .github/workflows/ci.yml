@@ -184,12 +184,52 @@ jobs:
           path: dist/
           retention-days: 7
 
+  smoke-dist:
+    name: Production Build Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
+          cache: 'npm'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: dist
+          path: dist
+
+      - name: Run production build smoke tests
+        run: npm run test:e2e:dist
+
+      - name: Upload smoke report
+        uses: actions/upload-artifact@v7.0.1
+        if: failure()
+        with:
+          name: playwright-report-dist
+          path: playwright-report-dist/
+          retention-days: 7
+
   preview-deploy:
     name: Deploy Preview
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [lint-and-typecheck, unit-tests, component-tests, e2e-tests, build]
+    needs: [lint-and-typecheck, unit-tests, component-tests, e2e-tests, build, smoke-dist]
     concurrency:
       group: preview-deploy-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -275,7 +315,7 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [lint-and-typecheck, unit-tests, component-tests, e2e-tests, build]
+    needs: [lint-and-typecheck, unit-tests, component-tests, e2e-tests, build, smoke-dist]
     permissions:
       contents: read
       pages: write

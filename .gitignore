@@ -24,7 +24,9 @@ Thumbs.db
 # Testing
 coverage/
 playwright-report/
+playwright-report-dist/
 test-results/
+test-results-dist/
 
 # Telegram sensitive files
 *.session
