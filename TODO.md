@@ -23,7 +23,7 @@ This file is the restart brief for the next time someone picks up the repo. It s
    - `npm run test:component`
    - `npm run build`
    - `npm run bundle:check`
-3. If touching auth, routing, or module navigation, also run `npm run test:e2e` or the affected Playwright projects.
+3. If touching auth, routing, or module navigation, also run `npm run test:e2e` (or the affected Playwright projects) and `npm run test:e2e:dist` for a production-build smoke over the built artifact.
 4. Read `AGENTS.md` before changing architecture or UI patterns.
 
 ## Highest-Priority Unresolved Risks
@@ -87,7 +87,7 @@ Follow [ARCHITECTURE.md](./ARCHITECTURE.md) in dependency order:
 3. Harden the account/storage repository, durable account-removal quiescing, ownership
    enforcement, persistence status, and cross-tab recovery.
 4. Standardize peer references, split the Telegram gateway, and separate mutation retry semantics.
-5. Add bounded worker/streaming pipelines and production-artifact browser smoke.
+5. Add bounded worker/streaming pipelines and expand the production-artifact browser smoke to every route.
 6. Decompose route workflows after those platform contracts exist.
 
 ## Avoid On Return

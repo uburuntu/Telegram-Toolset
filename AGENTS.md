@@ -225,7 +225,7 @@ Mobile-first approach: default styles for mobile, add complexity at larger break
 - **Storage**: IndexedDB for backups/media/export caches and encrypted account secrets. Non-sensitive metadata and preferences may stay in localStorage, but API credentials, bot tokens, and user session strings must persist via encrypted IndexedDB + WebCrypto with legacy migration support. Backups and LLM exports should carry ownership metadata, archive on account removal rather than being hard-deleted by default, and surface explicit claim/delete actions when local data needs manual cleanup.
 - **Internationalization**: `vue-i18n` is required for user-facing copy. Current locales include `en`, `ru`, `ar`, `es`, `fa`, `id`, `pt`, `tr`, `uk`, `uz`; production work must preserve escaping safety and completeness standards.
 - **Security/Privacy**: On-device only; no backend, no analytics, no tracking. Sensitive inputs must stay masked, validated, and minimally persisted.
-- **CI/Test**: Vitest (unit/component), Playwright (E2E), GitHub Actions with deterministic `npm ci` installs and desktop/mobile Playwright coverage in CI. The next gap is stronger live-integration and route-level coverage, not basic CI plumbing.
+- **CI/Test**: Vitest (unit/component), Playwright (E2E plus a production-build Chromium smoke over the built `dist`), GitHub Actions with Corepack-pinned, deterministic `npm ci` installs, a rollback-safe (latest-commit-gated) Pages deploy, and desktop/mobile Playwright coverage in CI. The next gap is stronger live-integration and full route-level coverage, not basic CI plumbing.
 - **Architecture plan**: Follow `ARCHITECTURE.md` in dependency order. Stable principals and session/job coordination precede service and view decomposition.
 
 ## Productionization Dependency Order
@@ -418,11 +418,11 @@ textParts.push(escapeHtml(message.text))
 
 ## vue-i18n Special Characters (Critical)
 
-vue-i18n v9 has a message compiler that interprets certain characters as syntax. Using them literally in translation values causes `SyntaxError` at runtime, which **silently crashes the entire component** (no visible error in the UI — the component just disappears).
+vue-i18n v11 uses a message compiler that interprets certain characters as syntax. Using them literally in translation values causes `SyntaxError` at runtime, which **silently crashes the entire component** (no visible error in the UI — the component just disappears). `npm run check:i18n` guards this by parsing every value with the same `@intlify/message-compiler` vue-i18n uses at runtime, so malformed syntax and mismatched placeholders fail CI instead of shipping.
 
 ### Characters that MUST be escaped in i18n JSON values:
 
-Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#literal-interpolation), these characters are special in vue-i18n v9 message format:
+Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#literal-interpolation), these characters are special in vue-i18n v11 message format:
 
 | Character | Meaning in vue-i18n | Escape syntax | Example |
 |-----------|---------------------|---------------|---------|
@@ -464,6 +464,10 @@ Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#lit
 - BigInt-safe JSON serialization utilities
 - `_rawMessage` stripping at persistence boundaries
 - Resend HTML escaping for user safety
+- Fresh-login session ownership with a synchronous account-transition barrier: no cross-account client reuse and no redundant teardown/rebuild of a just-authenticated session
+- Compiler-based i18n validation via `@intlify/message-compiler` (accurate syntax errors and named/list placeholder parity)
+- Production-build Chromium smoke over the built `dist` artifact in CI (boot + lazy-route load with a page/console/asset-failure policy)
+- Corepack-pinned npm across CI jobs and a latest-commit-gated GitHub Pages deploy
 
 ### Productionization Gaps
 - `telegramService` is still a very large singleton with too many responsibilities.
