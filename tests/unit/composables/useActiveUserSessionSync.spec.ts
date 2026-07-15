@@ -1,29 +1,23 @@
-import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { effectScope, ref } from 'vue'
+import { computed, effectScope, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useActiveUserSessionSync } from '@/composables/useActiveUserSessionSync'
-import { resendService } from '@/services/resend/resend-service'
-import { telegramService } from '@/services/telegram/client'
+import type { DesiredSession } from '@/services/telegram/session-coordinator'
+import { sessionCoordinator } from '@/services/telegram/session-coordinator-instance'
 import { useAccountsStore } from '@/stores'
 
-vi.mock('@/services/resend/resend-service', () => ({
-  resendService: {
-    cancelAndWait: vi.fn(),
+vi.mock('@/services/telegram/session-coordinator-instance', () => ({
+  sessionCoordinator: {
+    requestSync: vi.fn(),
   },
 }))
 
-vi.mock('@/services/telegram/client', () => ({
-  telegramService: (() => {
-    let transitionGeneration = 0
-    return {
-      beginActiveAccountTransition: vi.fn(() => ++transitionGeneration),
-      completeActiveAccountTransition: vi.fn(),
-      disconnect: vi.fn(),
-      useUserAccountSession: vi.fn(),
-    }
-  })(),
-}))
+const requestSync = vi.mocked(sessionCoordinator.requestSync)
+
+function lastRequest(): DesiredSession {
+  const calls = requestSync.mock.calls
+  return calls[calls.length - 1][0]
+}
 
 const accountA = {
   id: 'account-a',
@@ -43,6 +37,14 @@ const accountB = {
   sessionString: 'session-b',
 }
 
+const botAccount = {
+  ...accountA,
+  id: 'bot-a',
+  type: 'bot' as const,
+  label: 'Bot A',
+  botToken: 'token',
+}
+
 describe('useActiveUserSessionSync', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -50,92 +52,74 @@ describe('useActiveUserSessionSync', () => {
     setActivePinia(createPinia())
 
     const accountsStore = useAccountsStore()
-    accountsStore.accounts = [accountA, accountB]
+    accountsStore.accounts = [accountA, accountB, botAccount]
     accountsStore.activeAccountId = accountA.id
-    accountsStore.apiCredentials = {
-      apiId: 123456,
-      apiHash: '0123456789abcdef',
-    }
-
-    vi.mocked(resendService.cancelAndWait).mockResolvedValue(true)
-    vi.mocked(telegramService.useUserAccountSession).mockResolvedValue(true)
+    accountsStore.apiCredentials = { apiId: 123456, apiHash: '0123456789abcdef' }
   })
 
-  it('waits for a cancelled resend before replacing the Telegram session', async () => {
-    let releaseResend!: () => void
-    vi.mocked(resendService.cancelAndWait).mockImplementationOnce(
-      () =>
-        new Promise<void>((resolve) => {
-          releaseResend = resolve
-        }),
-    )
-
+  it('requests activation for the active user account with shared credentials', () => {
     const scope = effectScope()
     scope.run(() => useActiveUserSessionSync(ref(false)))
-    expect(telegramService.beginActiveAccountTransition).toHaveBeenCalledTimes(1)
-    await flushPromises()
 
-    expect(resendService.cancelAndWait).toHaveBeenCalledTimes(1)
-    expect(telegramService.useUserAccountSession).not.toHaveBeenCalled()
-
-    releaseResend()
-    await flushPromises()
-
-    expect(telegramService.useUserAccountSession).toHaveBeenCalledWith({
-      accountId: accountA.id,
-      sessionString: accountA.sessionString,
-      apiId: 123456,
-      apiHash: '0123456789abcdef',
+    expect(lastRequest()).toEqual({
+      kind: 'activate',
+      request: {
+        accountId: accountA.id,
+        sessionString: accountA.sessionString,
+        credentials: { apiId: 123456, apiHash: '0123456789abcdef' },
+      },
     })
-    expect(telegramService.completeActiveAccountTransition).toHaveBeenCalledTimes(1)
     scope.stop()
   })
 
-  it('serializes rapid account changes and finishes on the latest account', async () => {
-    let releaseFirstSession!: () => void
-    vi.mocked(telegramService.useUserAccountSession).mockImplementationOnce(
-      () =>
-        new Promise<boolean>((resolve) => {
-          releaseFirstSession = () => resolve(true)
-        }),
-    )
-
+  it('re-requests activation when the active account changes', () => {
+    const accountsStore = useAccountsStore()
     const scope = effectScope()
     scope.run(() => useActiveUserSessionSync(ref(false)))
-    await flushPromises()
-    expect(telegramService.useUserAccountSession).toHaveBeenCalledTimes(1)
 
-    const accountsStore = useAccountsStore()
     accountsStore.activeAccountId = accountB.id
-    await flushPromises()
-    expect(telegramService.useUserAccountSession).toHaveBeenCalledTimes(1)
 
-    releaseFirstSession()
-    await flushPromises()
-
-    expect(telegramService.useUserAccountSession).toHaveBeenLastCalledWith({
-      accountId: accountB.id,
-      sessionString: accountB.sessionString,
-      apiId: 123456,
-      apiHash: '0123456789abcdef',
-    })
+    expect(lastRequest()).toMatchObject({ kind: 'activate', request: { accountId: accountB.id } })
     scope.stop()
   })
 
-  it('disconnects when the active account transitions to needs-login', async () => {
+  it('requests teardown when the active account needs login', () => {
+    const accountsStore = useAccountsStore()
     const scope = effectScope()
     scope.run(() => useActiveUserSessionSync(ref(false)))
-    await flushPromises()
 
-    vi.clearAllMocks()
-    vi.mocked(resendService.cancelAndWait).mockResolvedValue(true)
-    const accountsStore = useAccountsStore()
     accountsStore.markAccountNeedsLogin(accountA.id)
-    await flushPromises()
 
-    expect(resendService.cancelAndWait).toHaveBeenCalledTimes(1)
-    expect(telegramService.disconnect).toHaveBeenCalledTimes(1)
-    expect(telegramService.useUserAccountSession).not.toHaveBeenCalled()
+    expect(lastRequest()).toEqual({ kind: 'teardown' })
+    scope.stop()
+  })
+
+  it('requests teardown when the active account is a bot', () => {
+    const accountsStore = useAccountsStore()
+    accountsStore.activeAccountId = botAccount.id
+    const scope = effectScope()
+    scope.run(() => useActiveUserSessionSync(ref(false)))
+
+    expect(lastRequest()).toEqual({ kind: 'teardown' })
+    scope.stop()
+  })
+
+  it('holds while a login modal owns the session', () => {
+    const showLoginModal = ref(true)
+    const scope = effectScope()
+    scope.run(() => useActiveUserSessionSync(computed(() => showLoginModal.value)))
+
+    expect(lastRequest()).toEqual({ kind: 'hold' })
+    scope.stop()
+  })
+
+  it('holds when shared credentials are missing', () => {
+    const accountsStore = useAccountsStore()
+    accountsStore.apiCredentials = null
+    const scope = effectScope()
+    scope.run(() => useActiveUserSessionSync(ref(false)))
+
+    expect(lastRequest()).toEqual({ kind: 'hold' })
     scope.stop()
   })
 })
