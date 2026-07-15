@@ -4,6 +4,7 @@
  *
  * Errors (blocking):
  *   - Unescaped special characters (@, {{) that cause silent runtime crashes
+ *   - Interpolation placeholders that differ from the English reference
  *
  * Warnings (non-blocking):
  *   - Keys present in en.json but missing from other locales
@@ -75,6 +76,7 @@ const TS_USER_FACING_FUNCTION_RE = /(Description|Heading|Label|Placeholder|Subti
 const TS_EXCLUDED_PATH_PREFIXES = ['src/i18n/', 'src/shims/', 'src/types/']
 const TS_EXCLUDED_PROPERTY_PATHS_BY_FILE = new Map([
   ['src/modules/index.ts', new Set(['name', 'description'])],
+  ['src/services/storage/secure-account-vault.ts', new Set(['name'])],
 ])
 const TS_EXCLUDED_FUNCTIONS_BY_FILE = new Map([
   ['src/services/llm-export/format-service.ts', new Set(['getTemplateDescription'])],
@@ -111,6 +113,15 @@ function flattenKeys(obj, prefix = '') {
   return flattenEntries(obj, prefix).map(([key]) => key)
 }
 
+function getInterpolationPlaceholders(value) {
+  if (typeof value !== 'string') {
+    return []
+  }
+
+  return [...new Set(Array.from(value.matchAll(/\{([A-Za-z_][\w.-]*|\d+)\}/g), (match) => match[1]))]
+    .sort()
+}
+
 function getValueAtPath(obj, keyPath) {
   return keyPath.split('.').reduce((current, part) => current?.[part], obj)
 }
@@ -135,7 +146,7 @@ function findFiles(dir, predicate) {
 }
 
 function toRelPath(file) {
-  return relative(ROOT_DIR, file)
+  return relative(ROOT_DIR, file).replaceAll('\\', '/')
 }
 
 function formatPreview(value, maxLength = 120) {
@@ -363,7 +374,32 @@ for (const [file, data] of localeData.entries()) {
 }
 
 // ---------------------------------------------------------------------------
-// 3. English-identical values in user-facing namespaces (warnings)
+// 3. Interpolation placeholder parity (errors — blocks CI)
+// ---------------------------------------------------------------------------
+
+for (const [file, data] of localeData.entries()) {
+  if (file === REFERENCE_LOCALE) continue
+
+  for (const [keyPath, englishValue] of flattenEntries(refData)) {
+    if (typeof englishValue !== 'string') continue
+
+    const localeValue = getValueAtPath(data, keyPath)
+    if (typeof localeValue !== 'string') continue
+
+    const expected = getInterpolationPlaceholders(englishValue)
+    const actual = getInterpolationPlaceholders(localeValue)
+    if (expected.join('\0') !== actual.join('\0')) {
+      console.error(`ERROR: ${file} ${keyPath}: interpolation placeholders do not match`)
+      console.error(`  Expected: ${expected.join(', ') || '(none)'}`)
+      console.error(`  Actual:   ${actual.join(', ') || '(none)'}`)
+      console.error()
+      errors++
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 4. English-identical values in user-facing namespaces (warnings)
 // ---------------------------------------------------------------------------
 
 for (const [file, data] of localeData.entries()) {
@@ -396,7 +432,7 @@ for (const [file, data] of localeData.entries()) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. Hardcoded strings in Vue templates (warnings — does not block CI)
+// 5. Hardcoded strings in Vue templates (warnings — does not block CI)
 // ---------------------------------------------------------------------------
 
 let hardcodedVueCount = 0
@@ -442,7 +478,7 @@ if (hardcodedVueCount > 0) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. Hardcoded strings in TypeScript source (warnings — does not block CI)
+// 6. Hardcoded strings in TypeScript source (warnings — does not block CI)
 // ---------------------------------------------------------------------------
 
 let hardcodedTsCount = 0

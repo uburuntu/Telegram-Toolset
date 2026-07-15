@@ -9,7 +9,7 @@ const scriptDir = fileURLToPath(new URL('.', import.meta.url))
 const rootDir = resolve(scriptDir, '..')
 const distDir = resolve(rootDir, 'dist')
 const assetsDir = resolve(distDir, 'assets')
-const reportPath = resolve(distDir, 'bundle-size-report.json')
+const reportPath = resolve(rootDir, 'bundle-size-report.json')
 
 const budgets = {
   largestJsAsset: {

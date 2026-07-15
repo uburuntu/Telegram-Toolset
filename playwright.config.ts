@@ -1,5 +1,17 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const noProxyHosts = new Set(
+  [process.env.NO_PROXY, process.env.no_proxy]
+    .flatMap((value) => value?.split(',') ?? [])
+    .map((host) => host.trim())
+    .filter(Boolean),
+)
+noProxyHosts.add('localhost')
+noProxyHosts.add('127.0.0.1')
+const normalizedNoProxy = [...noProxyHosts].join(',')
+process.env.NO_PROXY = normalizedNoProxy
+process.env.no_proxy = normalizedNoProxy
+
 export default defineConfig({
   testDir: './tests/e2e',
   // Vite dev-server dependency optimization is not stable under heavy parallel navigation:
@@ -10,9 +22,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   // One worker avoids multiple browser contexts racing Vite optimizeDeps.
   workers: 1,
-  reporter: 'html',
+  reporter: process.env.CI ? [['list'], ['html']] : 'html',
   use: {
     baseURL: 'http://localhost:5173',
+    screenshot: 'only-on-failure',
     trace: 'on-first-retry',
   },
   projects: [

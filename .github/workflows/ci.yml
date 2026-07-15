@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   NODE_VERSION_FILE: .nvmrc
 
@@ -16,6 +20,7 @@ jobs:
   lint-and-typecheck:
     name: Lint & Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6.0.2
 
@@ -40,6 +45,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6.0.2
 
@@ -66,6 +72,7 @@ jobs:
   component-tests:
     name: Component Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6.0.2
 
@@ -92,6 +99,7 @@ jobs:
   e2e-tests:
     name: E2E Tests (${{ matrix.project }})
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         include:
@@ -134,6 +142,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [lint-and-typecheck, unit-tests, component-tests]
     steps:
       - uses: actions/checkout@v6.0.2
@@ -164,6 +173,7 @@ jobs:
     name: Deploy Preview
     if: ${{ github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [lint-and-typecheck, unit-tests, component-tests, e2e-tests, build]
     concurrency:
       group: preview-deploy-${{ github.event.pull_request.number }}
@@ -246,6 +256,7 @@ jobs:
     name: Deploy to GitHub Pages
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [lint-and-typecheck, unit-tests, component-tests, e2e-tests, build]
     permissions:
       contents: read

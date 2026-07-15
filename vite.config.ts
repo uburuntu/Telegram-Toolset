@@ -1,11 +1,14 @@
+import { resolve } from 'node:path'
 import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
-import { resolve } from 'path'
 
 function agentGramjsBrowserShimsPlugin(): Plugin {
-  const shimPromisedNetSockets = resolve(__dirname, 'src/shims/telegram/PromisedNetSockets.ts')
-  const shimCryptoFile = resolve(__dirname, 'src/shims/telegram/CryptoFile.ts')
+  const shimPromisedNetSockets = resolve(
+    import.meta.dirname,
+    'src/shims/telegram/PromisedNetSockets.ts',
+  )
+  const shimCryptoFile = resolve(import.meta.dirname, 'src/shims/telegram/CryptoFile.ts')
   return {
     name: 'agent-gramjs-browser-shims',
     resolveId(id, importer) {
@@ -35,33 +38,42 @@ function agentGramjsBrowserShimsPlugin(): Plugin {
 }
 
 export default defineConfig(() => {
-  const shimPromisedNetSockets = resolve(__dirname, 'src/shims/telegram/PromisedNetSockets.ts')
-  const shimCryptoFile = resolve(__dirname, 'src/shims/telegram/CryptoFile.ts')
+  const shimPromisedNetSockets = resolve(
+    import.meta.dirname,
+    'src/shims/telegram/PromisedNetSockets.ts',
+  )
+  const shimCryptoFile = resolve(import.meta.dirname, 'src/shims/telegram/CryptoFile.ts')
   const config = {
     base: '/',
     plugins: [vue(), ...tailwindcss(), agentGramjsBrowserShimsPlugin()],
     resolve: {
       alias: [
-        { find: '@', replacement: resolve(__dirname, 'src') },
+        { find: '@', replacement: resolve(import.meta.dirname, 'src') },
         // GramJS (telegram) uses `require("util")` for inspect.custom; Vite doesn't polyfill Node built-ins.
         // Ensure we only alias the exact module IDs (no `util/*` subpaths).
-        { find: /^util$/, replacement: resolve(__dirname, 'src/shims/util.ts') },
-        { find: /^node:util$/, replacement: resolve(__dirname, 'src/shims/util.ts') },
+        { find: /^util$/, replacement: resolve(import.meta.dirname, 'src/shims/util.ts') },
+        { find: /^node:util$/, replacement: resolve(import.meta.dirname, 'src/shims/util.ts') },
         // GramJS uses reminders of Node's `os` via `telegram/client/os.js` even in the browser
         // (device model + system version). Provide a minimal shim.
-        { find: /^os$/, replacement: resolve(__dirname, 'src/shims/os.ts') },
-        { find: /^node:os$/, replacement: resolve(__dirname, 'src/shims/os.ts') },
+        { find: /^os$/, replacement: resolve(import.meta.dirname, 'src/shims/os.ts') },
+        { find: /^node:os$/, replacement: resolve(import.meta.dirname, 'src/shims/os.ts') },
         // GramJS dependencies (socks, etc.) may use EventEmitter. Provide a browser shim
         // to prevent "superclass is not a constructor" errors when 'events' is externalized.
-        { find: /^events$/, replacement: resolve(__dirname, 'src/shims/events.ts') },
-        { find: /^node:events$/, replacement: resolve(__dirname, 'src/shims/events.ts') },
+        { find: /^events$/, replacement: resolve(import.meta.dirname, 'src/shims/events.ts') },
+        { find: /^node:events$/, replacement: resolve(import.meta.dirname, 'src/shims/events.ts') },
         // GramJS uses Node's crypto module. Redirect to GramJS's browser-compatible crypto.
-        { find: /^crypto$/, replacement: resolve(__dirname, 'src/shims/telegram/CryptoFile.ts') },
-        { find: /^node:crypto$/, replacement: resolve(__dirname, 'src/shims/telegram/CryptoFile.ts') },
+        {
+          find: /^crypto$/,
+          replacement: resolve(import.meta.dirname, 'src/shims/telegram/CryptoFile.ts'),
+        },
+        {
+          find: /^node:crypto$/,
+          replacement: resolve(import.meta.dirname, 'src/shims/telegram/CryptoFile.ts'),
+        },
       ],
     },
     define: {
-      // Enable BigInt serialization for Telegram IDs
+      // Keep production hydration diagnostics compact.
       __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
     },
     optimizeDeps: {
