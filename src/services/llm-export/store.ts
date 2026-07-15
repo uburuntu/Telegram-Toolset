@@ -1,23 +1,49 @@
 import type { ChatExport, ChatHistoryResult, ChatMessage, SavedAccount } from '@/types'
 import { getMarkedPeerIdForChat } from '@/utils/telegram-peers'
 import * as db from '../storage/indexed-db'
+import {
+  archiveOwnership,
+  claimOwnership,
+  isLegacyClaimable,
+  isOwnedByAccount,
+  isVisibleToAccount,
+  type NormalizedOwnership,
+  normalizeOwnership,
+  recoverOwnership,
+  recoveryChannelForAccount,
+  toStoredOwnership,
+} from '../storage/record-ownership'
 
 const CURRENT_LLM_EXPORT_SCHEMA_VERSION = 2
 
-function normalizeChatExport(chatExport: ChatExport): ChatExport {
+/** Overlay a normalized ownership onto a chat export, setting every ownership field explicitly. */
+function applyChatExportOwnership(
+  chatExport: ChatExport,
+  ownership: NormalizedOwnership,
+): ChatExport {
   return {
+    ...chatExport,
+    ...toStoredOwnership(ownership),
+    ownerAccountId: ownership.ownerAccountId,
+    ownerAccountPhone: ownership.ownerAccountPhone,
+    ownerPrincipal: ownership.ownerPrincipal,
+    archivedAt: ownership.archivedAt,
+    archivedReason: ownership.archivedReason,
+    quarantineReason: ownership.quarantineReason,
+  }
+}
+
+function normalizeChatExport(chatExport: ChatExport): ChatExport {
+  const withDefaults: ChatExport = {
     ...chatExport,
     chatPeerId:
       chatExport.chatPeerId || getMarkedPeerIdForChat(chatExport.chatId, chatExport.chatType),
     hasMedia: chatExport.hasMedia ?? (chatExport.mediaCount ?? 0) > 0,
     mediaCount: chatExport.mediaCount ?? 0,
     schemaVersion: CURRENT_LLM_EXPORT_SCHEMA_VERSION,
-    ownershipState: chatExport.ownershipState ?? (chatExport.ownerAccountId ? 'owned' : 'legacy'),
-    archivedAt:
-      chatExport.archivedAt && !(chatExport.archivedAt instanceof Date)
-        ? new Date(chatExport.archivedAt)
-        : chatExport.archivedAt,
   }
+
+  return applyChatExportOwnership(withDefaults, normalizeOwnership(withDefaults))
 }
 
 function isChatExportVisibleToAccount(
@@ -28,11 +54,7 @@ function isChatExportVisibleToAccount(
     return false
   }
 
-  if (chatExport.ownershipState === 'legacy') {
-    return true
-  }
-
-  return chatExport.ownershipState === 'owned' && chatExport.ownerAccountId === account.id
+  return isVisibleToAccount(chatExport, account)
 }
 
 function sortChatExportsByCreatedAt(chatExports: ChatExport[]): ChatExport[] {
@@ -110,7 +132,7 @@ export async function listChatExportsForAccount(
 export async function listArchivedChatExports(): Promise<ChatExport[]> {
   const chatExports = await listChatExports()
   return sortArchivedChatExports(
-    chatExports.filter((chatExport) => chatExport.ownershipState === 'archived'),
+    chatExports.filter((chatExport) => normalizeOwnership(chatExport).lifecycle === 'archived'),
   )
 }
 
@@ -131,19 +153,14 @@ export async function claimLegacyChatExport(
     throw new Error('Chat export not found')
   }
 
-  const chatExport = normalizeChatExport(storedChatExport)
-  if (chatExport.ownershipState !== 'legacy') {
+  if (!isLegacyClaimable(storedChatExport)) {
     throw new Error('Only legacy chat exports can be claimed')
   }
 
-  const claimedChatExport: ChatExport = {
-    ...chatExport,
-    ownerAccountId: account.id,
-    ownerAccountPhone: account.phone,
-    ownershipState: 'owned',
-    archivedAt: undefined,
-    archivedReason: undefined,
-  }
+  const claimedChatExport = applyChatExportOwnership(
+    normalizeChatExport(storedChatExport),
+    claimOwnership(normalizeOwnership(storedChatExport), account),
+  )
 
   await db.saveChatExport(claimedChatExport)
 
@@ -172,20 +189,13 @@ export async function archiveChatExportsForRemovedAccount(account: SavedAccount)
   }
 
   const chatExports = await listChatExports()
-  const ownedExports = chatExports.filter(
-    (chatExport) =>
-      chatExport.ownershipState === 'owned' && chatExport.ownerAccountId === account.id,
-  )
+  const ownedExports = chatExports.filter((chatExport) => isOwnedByAccount(chatExport, account))
 
   await Promise.all(
     ownedExports.map((chatExport) =>
-      db.saveChatExport({
-        ...chatExport,
-        ownershipState: 'archived',
-        archivedAt: new Date(),
-        archivedReason: 'account_removed',
-        ownerAccountPhone: chatExport.ownerAccountPhone ?? account.phone,
-      }),
+      db.saveChatExport(
+        applyChatExportOwnership(chatExport, archiveOwnership(normalizeOwnership(chatExport))),
+      ),
     ),
   )
 
@@ -193,28 +203,25 @@ export async function archiveChatExportsForRemovedAccount(account: SavedAccount)
 }
 
 export async function recoverArchivedChatExportsForAccount(account: SavedAccount): Promise<number> {
-  if (account.type !== 'user' || !account.phone) {
+  if (account.type !== 'user') {
     return 0
   }
 
   const chatExports = await listChatExports()
-  const recoverableExports = chatExports.filter(
-    (chatExport) =>
-      chatExport.ownershipState === 'archived' && chatExport.ownerAccountPhone === account.phone,
-  )
+  const recoverable = chatExports
+    .map((chatExport) => ({ chatExport, channel: recoveryChannelForAccount(chatExport, account) }))
+    .filter((entry) => entry.channel !== null)
 
   await Promise.all(
-    recoverableExports.map((chatExport) =>
-      db.saveChatExport({
-        ...chatExport,
-        ownerAccountId: account.id,
-        ownerAccountPhone: account.phone,
-        ownershipState: 'owned',
-        archivedAt: undefined,
-        archivedReason: undefined,
-      }),
+    recoverable.map(({ chatExport, channel }) =>
+      db.saveChatExport(
+        applyChatExportOwnership(
+          chatExport,
+          recoverOwnership(normalizeOwnership(chatExport), account, channel!),
+        ),
+      ),
     ),
   )
 
-  return recoverableExports.length
+  return recoverable.length
 }

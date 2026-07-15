@@ -16,6 +16,7 @@ import type {
   ChatMessage,
   SavedAccount,
 } from '@/types'
+import { ownershipForAccount, toStoredOwnership } from '../storage/record-ownership'
 import { telegramGateway } from '../telegram/gateway'
 import { createFloodWaitSubscription } from '../telegram/rate-limiter'
 import {
@@ -32,10 +33,7 @@ import {
   saveChatExportBundle,
 } from './store'
 
-interface ChatExportOwnerContext {
-  id: string
-  phone?: string
-}
+type ChatExportOwnerContext = SavedAccount
 
 class ChatHistoryDownloadTask implements ChatHistoryTask {
   private readonly abortController = new AbortController()
@@ -154,9 +152,7 @@ class ChatHistoryDownloadTask implements ChatHistoryTask {
           from: minDate || new Date(),
           to: maxDate || new Date(),
         },
-        ownerAccountId: this.owner?.id,
-        ownerAccountPhone: this.owner?.phone,
-        ownershipState: this.owner ? 'owned' : 'legacy',
+        ...toStoredOwnership(ownershipForAccount(this.owner)),
       }
 
       const result = await saveChatExportBundle(chatExport, messages)
