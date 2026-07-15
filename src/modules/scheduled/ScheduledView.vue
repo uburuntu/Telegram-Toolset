@@ -13,6 +13,11 @@ import { useAccountsStore, useUiStore } from '@/stores'
 import type { ChatInfo } from '@/types'
 import { toUserFriendlyError } from '@/utils/error-messages'
 import { formatDateWithLocale } from '@/utils/locale-format'
+import {
+  getScheduledMessageSelectionKey,
+  groupScheduledMessageSelections,
+  type ScheduledMessageSelection,
+} from '@/utils/scheduled-message-selection'
 
 const { t } = useI18n()
 const accountsStore = useAccountsStore()
@@ -41,8 +46,9 @@ const currentProgress = ref<ScheduledMessagesProgress | null>(null)
 const floodWait = useFloodWait()
 
 // Selection for deletion
-const selectedMessages = ref<Set<string>>(new Set())
+const selectedMessages = ref<Map<string, ScheduledMessageSelection>>(new Map())
 let chatsRequestId = 0
+let scheduledRequestId = 0
 
 // Computed
 const filteredChats = computed(() => {
@@ -65,12 +71,14 @@ const progressPercentage = computed(() => {
 
 const allSelected = computed(() => {
   const allIds = scheduledData.value.flatMap((item) =>
-    item.messages.map((msg) => `${item.chat.id}-${msg.id}`),
+    item.messages.map((msg) => getScheduledMessageSelectionKey(item.chat.id, msg.id)),
   )
   return allIds.length > 0 && allIds.every((id) => selectedMessages.value.has(id))
 })
 
 onUnmounted(() => {
+  chatsRequestId++
+  scheduledRequestId++
   if (scheduledService.isLoading) {
     scheduledService.cancel()
   }
@@ -79,6 +87,8 @@ onUnmounted(() => {
 watch(
   () => accountsStore.activeAccountId,
   async () => {
+    chatsRequestId++
+    scheduledRequestId++
     scheduledService.cancel()
     mode.value = 'single'
     step.value = 'select-mode'
@@ -87,6 +97,7 @@ watch(
     searchQuery.value = ''
     scheduledData.value = []
     selectedMessages.value.clear()
+    isLoading.value = false
     error.value = ''
     currentProgress.value = null
     floodWait.reset()
@@ -121,30 +132,33 @@ function selectChat(chat: ChatInfo) {
 
 async function loadChats() {
   const requestId = ++chatsRequestId
+  const accountId = accountsStore.activeAccountId
   isLoading.value = true
   error.value = ''
 
   try {
     const loadedChats = await telegramService.getDialogs(100)
-    if (requestId !== chatsRequestId) {
+    if (requestId !== chatsRequestId || accountsStore.activeAccountId !== accountId) {
       return
     }
 
     chats.value = loadedChats
   } catch (loadError) {
-    if (requestId !== chatsRequestId) {
+    if (requestId !== chatsRequestId || accountsStore.activeAccountId !== accountId) {
       return
     }
 
     error.value = loadError instanceof Error ? loadError.message : t('common.error')
   } finally {
-    if (requestId === chatsRequestId) {
+    if (requestId === chatsRequestId && accountsStore.activeAccountId === accountId) {
       isLoading.value = false
     }
   }
 }
 
 async function loadChatScheduledMessages(chat: ChatInfo) {
+  const requestId = ++scheduledRequestId
+  const accountId = accountsStore.activeAccountId
   step.value = 'loading'
   isLoading.value = true
   error.value = ''
@@ -155,6 +169,10 @@ async function loadChatScheduledMessages(chat: ChatInfo) {
       chat.id,
       floodWait.callbacks,
     )
+    if (requestId !== scheduledRequestId || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     scheduledData.value = [
       {
         chat,
@@ -163,6 +181,10 @@ async function loadChatScheduledMessages(chat: ChatInfo) {
     ]
     step.value = 'view-messages'
   } catch (e) {
+    if (requestId !== scheduledRequestId || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     if (e instanceof DOMException && e.name === 'AbortError') {
       uiStore.showToast('info', t('scheduled.cancelled'))
     } else {
@@ -171,12 +193,16 @@ async function loadChatScheduledMessages(chat: ChatInfo) {
     }
     step.value = 'select-chat'
   } finally {
-    isLoading.value = false
-    floodWait.reset()
+    if (requestId === scheduledRequestId && accountsStore.activeAccountId === accountId) {
+      isLoading.value = false
+      floodWait.reset()
+    }
   }
 }
 
 async function loadAllScheduledMessages() {
+  const requestId = ++scheduledRequestId
+  const accountId = accountsStore.activeAccountId
   step.value = 'loading'
   error.value = ''
   currentProgress.value = null
@@ -186,7 +212,9 @@ async function loadAllScheduledMessages() {
     const results = await scheduledService.getAllScheduledMessages(
       {
         onProgress: (progress) => {
-          currentProgress.value = progress
+          if (requestId === scheduledRequestId && accountsStore.activeAccountId === accountId) {
+            currentProgress.value = progress
+          }
         },
         onError: (err, chatId) => {
           console.warn(`Failed to fetch scheduled messages for chat ${chatId}:`, err)
@@ -195,10 +223,17 @@ async function loadAllScheduledMessages() {
       },
       { chatLimit: chatLimit.value },
     )
+    if (requestId !== scheduledRequestId || accountsStore.activeAccountId !== accountId) {
+      return
+    }
 
     scheduledData.value = results
     step.value = 'view-messages'
   } catch (e) {
+    if (requestId !== scheduledRequestId || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     if ((e as Error).message === 'Operation cancelled') {
       uiStore.showToast('info', t('scheduled.cancelled'))
       step.value = 'configure-all'
@@ -208,8 +243,10 @@ async function loadAllScheduledMessages() {
       step.value = 'configure-all'
     }
   } finally {
-    currentProgress.value = null
-    floodWait.reset()
+    if (requestId === scheduledRequestId && accountsStore.activeAccountId === accountId) {
+      currentProgress.value = null
+      floodWait.reset()
+    }
   }
 }
 
@@ -234,11 +271,11 @@ function goBack() {
 }
 
 function toggleMessageSelection(chatId: bigint, messageId: number) {
-  const key = `${chatId}-${messageId}`
+  const key = getScheduledMessageSelectionKey(chatId, messageId)
   if (selectedMessages.value.has(key)) {
     selectedMessages.value.delete(key)
   } else {
-    selectedMessages.value.add(key)
+    selectedMessages.value.set(key, { chatId, messageId })
   }
 }
 
@@ -248,9 +285,30 @@ function toggleAllSelection() {
   } else {
     scheduledData.value.forEach((item) => {
       item.messages.forEach((msg) => {
-        selectedMessages.value.add(`${item.chat.id}-${msg.id}`)
+        selectedMessages.value.set(getScheduledMessageSelectionKey(item.chat.id, msg.id), {
+          chatId: item.chat.id,
+          messageId: msg.id,
+        })
       })
     })
+  }
+}
+
+function removeDeletedMessages(chatId: bigint, messageIds: number[]): void {
+  const deletedIds = new Set(messageIds)
+  scheduledData.value = scheduledData.value
+    .map((item) =>
+      item.chat.id === chatId
+        ? {
+            ...item,
+            messages: item.messages.filter((message) => !deletedIds.has(message.id)),
+          }
+        : item,
+    )
+    .filter((item) => item.messages.length > 0)
+
+  for (const messageId of messageIds) {
+    selectedMessages.value.delete(getScheduledMessageSelectionKey(chatId, messageId))
   }
 }
 
@@ -260,45 +318,38 @@ async function deleteSelectedMessages() {
   const confirmed = confirm(t('scheduled.confirmDelete', { count: selectedMessages.value.size }))
   if (!confirmed) return
 
+  const requestId = ++scheduledRequestId
+  const accountId = accountsStore.activeAccountId
   isLoading.value = true
 
   try {
-    // Group messages by chat
-    const messagesByChat = new Map<bigint, number[]>()
-
-    for (const key of selectedMessages.value) {
-      const [chatIdStr, msgIdStr] = key.split('-')
-      const chatId = BigInt(chatIdStr!)
-      const msgId = parseInt(msgIdStr!, 10)
-
-      if (!messagesByChat.has(chatId)) {
-        messagesByChat.set(chatId, [])
-      }
-      messagesByChat.get(chatId)!.push(msgId)
-    }
+    const messagesByChat = groupScheduledMessageSelections(selectedMessages.value.values())
 
     // Delete from each chat
     for (const [chatId, messageIds] of messagesByChat) {
+      if (requestId !== scheduledRequestId || accountsStore.activeAccountId !== accountId) {
+        return
+      }
       await scheduledService.deleteScheduledMessages(chatId, messageIds)
+      if (requestId !== scheduledRequestId || accountsStore.activeAccountId !== accountId) {
+        return
+      }
+
+      // Reconcile each confirmed chat immediately so a later failure cannot re-issue it.
+      removeDeletedMessages(chatId, messageIds)
     }
-
-    // Remove deleted messages from local state
-    scheduledData.value = scheduledData.value
-      .map((item) => ({
-        ...item,
-        messages: item.messages.filter(
-          (msg) => !selectedMessages.value.has(`${item.chat.id}-${msg.id}`),
-        ),
-      }))
-      .filter((item) => item.messages.length > 0)
-
-    selectedMessages.value.clear()
     uiStore.showToast('success', t('scheduled.deleteSuccess'))
   } catch (e) {
+    if (requestId !== scheduledRequestId || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     const friendlyError = toUserFriendlyError(e)
     uiStore.showToast('error', friendlyError.message)
   } finally {
-    isLoading.value = false
+    if (requestId === scheduledRequestId && accountsStore.activeAccountId === accountId) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -694,7 +745,9 @@ function formatScheduledDate(date: Date): string {
                 <div class="flex items-start gap-3">
                   <input
                     type="checkbox"
-                    :checked="selectedMessages.has(`${item.chat.id}-${msg.id}`)"
+                    :checked="
+                      selectedMessages.has(getScheduledMessageSelectionKey(item.chat.id, msg.id))
+                    "
                     @change="toggleMessageSelection(item.chat.id, msg.id)"
                     class="mt-1 rounded text-blue-600"
                   />

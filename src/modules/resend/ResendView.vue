@@ -52,7 +52,9 @@ const floodWaitRemaining = ref(0)
 // Preview sample messages
 const sampleMessages = ref<DeletedMessage[]>([])
 let sampleBackupRequestId = 0
+let backupsRequestId = 0
 let chatsRequestId = 0
+let resendRequestId = 0
 
 // Generate preview HTML based on current config
 const previewHtml = computed(() => {
@@ -129,14 +131,29 @@ const sentCount = computed(() => {
 const hasSendableContent = computed(() => includeMedia.value || includeText.value)
 
 async function loadBackups() {
+  const requestId = ++backupsRequestId
+  const account = accountsStore.activeAccount
+  const accountId = account?.id ?? null
   backupsStore.setLoading(true)
+  error.value = ''
+
   try {
-    const backups = await backupManager.listBackupsForAccount(accountsStore.activeAccount)
+    const backups = await backupManager.listBackupsForAccount(account)
+    if (requestId !== backupsRequestId || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     backupsStore.setBackups(backups)
   } catch (e) {
+    if (requestId !== backupsRequestId || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     error.value = e instanceof Error ? e.message : 'Failed to load backups'
   } finally {
-    backupsStore.setLoading(false)
+    if (requestId === backupsRequestId && accountsStore.activeAccountId === accountId) {
+      backupsStore.setLoading(false)
+    }
   }
 }
 
@@ -146,6 +163,12 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  sampleBackupRequestId++
+  backupsRequestId++
+  chatsRequestId++
+  resendRequestId++
+  backupsStore.setLoading(false)
+
   // Cancel any in-progress resend on unmount
   if (resendService.isResending) {
     resendService.cancel()
@@ -155,13 +178,21 @@ onUnmounted(() => {
 watch(
   () => accountsStore.activeAccountId,
   async () => {
+    resendRequestId++
     if (resendService.isResending) {
       resendService.cancel()
     }
 
-    step.value = selectedBackup.value ? 'select-target' : 'select-backup'
+    sampleBackupRequestId++
+    chatsRequestId++
+    step.value = 'select-backup'
+    selectedBackup.value = null
     selectedTarget.value = null
+    sampleMessages.value = []
     chats.value = []
+    isLoading.value = false
+    backupsStore.setBackups([])
+    backupsStore.clearSelection()
     searchQuery.value = ''
     error.value = ''
     currentProgress.value = null
@@ -169,20 +200,6 @@ watch(
     floodWaitRemaining.value = 0
 
     await loadBackups()
-
-    if (
-      selectedBackup.value &&
-      !backupsStore.backups.some((backup) => backup.id === selectedBackup.value?.id)
-    ) {
-      selectedBackup.value = null
-      step.value = 'select-backup'
-    }
-
-    if (accountsStore.activeAccount?.type !== 'user' || !selectedBackup.value) {
-      return
-    }
-
-    await loadChats()
   },
 )
 
@@ -195,23 +212,24 @@ function selectBackup(backup: Backup) {
 
 async function loadChats() {
   const requestId = ++chatsRequestId
+  const accountId = accountsStore.activeAccountId
   isLoading.value = true
   error.value = ''
   try {
     const loadedChats = await telegramService.getDialogs(100)
-    if (requestId !== chatsRequestId) {
+    if (requestId !== chatsRequestId || accountsStore.activeAccountId !== accountId) {
       return
     }
 
     chats.value = loadedChats
   } catch (loadError) {
-    if (requestId !== chatsRequestId) {
+    if (requestId !== chatsRequestId || accountsStore.activeAccountId !== accountId) {
       return
     }
 
     error.value = loadError instanceof Error ? loadError.message : t('common.error')
   } finally {
-    if (requestId === chatsRequestId) {
+    if (requestId === chatsRequestId && accountsStore.activeAccountId === accountId) {
       isLoading.value = false
     }
   }
@@ -254,11 +272,41 @@ function confirmAndStart() {
 }
 
 function cancelResend() {
+  resendRequestId++
   resendService.cancel()
+  currentProgress.value = null
+  floodWaitSeconds.value = 0
+  floodWaitRemaining.value = 0
+  step.value = 'configure'
+  uiStore.showToast('info', t('export.cancelled'))
 }
 
 async function startResend() {
-  if (!selectedBackup.value || !selectedTarget.value || !hasSendableContent.value) return
+  const backupSummary = selectedBackup.value
+  const target = selectedTarget.value
+  const accountId = accountsStore.activeAccountId
+  if (!backupSummary || !target || !accountId || !hasSendableContent.value) return
+
+  const requestId = ++resendRequestId
+  const isCurrentResend = () =>
+    requestId === resendRequestId && accountsStore.activeAccountId === accountId
+  const config: ResendConfig = {
+    targetChatId: target.id,
+    targetChatTitle: target.title,
+    backupId: backupSummary.id,
+    includeMedia: includeMedia.value,
+    includeText: includeText.value,
+    showSenderName: showSenderName.value,
+    showSenderUsername: showSenderUsername.value,
+    showDate: showDate.value,
+    showReplyLink: showReplyLink.value,
+    useHiddenReplyLinks: useHiddenReplyLinks.value,
+    timezone: timezone.value,
+    enableBatching: enableBatching.value,
+    batchMaxMessages: batchMaxMessages.value,
+    batchTimeWindowMinutes: batchTimeWindowMinutes.value,
+    batchMaxMessageLength: batchMaxMessageLength.value,
+  }
 
   step.value = 'sending'
   error.value = ''
@@ -267,57 +315,50 @@ async function startResend() {
 
   try {
     // Load full backup with messages
-    const backup = await backupManager.getBackup(selectedBackup.value.id)
+    const backup = await backupManager.getBackup(backupSummary.id)
+    if (!isCurrentResend()) return
+
     if (!backup) {
       throw new Error('Backup not found')
-    }
-
-    // Build config
-    const config: ResendConfig = {
-      targetChatId: selectedTarget.value.id,
-      targetChatTitle: selectedTarget.value.title,
-      backupId: selectedBackup.value.id,
-      includeMedia: includeMedia.value,
-      includeText: includeText.value,
-      showSenderName: showSenderName.value,
-      showSenderUsername: showSenderUsername.value,
-      showDate: showDate.value,
-      showReplyLink: showReplyLink.value,
-      useHiddenReplyLinks: useHiddenReplyLinks.value,
-      timezone: timezone.value,
-      enableBatching: enableBatching.value,
-      batchMaxMessages: batchMaxMessages.value,
-      batchTimeWindowMinutes: batchTimeWindowMinutes.value,
-      batchMaxMessageLength: batchMaxMessageLength.value,
     }
 
     // Start resend with progress tracking
     const result = await resendService.resendMessages(backup.messages, backup.mediaBlobs, config, {
       onProgress: (progress) => {
-        currentProgress.value = { ...progress }
+        if (isCurrentResend()) {
+          currentProgress.value = { ...progress }
+        }
       },
       onFloodWait: (seconds) => {
+        if (!isCurrentResend()) return
+
         floodWaitSeconds.value = seconds
         floodWaitRemaining.value = seconds
         uiStore.showToast('warning', t('export.rateLimited', { seconds }))
       },
       onFloodWaitCountdown: (remaining) => {
+        if (!isCurrentResend()) return
+
         floodWaitRemaining.value = remaining
         if (remaining === 0) {
           floodWaitSeconds.value = 0
         }
       },
       onError: (err, messageId) => {
+        if (!isCurrentResend()) return
         console.error(`Failed to send message ${messageId}:`, err)
       },
     })
+    if (!isCurrentResend()) return
 
     step.value = 'complete'
     uiStore.showToast(
       'success',
-      t('resend.successMessage', { count: result.sentCount, chat: selectedTarget.value.title }),
+      t('resend.successMessage', { count: result.sentCount, chat: target.title }),
     )
   } catch (e) {
+    if (!isCurrentResend()) return
+
     if (e instanceof DOMException && e.name === 'AbortError') {
       uiStore.showToast('info', t('export.cancelled'))
       step.value = 'configure'
@@ -361,6 +402,20 @@ function formatBytes(bytes: number): string {
           class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"
         ></div>
         <p class="text-gray-600 dark:text-gray-400">{{ t('resend.loadingBackups') }}</p>
+      </div>
+
+      <div
+        v-else-if="error"
+        class="p-4 rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30"
+        role="alert"
+      >
+        <p class="text-sm text-red-700 dark:text-red-300 mb-3">{{ error }}</p>
+        <button
+          @click="loadBackups"
+          class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100"
+        >
+          {{ t('common.tryAgain') }}
+        </button>
       </div>
 
       <div v-else-if="backupsStore.backupCount === 0" class="text-center py-12">
@@ -432,10 +487,25 @@ function formatBytes(bytes: number): string {
         />
       </div>
 
-      <div v-if="isLoading" class="text-center py-12">
+      <div v-if="isLoading" class="text-center py-12" role="status">
         <div
           class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto"
         ></div>
+        <span class="sr-only">{{ t('common.loading') }}</span>
+      </div>
+
+      <div
+        v-else-if="error"
+        class="p-4 rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30"
+        role="alert"
+      >
+        <p class="text-sm text-red-700 dark:text-red-300 mb-3">{{ error }}</p>
+        <button
+          @click="loadChats"
+          class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100"
+        >
+          {{ t('common.tryAgain') }}
+        </button>
       </div>
 
       <div v-else class="space-y-2">

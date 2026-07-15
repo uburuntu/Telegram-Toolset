@@ -177,4 +177,71 @@ describe('BackupsView', () => {
     expect(uiStore.toasts[0]?.message).toBe('Backup assigned to this account.')
     expect(backupsStore.backups[0]?.ownershipState).toBe('owned')
   })
+
+  it('shows load failures instead of a valid empty state', async () => {
+    vi.mocked(backupManager.listBackupsForAccount).mockRejectedValue(
+      new Error('Storage is unavailable'),
+    )
+    vi.mocked(backupManager.listArchivedBackups).mockResolvedValue([])
+
+    const wrapper = mount(BackupsView, {
+      global: {
+        plugins: [pinia, i18n],
+        stubs: {
+          RouterLink: {
+            template: '<a><slot /></a>',
+          },
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Storage is unavailable')
+    expect(wrapper.text()).toContain('Try Again')
+    expect(wrapper.text()).not.toContain('No backups yet')
+  })
+
+  it('discards a stale account load that resolves after a newer account', async () => {
+    const accountsStore = useAccountsStore()
+    const secondAccount = createUserAccount({ id: 'acct-2', phone: '+1987654321' })
+    accountsStore.accounts.push(secondAccount)
+
+    let resolveFirst!: (backups: Backup[]) => void
+    let resolveSecond!: (backups: Backup[]) => void
+    const firstLoad = new Promise<Backup[]>((resolve) => {
+      resolveFirst = resolve
+    })
+    const secondLoad = new Promise<Backup[]>((resolve) => {
+      resolveSecond = resolve
+    })
+
+    vi.mocked(backupManager.listBackupsForAccount).mockImplementation((account) =>
+      account?.id === secondAccount.id ? secondLoad : firstLoad,
+    )
+    vi.mocked(backupManager.listArchivedBackups).mockResolvedValue([])
+
+    const wrapper = mount(BackupsView, {
+      global: {
+        plugins: [pinia, i18n],
+        stubs: {
+          RouterLink: {
+            template: '<a><slot /></a>',
+          },
+        },
+      },
+    })
+
+    accountsStore.activeAccountId = secondAccount.id
+    await flushPromises()
+
+    resolveSecond([createBackup({ id: 'second-backup', chatTitle: 'Second account' })])
+    await flushPromises()
+    resolveFirst([createBackup({ id: 'first-backup', chatTitle: 'First account' })])
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Second account')
+    expect(wrapper.text()).not.toContain('First account')
+    expect(useBackupsStore().backups.map((backup) => backup.id)).toEqual(['second-backup'])
+  })
 })
