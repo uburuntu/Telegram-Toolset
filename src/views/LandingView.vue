@@ -68,8 +68,10 @@ function handleModuleClick(module: ToolModule): void {
       router.push(module.route.path)
     } else {
       // Need to add a new account
-      const requiredType = module.accountType === 'any' ? 'user' : module.accountType
-      uiStore.openModal('LoginModal', { requiredType, targetRoute: module.route.path })
+      uiStore.openModal('LoginModal', {
+        requiredType: module.accountType,
+        targetRoute: module.route.path,
+      })
     }
   } else {
     // Already have compatible active account

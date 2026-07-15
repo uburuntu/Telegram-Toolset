@@ -84,6 +84,10 @@ class TelegramService {
   // Race-free initialization orchestrator: if an account switch/init is in-flight, callers can await this.
   private _activeAccountInitPromise: Promise<boolean> | null = null
   private _activeAccountInitKey: string | null = null
+  private _activeSessionAccountId: string | null = null
+  private _accountTransitionGeneration = 0
+  private _accountTransitionPromise: Promise<void> | null = null
+  private _completeAccountTransition: (() => void) | null = null
 
   constructor() {
     // IMPORTANT: This service supports multiple accounts. We intentionally do NOT
@@ -296,28 +300,35 @@ class TelegramService {
           }
           this.saveSession()
           await this.persistUserSession(accountId)
+          this._activeSessionAccountId = accountId ?? (await this.getActiveUserAccountId()) ?? null
           this.setConnectionState('connected')
           return true
         }
       }
 
       this.currentUser = null
+      this._activeSessionAccountId = null
       this.setConnectionState('disconnected')
       return false
     } catch (error) {
+      this._activeSessionAccountId = null
       this.setConnectionState('error')
       throw error
     }
   }
 
   private async getConnectedClient(): Promise<TelegramClient> {
-    // Wait for any in-flight account initialization to complete first (race-free orchestration).
+    // Wait for a synchronously installed account-transition barrier and the resulting init.
     await this.waitForActiveAccountInit()
+    const expectedAccountId = await this.getActiveUserAccountId()
+    if (!expectedAccountId) {
+      throw new Error('An active Telegram user account is required.')
+    }
 
-    // Try to restore session if client is null but we have stored credentials
-    if (!this.client) {
+    // Never let a newly-selected account reuse the previous account's still-connected client.
+    if (!this.client || this._activeSessionAccountId !== expectedAccountId) {
       const restored = await this.tryRestoreSession()
-      if (!restored || !this.client) {
+      if (!restored || !this.client || this._activeSessionAccountId !== expectedAccountId) {
         await this.markActiveAccountNeedsLogin()
         throw new Error('Saved session could not be restored. Please log in again.')
       }
@@ -337,6 +348,31 @@ class TelegramService {
       throw new Error('Saved session could not be restored. Please log in again.')
     }
     return this.client
+  }
+
+  /**
+   * Install a barrier synchronously when account-affine session state is about to change.
+   * Gateway calls remain blocked until the latest transition token completes.
+   */
+  beginActiveAccountTransition(): number {
+    const generation = ++this._accountTransitionGeneration
+    if (!this._accountTransitionPromise) {
+      this._accountTransitionPromise = new Promise<void>((resolve) => {
+        this._completeAccountTransition = resolve
+      })
+    }
+    return generation
+  }
+
+  completeActiveAccountTransition(generation: number): void {
+    if (generation !== this._accountTransitionGeneration) {
+      return
+    }
+
+    const complete = this._completeAccountTransition
+    this._accountTransitionPromise = null
+    this._completeAccountTransition = null
+    complete?.()
   }
 
   /**
@@ -407,7 +443,7 @@ class TelegramService {
     apiId: number
     apiHash: string
   }): Promise<boolean> {
-    const sessionKey = `${data.apiId}:${data.sessionString}`
+    const sessionKey = `${data.accountId ?? ''}:${data.apiId}:${data.sessionString}`
 
     while (this._activeAccountInitPromise) {
       if (this._activeAccountInitKey === sessionKey) {
@@ -453,8 +489,17 @@ class TelegramService {
    * Useful for APIs that need the client to be ready before proceeding.
    */
   async waitForActiveAccountInit(): Promise<void> {
-    if (this._activeAccountInitPromise) {
-      await this._activeAccountInitPromise
+    while (this._accountTransitionPromise || this._activeAccountInitPromise) {
+      const transition = this._accountTransitionPromise
+      if (transition) {
+        await transition
+        continue
+      }
+
+      const initialization = this._activeAccountInitPromise
+      if (initialization) {
+        await initialization
+      }
     }
   }
 
@@ -740,6 +785,7 @@ class TelegramService {
     } finally {
       this.client = null
       this.currentUser = null
+      this._activeSessionAccountId = null
       this.entityCache.clear()
       this.setConnectionState('disconnected')
     }
@@ -1099,19 +1145,16 @@ class TelegramService {
     chatId: bigint,
     options: AdminLogIterOptions = {},
   ): AsyncGenerator<DeletedMessage> {
-    if (!this.client) {
-      throw new Error('Client not connected')
-    }
-
     // Validate chat first
     const validation = await this.validateChatForExport(chatId)
     if (!validation.canExport) {
       throw new Error(validation.errorMessage || 'Cannot export from this chat')
     }
 
+    const client = await this.getConnectedClient()
     // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-    const entity = await this.client.getEntity(chatId)
-    const inputChannel = await this.client.getInputEntity(entity)
+    const entity = await client.getEntity(chatId)
+    const inputChannel = await client.getInputEntity(entity)
 
     // Prepare date filters (convert to timestamps for comparison)
     const minTimestamp = options.minDate ? options.minDate.getTime() : null
@@ -1129,7 +1172,7 @@ class TelegramService {
 
     // Paginate through admin log
     while (totalYielded < maxTotal) {
-      const result = await this.client.invoke(
+      const result = await client.invoke(
         new Api.channels.GetAdminLog({
           channel: typedInputChannel,
           q: '',
@@ -1548,12 +1591,10 @@ class TelegramService {
    * Forward a message to a chat
    */
   async forwardMessage(fromChatId: bigint, toChatId: bigint, messageId: number): Promise<void> {
-    if (!this.client) {
-      throw new Error('Client not connected')
-    }
+    const client = await this.getConnectedClient()
 
     // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-    await this.client.forwardMessages(toChatId, {
+    await client.forwardMessages(toChatId, {
       fromPeer: fromChatId,
       messages: [messageId],
     })

@@ -2,8 +2,9 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { resendService } from '@/services/resend/resend-service'
 import type { BotApiUser } from '@/services/telegram/bot-api'
-import { getBotInfo, isValidTokenFormat, maskBotToken } from '@/services/telegram/bot-api'
+import { getBotInfo, isValidTokenFormat } from '@/services/telegram/bot-api'
 import { telegramService } from '@/services/telegram/client'
 import { useAccountsStore, useUiStore } from '@/stores'
 import type { AccountType, SavedAccount, UserInfo } from '@/types'
@@ -85,6 +86,7 @@ const codeInputRef = ref<HTMLInputElement | null>(null)
 const passwordInputRef = ref<HTMLInputElement | null>(null)
 const botTokenInputRef = ref<HTMLInputElement | null>(null)
 let previousFocusedElement: HTMLElement | null = null
+let isModalActive = true
 
 // User account fields
 const apiId = ref('')
@@ -96,7 +98,7 @@ const passwordHint = ref<string | undefined>(undefined)
 
 // Bot fields
 const botToken = ref('')
-const botTokenDisplay = ref('') // Masked version for display
+const botTokenDisplay = ref('') // Input value; visual masking is provided by type="password".
 const botInfo = ref<BotApiUser | null>(null)
 const isValidatingToken = ref(false)
 const tokenValidated = ref(false)
@@ -105,6 +107,9 @@ const existingBotAccount = ref<SavedAccount | null>(null)
 const userAuthPromise = ref<Promise<UserInfo> | null>(null)
 let userAuthAttemptId = 0
 let botValidationRequestId = 0
+let accountPersistencePromise: Promise<unknown> | null = null
+let closePromise: Promise<void> | null = null
+let userSessionTransitionGeneration: number | null = null
 
 function seedReplacementUserFields(): void {
   if (activeTab.value !== 'user' || !replacementUserAccount.value) {
@@ -211,6 +216,31 @@ function invalidateUserAuth(): void {
 function invalidateBotTokenValidation(): void {
   botValidationRequestId += 1
   isValidatingToken.value = false
+}
+
+function beginUserSessionTransition(): void {
+  if (userSessionTransitionGeneration === null) {
+    userSessionTransitionGeneration = telegramService.beginActiveAccountTransition()
+  }
+}
+
+function completeUserSessionTransition(): void {
+  if (userSessionTransitionGeneration === null) {
+    return
+  }
+
+  telegramService.completeActiveAccountTransition(userSessionTransitionGeneration)
+  userSessionTransitionGeneration = null
+}
+
+function trackAccountPersistence<T>(persistence: Promise<T>): Promise<T> {
+  const trackedPersistence = persistence.finally(() => {
+    if (accountPersistencePromise === trackedPersistence) {
+      accountPersistencePromise = null
+    }
+  })
+  accountPersistencePromise = trackedPersistence
+  return trackedPersistence
 }
 
 function buildDescribedBy(...ids: Array<string | undefined>): string | undefined {
@@ -333,65 +363,97 @@ function handleRecoverableAuthError(authError: unknown, stage: RecoverableAuthSt
   step.value = 'code'
 }
 
-async function finalizeUserAuth(user: UserInfo): Promise<void> {
+async function persistUserAuth(
+  user: UserInfo,
+  submittedPhone: string,
+): Promise<{
+  accountId: string
+  successMessageKey: 'auth.reloginSuccess' | 'auth.success'
+}> {
   const sessionString = telegramService.getSessionString()
-  let accountId: string
+  const authenticatedPhone = user.phone || submittedPhone
+  const replacementAccount = replacementUserAccount.value
 
-  if (replacementUserAccount.value) {
-    await accountsStore.updateAccount(replacementUserAccount.value.id, {
-      label:
-        user.firstName || replacementUserAccount.value.label || `User ${phone.value.slice(-4)}`,
-      firstName: user.firstName || replacementUserAccount.value.firstName,
+  if (replacementAccount) {
+    await accountsStore.updateAccount(replacementAccount.id, {
+      label: user.firstName || replacementAccount.label || `User ${submittedPhone.slice(-4)}`,
+      firstName: user.firstName || replacementAccount.firstName,
       username: user.username,
-      phone: phone.value,
+      phone: replacementAccount.phone || authenticatedPhone,
       sessionString,
     })
-    accountId = replacementUserAccount.value.id
-    uiStore.showToast('success', t('auth.reloginSuccess'))
-  } else {
-    const newAccount = await accountsStore.addAccount({
-      type: 'user',
-      label: user.firstName || `User ${phone.value.slice(-4)}`,
-      firstName: user.firstName,
-      username: user.username,
-      phone: phone.value,
-      sessionString,
-    })
-    accountId = newAccount.id
-    uiStore.showToast('success', t('auth.success'))
+    return {
+      accountId: replacementAccount.id,
+      successMessageKey: 'auth.reloginSuccess',
+    }
   }
 
-  accountsStore.markAccountSessionReady(accountId)
-  accountsStore.setActiveAccount(accountId)
-  pendingSubmissionStep.value = null
-  step.value = 'success'
-
-  clearSuccessCloseTimer()
-  successCloseTimer = setTimeout(() => {
-    handleClose()
-    if (props.targetRoute) {
-      router.push(props.targetRoute)
-    }
-  }, 1000)
+  const newAccount = await accountsStore.addAccount({
+    type: 'user',
+    label: user.firstName || `User ${submittedPhone.slice(-4)}`,
+    firstName: user.firstName,
+    username: user.username,
+    phone: authenticatedPhone,
+    sessionString,
+  })
+  return { accountId: newAccount.id, successMessageKey: 'auth.success' }
 }
 
-async function observeUserAuth(pendingAuth: Promise<UserInfo>, attemptId: number): Promise<void> {
+async function observeUserAuth(
+  pendingAuth: Promise<UserInfo>,
+  attemptId: number,
+  submittedPhone: string,
+): Promise<void> {
   try {
     const user = await pendingAuth
-    if (userAuthPromise.value !== pendingAuth || userAuthAttemptId !== attemptId) {
+    if (
+      !isModalActive ||
+      userAuthPromise.value !== pendingAuth ||
+      userAuthAttemptId !== attemptId
+    ) {
       return
     }
 
+    const { accountId, successMessageKey } = await trackAccountPersistence(
+      persistUserAuth(user, submittedPhone),
+    )
+    if (
+      !isModalActive ||
+      userAuthPromise.value !== pendingAuth ||
+      userAuthAttemptId !== attemptId
+    ) {
+      return
+    }
+
+    accountsStore.markAccountSessionReady(accountId)
+    accountsStore.setActiveAccount(accountId)
+    pendingSubmissionStep.value = null
+    step.value = 'success'
+    uiStore.showToast('success', t(successMessageKey))
+
+    clearSuccessCloseTimer()
+    successCloseTimer = setTimeout(() => {
+      void handleClose().then(() => {
+        if (props.targetRoute) {
+          return router.push(props.targetRoute)
+        }
+      })
+    }, 1000)
     invalidateUserAuth()
-    await finalizeUserAuth(user)
   } catch (authError) {
-    if (userAuthPromise.value !== pendingAuth || userAuthAttemptId !== attemptId) {
+    if (
+      !isModalActive ||
+      userAuthPromise.value !== pendingAuth ||
+      userAuthAttemptId !== attemptId
+    ) {
       return
     }
 
     invalidateUserAuth()
     pendingSubmissionStep.value = null
     error.value = getErrorMessage(authError, 'auth.errors.authenticationFailed')
+    step.value = 'phone'
+    completeUserSessionTransition()
   }
 }
 
@@ -422,9 +484,16 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  isModalActive = false
+  invalidateUserAuth()
+  invalidateBotTokenValidation()
   clearSuccessCloseTimer()
   if (step.value !== 'success') {
-    void telegramService.abortCurrentUserAuth()
+    void telegramService.abortCurrentUserAuth().finally(() => {
+      completeUserSessionTransition()
+    })
+  } else {
+    completeUserSessionTransition()
   }
   previousFocusedElement?.focus()
 })
@@ -437,9 +506,9 @@ async function handleTokenInput(event: Event): Promise<void> {
   // Store the real token
   botToken.value = value
 
-  // If it looks like a valid token, mask it and validate
+  // The password input handles visual masking; keep the real value so edits remain valid.
   if (isValidTokenFormat(value)) {
-    botTokenDisplay.value = maskBotToken(value)
+    botTokenDisplay.value = value
     await validateBotToken(value)
   } else {
     invalidateBotTokenValidation()
@@ -458,7 +527,7 @@ async function handleTokenPaste(event: ClipboardEvent): Promise<void> {
   if (isValidTokenFormat(pastedText)) {
     event.preventDefault()
     botToken.value = pastedText
-    botTokenDisplay.value = maskBotToken(pastedText)
+    botTokenDisplay.value = pastedText
     await validateBotToken(pastedText)
   }
 }
@@ -516,33 +585,57 @@ async function handleCredentialsSubmit(): Promise<void> {
   error.value = ''
 
   const id = parseInt(apiId.value, 10)
+  const submittedApiHash = apiHash.value
   if (Number.isNaN(id) || id <= 0) {
     error.value = t('auth.validation.apiId')
     return
   }
 
-  if (!apiHash.value || apiHash.value.length < 10) {
+  if (!submittedApiHash || submittedApiHash.length < 10) {
     error.value = t('auth.validation.apiHash')
     return
   }
 
+  pendingSubmissionStep.value = 'credentials'
   try {
-    await accountsStore.setApiCredentials({ apiId: id, apiHash: apiHash.value })
+    await trackAccountPersistence(
+      accountsStore.setApiCredentials({ apiId: id, apiHash: submittedApiHash }),
+    )
+    if (!isModalActive) {
+      return
+    }
+
     step.value = 'phone'
   } catch (e) {
-    error.value = e instanceof Error ? e.message : t('common.error')
+    if (isModalActive) {
+      error.value = e instanceof Error ? e.message : t('common.error')
+    }
+  } finally {
+    if (pendingSubmissionStep.value === 'credentials') {
+      pendingSubmissionStep.value = null
+    }
   }
 }
 
 async function handlePhoneSubmit(): Promise<void> {
   error.value = ''
-  if (!phone.value || phone.value.length < 5) {
+  const submittedPhone = phone.value
+  const submittedApiId = parseInt(apiId.value, 10)
+  const submittedApiHash = apiHash.value
+  if (!submittedPhone || submittedPhone.length < 5) {
     error.value = t('auth.validation.phone')
     return
   }
 
+  const attemptId = ++userAuthAttemptId
+  beginUserSessionTransition()
   pendingSubmissionStep.value = 'phone'
   try {
+    await resendService.cancelAndWait()
+    if (!isModalActive || attemptId !== userAuthAttemptId) {
+      return
+    }
+
     // IMPORTANT: Always start a *fresh* session for a new phone login.
     // Otherwise we can accidentally reuse another account's existing session and appear "already logged in".
     if (typeof (telegramService as any).resetForNewUserLogin === 'function') {
@@ -556,10 +649,15 @@ async function handlePhoneSubmit(): Promise<void> {
       }
       telegramService.restoreSession('')
     }
+    if (!isModalActive || attemptId !== userAuthAttemptId) {
+      return
+    }
 
     // Initialize the Telegram client (but don't connect yet - client.start() does that).
-    const id = parseInt(apiId.value, 10)
-    await telegramService.initClient(id, apiHash.value)
+    await telegramService.initClient(submittedApiId, submittedApiHash)
+    if (!isModalActive || attemptId !== userAuthAttemptId) {
+      return
+    }
 
     // Start auth flow - client.start() handles connect + sendCode + waitForCode internally
     // We run this in the background and move to code step
@@ -567,13 +665,17 @@ async function handlePhoneSubmit(): Promise<void> {
     code.value = ''
     password.value = ''
 
-    const pendingAuth = telegramService.startUserAuth(phone.value, {
+    const pendingAuth = telegramService.startUserAuth(submittedPhone, {
       onCodeNeeded: () => {
+        if (!isModalActive || attemptId !== userAuthAttemptId) return
+
         availableAuthInputStage.value = 'code'
         step.value = 'code'
         pendingSubmissionStep.value = null
       },
       onPasswordNeeded: (hint) => {
+        if (!isModalActive || attemptId !== userAuthAttemptId) return
+
         passwordHint.value = hint
         password.value = ''
         availableAuthInputStage.value = 'password'
@@ -581,15 +683,19 @@ async function handlePhoneSubmit(): Promise<void> {
         pendingSubmissionStep.value = null
       },
       onRecoverableError: (authError, stage) => {
-        handleRecoverableAuthError(authError, stage)
+        if (isModalActive && attemptId === userAuthAttemptId) {
+          handleRecoverableAuthError(authError, stage)
+        }
       },
     })
 
-    const attemptId = ++userAuthAttemptId
     userAuthPromise.value = pendingAuth
-    void observeUserAuth(pendingAuth, attemptId)
+    void observeUserAuth(pendingAuth, attemptId, submittedPhone)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : t('auth.errors.sendCodeFailed')
+    if (isModalActive && attemptId === userAuthAttemptId) {
+      error.value = e instanceof Error ? e.message : t('auth.errors.sendCodeFailed')
+    }
+    completeUserSessionTransition()
   } finally {
     if (pendingSubmissionStep.value === 'phone') {
       pendingSubmissionStep.value = null
@@ -656,55 +762,69 @@ async function handleBotTokenSubmit(): Promise<void> {
     return
   }
 
+  const submissionId = botValidationRequestId
+  const info = botInfo.value
+  const existingAccount = existingBotAccount.value
+  const token = botToken.value
   pendingSubmissionStep.value = 'token'
   try {
     let accountId: string
 
-    if (existingBotAccount.value) {
+    if (existingAccount) {
       // Update existing bot account
-      await accountsStore.updateAccount(existingBotAccount.value.id, {
-        label: botInfo.value.first_name,
-        firstName: botInfo.value.first_name,
-        username: botInfo.value.username,
-        botToken: botToken.value,
-        canJoinGroups: botInfo.value.can_join_groups,
-        canReadAllGroupMessages: botInfo.value.can_read_all_group_messages,
-        supportsInlineQueries: botInfo.value.supports_inline_queries,
-        hasMainWebApp: botInfo.value.has_main_web_app,
-      })
-      accountId = existingBotAccount.value.id
-      uiStore.showToast('success', t('auth.success'))
+      await trackAccountPersistence(
+        accountsStore.updateAccount(existingAccount.id, {
+          label: info.first_name,
+          firstName: info.first_name,
+          username: info.username,
+          botToken: token,
+          canJoinGroups: info.can_join_groups,
+          canReadAllGroupMessages: info.can_read_all_group_messages,
+          supportsInlineQueries: info.supports_inline_queries,
+          hasMainWebApp: info.has_main_web_app,
+        }),
+      )
+      accountId = existingAccount.id
     } else {
       // Add new bot account
-      const newAccount = await accountsStore.addAccount({
-        type: 'bot',
-        label: botInfo.value.first_name,
-        firstName: botInfo.value.first_name,
-        username: botInfo.value.username,
-        botToken: botToken.value,
-        botTelegramId: botInfo.value.id,
-        canJoinGroups: botInfo.value.can_join_groups,
-        canReadAllGroupMessages: botInfo.value.can_read_all_group_messages,
-        supportsInlineQueries: botInfo.value.supports_inline_queries,
-        hasMainWebApp: botInfo.value.has_main_web_app,
-        sessionString: `bot_session_${Date.now()}`,
-      })
+      const newAccount = await trackAccountPersistence(
+        accountsStore.addAccount({
+          type: 'bot',
+          label: info.first_name,
+          firstName: info.first_name,
+          username: info.username,
+          botToken: token,
+          botTelegramId: info.id,
+          canJoinGroups: info.can_join_groups,
+          canReadAllGroupMessages: info.can_read_all_group_messages,
+          supportsInlineQueries: info.supports_inline_queries,
+          hasMainWebApp: info.has_main_web_app,
+          sessionString: `bot_session_${Date.now()}`,
+        }),
+      )
       accountId = newAccount.id
-      uiStore.showToast('success', t('auth.success'))
+    }
+
+    if (!isModalActive || submissionId !== botValidationRequestId) {
+      return
     }
 
     accountsStore.setActiveAccount(accountId)
     step.value = 'success'
+    uiStore.showToast('success', t('auth.success'))
 
     clearSuccessCloseTimer()
     successCloseTimer = setTimeout(() => {
-      handleClose()
-      if (props.targetRoute) {
-        router.push(props.targetRoute)
-      }
+      void handleClose().then(() => {
+        if (props.targetRoute) {
+          return router.push(props.targetRoute)
+        }
+      })
     }, 1000)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : t('auth.errors.addBotFailed')
+    if (isModalActive && submissionId === botValidationRequestId) {
+      error.value = e instanceof Error ? e.message : t('auth.errors.addBotFailed')
+    }
   } finally {
     if (pendingSubmissionStep.value === 'token') {
       pendingSubmissionStep.value = null
@@ -712,18 +832,38 @@ async function handleBotTokenSubmit(): Promise<void> {
   }
 }
 
-async function handleClose(): Promise<void> {
+async function closeModal(): Promise<void> {
+  const pendingPersistence = accountPersistencePromise
+  if (pendingPersistence) {
+    try {
+      await pendingPersistence
+    } catch {
+      // The submit path owns persistence error reporting. Closing remains safe afterwards.
+    }
+  }
+
+  if (!isModalActive) {
+    return
+  }
+
   const didAuthenticate = step.value === 'success'
+  isModalActive = false
   clearSuccessCloseTimer()
   invalidateUserAuth()
+  invalidateBotTokenValidation()
   if (!didAuthenticate) {
     await telegramService.abortCurrentUserAuth()
   }
+  completeUserSessionTransition()
   emit('close')
+}
 
-  if (didAuthenticate) {
-    return
+function handleClose(): Promise<void> {
+  if (!closePromise) {
+    closePromise = closeModal()
   }
+
+  return closePromise
 }
 
 function goBack(): void {
@@ -928,6 +1068,7 @@ function goBack(): void {
                 v-model="apiId"
                 type="text"
                 inputmode="numeric"
+                :disabled="isBusy"
                 placeholder="123456"
                 spellcheck="false"
                 autocomplete="off"
@@ -947,7 +1088,8 @@ function goBack(): void {
               <input
                 :id="apiHashInputId"
                 v-model="apiHash"
-                type="text"
+                type="password"
+                :disabled="isBusy"
                 placeholder="0123456789abcdef..."
                 spellcheck="false"
                 autocomplete="off"
@@ -969,7 +1111,8 @@ function goBack(): void {
             </div>
             <button
               type="submit"
-              class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100"
+              :disabled="isBusy"
+              class="w-full px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors duration-100"
             >
               {{ t('accounts.continue') }}
             </button>
@@ -1001,6 +1144,8 @@ function goBack(): void {
                 ref="phoneInputRef"
                 v-model="phone"
                 type="tel"
+                :readonly="Boolean(replacementUserAccount?.phone)"
+                :disabled="isSubmittingPhone"
                 :placeholder="t('auth.phone.placeholder')"
                 autocomplete="tel"
                 :aria-invalid="error ? 'true' : undefined"
@@ -1055,6 +1200,7 @@ function goBack(): void {
                 v-model="code"
                 type="text"
                 inputmode="numeric"
+                :disabled="isSubmittingCode"
                 :placeholder="t('auth.code.placeholder')"
                 autocomplete="one-time-code"
                 :aria-invalid="error ? 'true' : undefined"
@@ -1115,6 +1261,7 @@ function goBack(): void {
                 ref="passwordInputRef"
                 v-model="password"
                 type="password"
+                :disabled="isSubmittingPassword"
                 :placeholder="t('auth.password.placeholder')"
                 autocomplete="current-password"
                 :aria-invalid="error ? 'true' : undefined"
@@ -1172,7 +1319,8 @@ function goBack(): void {
                 :value="botTokenDisplay"
                 @input="handleTokenInput"
                 @paste="handleTokenPaste"
-                type="text"
+                type="password"
+                :disabled="isSubmittingBot"
                 :placeholder="t('accounts.pasteTokenHint')"
                 spellcheck="false"
                 autocomplete="off"
