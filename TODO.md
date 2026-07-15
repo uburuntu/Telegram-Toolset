@@ -17,10 +17,12 @@ This file is the restart brief for the next time someone picks up the repo. It s
 2. Re-run:
    - `npm ci`
    - `npm run lint`
+   - `npm run check:i18n`
    - `npm run type-check`
    - `npm run test:unit`
    - `npm run test:component`
    - `npm run build`
+   - `npm run bundle:check`
 3. If touching auth, routing, or module navigation, also run `npm run test:e2e` or the affected Playwright projects.
 4. Read `AGENTS.md` before changing architecture or UI patterns.
 
@@ -30,6 +32,8 @@ This file is the restart brief for the next time someone picks up the repo. It s
   - CI is good, but most Telegram behavior is still tested behind mocks.
 - Local-data lifecycle is explicit now, but any future cleanup work must stay recoverable by default.
   - Only add delayed GC, bulk purge, or more aggressive cleanup if it is deliberate, documented, and tested.
+- User-account ownership still relies on a local UUID and phone hints rather than a persisted immutable Telegram user ID.
+- Long-running jobs and session transitions are not yet coordinated by account and session generation.
 - `src/services/telegram/client.ts` remains too large and still owns too many concerns.
 - The production build still emits GramJS/browser-shim warnings and ships a heavy main chunk.
 
@@ -43,16 +47,21 @@ After the storage and data-lifecycle changes, do one manual validation pass and 
 
 - user login
 - bot login
-- account switching
+- account switching and re-login
 - export
 - resend
 - scheduled messages
+- LLM context export
 - account info
+- backup/local-data ownership actions
 
 Exit criteria:
 
-- one written smoke-test note exists in the repo or PR
-- no auth/session regressions are discovered after the storage migration and data-lifecycle changes
+- every auth, storage-schema, ownership, peer, or mutation-semantics PR/release has a dated smoke
+  result attached to that change
+- the result records an explicit pass/fail for each workflow above, including archive, recovery,
+  claim, deletion, and no-data-loss assertions
+- no auth/session or local-data lifecycle regressions remain unresolved
 
 ### B. Account-Owned Data Follow-Through
 
@@ -71,15 +80,15 @@ Exit criteria:
 
 ### Platform Decomposition
 
-- Split `src/services/telegram/client.ts` into smaller gateway-backed modules.
-- Extract auth orchestration out of `LoginModal.vue`.
-- Add direct coverage for routes and flows still under-tested:
-  - `account-info`
-  - `scheduled`
-  - `llm-export`
-  - `/backups`
-  - real resend flow orchestration
-- Move long-running Telegram work off the main thread where practical.
+Follow [ARCHITECTURE.md](./ARCHITECTURE.md) in dependency order:
+
+1. Add stable Telegram principals and a serialized session coordinator.
+2. Introduce account-affine jobs with bounded cancellation and explicit uncertain outcomes.
+3. Harden the account/storage repository, durable account-removal quiescing, ownership
+   enforcement, persistence status, and cross-tab recovery.
+4. Standardize peer references, split the Telegram gateway, and separate mutation retry semantics.
+5. Add bounded worker/streaming pipelines and production-artifact browser smoke.
+6. Decompose route workflows after those platform contracts exist.
 
 ## Avoid On Return
 
@@ -98,3 +107,4 @@ When scope or priorities change, update these together in the same PR:
 - `TODO.md`
 - `AGENTS.md`
 - `README.md`
+- `ARCHITECTURE.md` when platform boundaries or sequencing change

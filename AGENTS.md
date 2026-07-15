@@ -19,6 +19,7 @@ This repository is no longer treated as a single-purpose deleted-messages utilit
 - `TODO.md` is the restart brief and priority order for future work.
 - `README.md` is the public product/development overview.
 - `AGENTS.md` is the single agent-facing guide for repo rules, architecture notes, and product direction.
+- `ARCHITECTURE.md` is the staged plan for identity, sessions, jobs, storage, gateway, and worker boundaries.
 - If docs and current code disagree, treat the codebase as the source of current behavior and `TODO.md` as the source of target direction.
 
 ## Documentation Durability
@@ -225,15 +226,23 @@ Mobile-first approach: default styles for mobile, add complexity at larger break
 - **Internationalization**: `vue-i18n` is required for user-facing copy. Current locales include `en`, `ru`, `ar`, `es`, `fa`, `id`, `pt`, `tr`, `uk`, `uz`; production work must preserve escaping safety and completeness standards.
 - **Security/Privacy**: On-device only; no backend, no analytics, no tracking. Sensitive inputs must stay masked, validated, and minimally persisted.
 - **CI/Test**: Vitest (unit/component), Playwright (E2E), GitHub Actions with deterministic `npm ci` installs and desktop/mobile Playwright coverage in CI. The next gap is stronger live-integration and route-level coverage, not basic CI plumbing.
+- **Architecture plan**: Follow `ARCHITECTURE.md` in dependency order. Stable principals and session/job coordination precede service and view decomposition.
 
-## Productionization Priorities
+## Productionization Dependency Order
 
-1. Decompose oversized services and route components instead of adding more logic to them.
-2. Preserve the modular product surface and the shared auth/session platform.
-3. Pin dependency versions and make CI reproducible.
-4. Move long-running Telegram work off the main thread where practical.
-5. Harden account-owned data lifecycle and migration paths.
-6. Keep `Scheduled Messages` and `LLM Context Export` fully supported within the same shell.
+Use `TODO.md` to choose the next milestone and follow the staged dependencies in
+`ARCHITECTURE.md` when implementing structural work:
+
+1. Establish stable principals and one session coordinator.
+2. Introduce account-affine jobs with bounded cancellation and explicit uncertain outcomes.
+3. Harden the transactional account/storage repository, durable account-removal quiescing, and
+   local-data lifecycle.
+4. Migrate stable peer references, capability gateways, and mutation-safe retry semantics.
+5. Add bounded worker execution, executable quota policies, and production-artifact checks.
+6. Decompose route workflows after those platform contracts exist.
+
+At every stage, preserve the modular product surface and keep `Scheduled Messages` and
+`LLM Context Export` fully supported within the shared shell.
 
 ## Service Layer Architecture
 
@@ -263,9 +272,9 @@ Centralized rate limiting and retry logic:
 Two-phase export: metadata first, then media:
 1. **Phase 1**: Iterate admin log, build `DeletedMessage[]`, resolve sender info
 2. **Phase 2**: Parallel media downloads using Semaphore (default: 4 concurrent)
-- **Cancellation**: `AbortController` passed through; checked at each step
+- **Cancellation**: Cooperative `AbortController` checks between stages; some in-flight GramJS calls cannot be interrupted until they settle
 - **Progress callbacks**: `onProgress(ExportProgress)`, `onFloodWait(seconds)`, `onError(error, messageId)`, `onFloodWaitCountdown(remainingSeconds)`
-- **Error resilience**: Retries on transient failures; continues on single-file failures
+- **Error resilience**: Read/download retries continue past individual media failures; mutation retry semantics still require dedicated hardening
 
 ### Resend Service (`services/resend/resend-service.ts`)
 
@@ -308,7 +317,7 @@ Lazy-loaded route components in `modules/`:
 5. **AbortController cancellation**: Standard pattern for interruptible long operations.
 6. **Two-phase export**: Allows progress feedback and early metadata availability.
 7. **Batched resend**: Reduces API calls by combining short consecutive messages.
-8. **Centralized retry logic**: `withRetry()` handles FloodWait uniformly across all operations.
+8. **Centralized retry utilities**: `withRetry()` handles cancellable backoff and FloodWait parsing for retry-safe operations. Do not apply generic retries to ambiguous sends.
 
 ## GramJS Browser Integration (Critical)
 
@@ -337,7 +346,8 @@ GramJS imports Node.js modules that don't exist in browsers. Vite aliases redire
 |------------|-----------|---------|
 | `util` | `src/shims/util.ts` | `util.inspect.custom` symbol for GramJS debugging |
 | `os` | `src/shims/os.ts` | `os.type()`, `os.release()` for device info in MTProto |
-| `crypto` | `src/shims/telegram/CryptoFile.ts` | Re-exports GramJS's own browser crypto (`telegram/crypto/crypto`) |
+| `events` | `src/shims/events.ts` | Browser `EventEmitter` compatibility for GramJS dependencies |
+| `crypto` | `src/shims/telegram/CryptoFile.ts` | Custom browser-compatible subset used by GramJS |
 | `telegram/extensions/PromisedNetSockets` | `src/shims/telegram/PromisedNetSockets.ts` | Throws error - WebSocket is used instead |
 
 These are configured in `vite.config.ts` via `resolve.alias` and `optimizeDeps.esbuildOptions.plugins`.
@@ -362,12 +372,11 @@ async useUserAccountSession(data: { sessionString, apiId, apiHash }) {
 
 ### 4. Race Condition: Auth Flow vs Account Watcher
 
-When `App.vue` watches `activeAccount` to sync the Telegram client, it can interfere with an in-progress login flow. Guard the watcher:
+When active-account session synchronization runs during login, it can interfere with the in-progress auth flow. Keep the guard in the session-sync boundary:
 
 ```javascript
-watch(() => accountsStore.activeAccount, async (account) => {
-  // Skip during active login flow
-  if (accountsStore.authFlow.step !== 'idle' && accountsStore.authFlow.step !== 'complete') {
+watch([() => accountsStore.activeAccount?.id, showLoginModal], async () => {
+  if (showLoginModal.value) {
     return
   }
   // ... sync session
@@ -437,8 +446,8 @@ Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#lit
 - Resend service with batching, media, header formatting
 - Telegram service enhancements (entity cache, sender resolution, sendFile)
 - ExportView and ResendView with full config options and progress display
-- Unit tests for rate-limiter, export-service, resend-service (86 tests)
-- E2E tests for export/resend flows with mocked Telegram
+- Unit tests for rate-limiter, export-service, resend-service, storage, account, and Telegram gateway behavior
+- E2E tests for the mocked export flow and resend route, empty, and error states
 - Error UX: ErrorBoundary, ErrorAlert components, user-friendly error messages
 - ZIP export integration (download as ZIP option in ExportView)
 - ZIP export filename sanitization for archive safety
