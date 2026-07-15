@@ -71,8 +71,9 @@ import { telegramGateway } from '@/services/telegram/gateway'
 describe('ExportService', () => {
   const baseConfig: ExportConfig = {
     chatId: BigInt('-1001234567890'),
-    exportMode: 'with_media',
-    downloadMedia: true,
+    chatTitle: 'Test Channel',
+    exportMode: 'all',
+    storageStrategy: 'indexeddb',
   }
 
   beforeEach(() => {
@@ -148,6 +149,18 @@ describe('ExportService', () => {
       expect(result.mediaBlobs.size).toBe(0)
       // Still should have all messages
       expect(result.messages.length).toBe(3)
+    })
+
+    it('should exclude text-only messages in media_only mode', async () => {
+      const result = await exportService.exportDeletedMessages({
+        ...baseConfig,
+        exportMode: 'media_only',
+      })
+
+      expect(result.messages.map((message) => message.id)).toEqual([1002, 1003])
+      expect(result.messages.every((message) => message.hasMedia)).toBe(true)
+      expect(result.progress.exportedTextMessages).toBe(2)
+      expect(telegramGateway.media.downloadMessageMedia).toHaveBeenCalledTimes(2)
     })
 
     it('should track progress through phases', async () => {
@@ -243,6 +256,42 @@ describe('ExportService', () => {
       await exportService.exportDeletedMessages(baseConfig)
 
       expect(wasExporting).toBe(true)
+      expect(exportService.isExporting).toBe(false)
+    })
+
+    it('should remain busy until a cancelled export settles', async () => {
+      let resolveValidation!: (value: {
+        valid: boolean
+        canExport: boolean
+        chatType: 'channel'
+        chatTitle: string
+      }) => void
+      const validation = new Promise<{
+        valid: boolean
+        canExport: boolean
+        chatType: 'channel'
+        chatTitle: string
+      }>((resolve) => {
+        resolveValidation = resolve
+      })
+      vi.mocked(telegramGateway.adminLog.validateChatForExport).mockReturnValueOnce(validation)
+
+      const exportPromise = exportService.exportDeletedMessages(baseConfig)
+      exportService.cancel()
+
+      expect(exportService.isExporting).toBe(true)
+      await expect(exportService.exportDeletedMessages(baseConfig)).rejects.toThrow(
+        'An export is already in progress',
+      )
+
+      resolveValidation({
+        valid: true,
+        canExport: true,
+        chatType: 'channel',
+        chatTitle: 'Test Channel',
+      })
+
+      await expect(exportPromise).rejects.toMatchObject({ name: 'AbortError' })
       expect(exportService.isExporting).toBe(false)
     })
   })

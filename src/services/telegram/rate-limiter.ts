@@ -70,16 +70,18 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
       return
     }
 
-    const timeout = setTimeout(resolve, ms)
+    let timeout: ReturnType<typeof setTimeout>
+    const onAbort = () => {
+      clearTimeout(timeout)
+      signal?.removeEventListener('abort', onAbort)
+      reject(new DOMException('Aborted', 'AbortError'))
+    }
+    timeout = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
 
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timeout)
-        reject(new DOMException('Aborted', 'AbortError'))
-      },
-      { once: true },
-    )
+    signal?.addEventListener('abort', onAbort, { once: true })
   })
 }
 
@@ -245,26 +247,32 @@ export function startFloodWaitCountdown(
   callback: (remaining: number) => void,
   signal: AbortSignal,
 ): void {
-  let remaining = seconds
+  if (signal.aborted) {
+    return
+  }
 
-  const interval = setInterval(() => {
-    if (signal.aborted || remaining <= 0) {
-      clearInterval(interval)
+  let remaining = seconds
+  let interval: ReturnType<typeof setInterval>
+  const onAbort = () => {
+    clearInterval(interval)
+    signal.removeEventListener('abort', onAbort)
+  }
+
+  interval = setInterval(() => {
+    if (remaining <= 0) {
+      onAbort()
       return
     }
 
     remaining--
     callback(remaining)
+
+    if (remaining <= 0) {
+      onAbort()
+    }
   }, 1000)
 
-  // Clean up on abort
-  signal.addEventListener(
-    'abort',
-    () => {
-      clearInterval(interval)
-    },
-    { once: true },
-  )
+  signal.addEventListener('abort', onAbort, { once: true })
 }
 
 /**
@@ -303,10 +311,32 @@ export function createFloodWaitSubscription(
   callbacks: FloodWaitCallbacks,
   signal: AbortSignal,
 ): () => void {
-  return telegramService.onFloodWait((seconds) => {
+  if (signal.aborted) {
+    return () => {}
+  }
+
+  let active = true
+  const unsubscribeFromService = telegramService.onFloodWait((seconds) => {
+    if (!active || signal.aborted) {
+      return
+    }
+
     callbacks.onFloodWait?.(seconds)
     if (callbacks.onFloodWaitCountdown) {
       startFloodWaitCountdown(seconds, callbacks.onFloodWaitCountdown, signal)
     }
   })
+
+  const unsubscribe = () => {
+    if (!active) {
+      return
+    }
+
+    active = false
+    signal.removeEventListener('abort', unsubscribe)
+    unsubscribeFromService()
+  }
+
+  signal.addEventListener('abort', unsubscribe, { once: true })
+  return unsubscribe
 }

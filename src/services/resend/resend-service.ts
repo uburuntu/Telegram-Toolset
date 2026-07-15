@@ -22,6 +22,7 @@ const TELEGRAM_CAPTION_LIMIT = 1024
 const MESSAGE_SEND_DELAY = 50 // ms between messages (avoid rate limits)
 const MAX_SEND_RETRIES = 3
 const TELEGRAM_MESSAGE_LIMIT = 4096
+const CANCEL_SETTLE_TIMEOUT_MS = 10_000
 
 export interface ResendCallbacks {
   onProgress?: (progress: ExportProgress) => void
@@ -62,6 +63,7 @@ function escapeHtml(text: string): string {
 
 class ResendService {
   private abortController: AbortController | null = null
+  private operationSettled: Promise<void> | null = null
 
   /**
    * Check if a resend operation is in progress
@@ -74,10 +76,45 @@ class ResendService {
    * Cancel the current resend operation
    */
   cancel(): void {
-    if (this.abortController) {
-      this.abortController.abort()
-      this.abortController = null
+    this.abortController?.abort()
+  }
+
+  /**
+   * Cancel the current operation and wait up to the deadline for it to release the session.
+   * Returns false when the transport did not settle and the operation was fenced as abandoned.
+   */
+  async cancelAndWait(timeoutMs = CANCEL_SETTLE_TIMEOUT_MS): Promise<boolean> {
+    const abortController = this.abortController
+    const operationSettled = this.operationSettled
+    this.cancel()
+
+    if (!operationSettled) {
+      return true
     }
+
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    const settled = await Promise.race([
+      operationSettled.then(() => true),
+      new Promise<false>((resolve) => {
+        timeout = setTimeout(() => resolve(false), timeoutMs)
+      }),
+    ])
+    if (timeout) {
+      clearTimeout(timeout)
+    }
+
+    if (!settled) {
+      // The signal prevents any later batch from starting. Release singleton ownership so a
+      // never-settling transport cannot permanently block session changes or future jobs.
+      if (this.abortController === abortController) {
+        this.abortController = null
+      }
+      if (this.operationSettled === operationSettled) {
+        this.operationSettled = null
+      }
+    }
+
+    return settled
   }
 
   /**
@@ -116,8 +153,18 @@ class ResendService {
     config: ResendConfig,
     callbacks: ResendCallbacks = {},
   ): Promise<ResendResult> {
-    this.abortController = new AbortController()
-    const signal = this.abortController.signal
+    if (this.abortController) {
+      throw new Error('A resend is already in progress')
+    }
+
+    const abortController = new AbortController()
+    this.abortController = abortController
+    const signal = abortController.signal
+    let markOperationSettled!: () => void
+    const operationSettled = new Promise<void>((resolve) => {
+      markOperationSettled = resolve
+    })
+    this.operationSettled = operationSettled
 
     const progress: ExportProgress = {
       phase: 'initializing',
@@ -171,7 +218,13 @@ class ResendService {
       callbacks.onProgress?.(progress)
       throw error
     } finally {
-      this.abortController = null
+      markOperationSettled()
+      if (this.abortController === abortController) {
+        this.abortController = null
+      }
+      if (this.operationSettled === operationSettled) {
+        this.operationSettled = null
+      }
     }
   }
 
