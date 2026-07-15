@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { backupManager } from '@/services/storage/backup-manager'
 import { quotaManager } from '@/services/storage/quota'
@@ -12,22 +12,41 @@ const accountsStore = useAccountsStore()
 const backupsStore = useBackupsStore()
 const uiStore = useUiStore()
 const archivedBackups = ref<Backup[]>([])
+const loadError = ref('')
+let backupsRequestId = 0
 
 async function loadBackups() {
+  const requestId = ++backupsRequestId
+  const account = accountsStore.activeAccount
+  const accountId = account?.id ?? null
   backupsStore.setLoading(true)
+  loadError.value = ''
+
   try {
-    const [backups, archived, estimate] = await Promise.all([
-      backupManager.listBackupsForAccount(accountsStore.activeAccount),
-      backupManager.listArchivedBackups(),
+    const [backups, estimate] = await Promise.all([
+      backupManager.listBackupsForAccount(account),
       quotaManager.getStorageEstimate(),
     ])
+    const archived = await backupManager.listArchivedBackups()
+
+    if (requestId !== backupsRequestId || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     backupsStore.setBackups(backups)
     archivedBackups.value = archived
     backupsStore.setStorageEstimate(estimate)
   } catch (error) {
+    if (requestId !== backupsRequestId || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     console.error('Failed to load backups:', error)
+    loadError.value = error instanceof Error ? error.message : t('common.error')
   } finally {
-    backupsStore.setLoading(false)
+    if (requestId === backupsRequestId && accountsStore.activeAccountId === accountId) {
+      backupsStore.setLoading(false)
+    }
   }
 }
 
@@ -35,9 +54,18 @@ onMounted(async () => {
   await loadBackups()
 })
 
+onUnmounted(() => {
+  backupsRequestId++
+  backupsStore.setLoading(false)
+})
+
 watch(
   () => accountsStore.activeAccountId,
   async () => {
+    backupsStore.setBackups([])
+    backupsStore.clearSelection()
+    archivedBackups.value = []
+    loadError.value = ''
     await loadBackups()
   },
 )
@@ -142,6 +170,23 @@ async function handleDownload(id: string) {
         class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"
       ></div>
       <p class="text-gray-600 dark:text-gray-400">{{ t('backups.loading') }}</p>
+    </div>
+
+    <div
+      v-else-if="loadError"
+      class="p-6 bg-white dark:bg-gray-900 rounded-lg border border-red-200 dark:border-red-900 shadow-sm"
+      role="alert"
+    >
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+        {{ t('common.error') }}
+      </h2>
+      <p class="text-sm text-red-600 dark:text-red-400 mb-4">{{ loadError }}</p>
+      <button
+        @click="loadBackups"
+        class="px-4 py-2 rounded-md font-medium text-sm transition-colors duration-100 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+      >
+        {{ t('common.tryAgain') }}
+      </button>
     </div>
 
     <div

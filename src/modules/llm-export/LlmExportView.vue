@@ -65,6 +65,7 @@ const floodWait = useFloodWait()
 
 const error = ref('')
 let chatsRequestId = 0
+let storedExportsRequestId = 0
 let exportSelectionRequestId = 0
 
 const isDownloading = computed(() => downloadTask.value !== null)
@@ -93,6 +94,9 @@ const archiveStatusText = computed(() => {
 })
 
 onUnmounted(() => {
+  chatsRequestId++
+  storedExportsRequestId++
+  exportSelectionRequestId++
   downloadTask.value?.cancel()
   archiveTask.value?.cancel()
 })
@@ -102,6 +106,9 @@ watch(
   async () => {
     downloadTask.value?.cancel()
     archiveTask.value?.cancel()
+    chatsRequestId++
+    storedExportsRequestId++
+    exportSelectionRequestId++
     downloadTask.value = null
     archiveTask.value = null
     downloadProgress.value = null
@@ -110,6 +117,11 @@ watch(
     selectedChat.value = null
     selectedExport.value = null
     exportMessages.value = []
+    cachedExports.value = []
+    archivedExports.value = []
+    isLoadingChats.value = false
+    isLoadingExportsList.value = false
+    isLoadingSelectedExport.value = false
     error.value = ''
     exportsError.value = ''
     floodWait.reset()
@@ -128,24 +140,25 @@ watch(
 
 async function loadChats() {
   const requestId = ++chatsRequestId
+  const accountId = accountsStore.activeAccountId
   isLoadingChats.value = true
   error.value = ''
 
   try {
     const loadedChats = await telegramService.getDialogs()
-    if (requestId !== chatsRequestId) {
+    if (requestId !== chatsRequestId || accountsStore.activeAccountId !== accountId) {
       return
     }
 
     chats.value = loadedChats
   } catch (loadError) {
-    if (requestId !== chatsRequestId) {
+    if (requestId !== chatsRequestId || accountsStore.activeAccountId !== accountId) {
       return
     }
 
     error.value = loadError instanceof Error ? loadError.message : t('common.error')
   } finally {
-    if (requestId === chatsRequestId) {
+    if (requestId === chatsRequestId && accountsStore.activeAccountId === accountId) {
       isLoadingChats.value = false
     }
   }
@@ -156,14 +169,19 @@ function sortChatExportsByNewest(chatExports: ChatExport[]): ChatExport[] {
 }
 
 async function loadStoredExports() {
+  const requestId = ++storedExportsRequestId
+  const account = accountsStore.activeAccount
+  const accountId = account?.id ?? null
   isLoadingExportsList.value = true
   exportsError.value = ''
 
   try {
-    const [visibleExports, archived] = await Promise.all([
-      chatHistoryService.listChatExportsForAccount(accountsStore.activeAccount),
-      chatHistoryService.listArchivedChatExports(),
-    ])
+    const visibleExports = await chatHistoryService.listChatExportsForAccount(account)
+    const archived = await chatHistoryService.listArchivedChatExports()
+    if (requestId !== storedExportsRequestId || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     cachedExports.value = sortChatExportsByNewest(visibleExports)
     archivedExports.value = sortChatExportsByNewest(archived)
 
@@ -175,10 +193,16 @@ async function loadStoredExports() {
       exportMessages.value = []
     }
   } catch (loadError) {
+    if (requestId !== storedExportsRequestId || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     exportsError.value =
       loadError instanceof Error ? loadError.message : 'Failed to load cached exports'
   } finally {
-    isLoadingExportsList.value = false
+    if (requestId === storedExportsRequestId && accountsStore.activeAccountId === accountId) {
+      isLoadingExportsList.value = false
+    }
   }
 }
 
@@ -194,6 +218,8 @@ async function startDownload() {
   error.value = ''
   downloadProgress.value = null
   floodWait.reset()
+  const account = accountsStore.activeAccount
+  const accountId = account?.id ?? null
 
   const task = chatHistoryService.createDownloadTask(
     selectedChat.value,
@@ -204,21 +230,30 @@ async function startDownload() {
     },
     {
       onProgress: (progress) => {
-        downloadProgress.value = { ...progress }
+        if (accountsStore.activeAccountId === accountId) {
+          downloadProgress.value = { ...progress }
+        }
       },
       onError: (taskError) => {
         console.error('Download error:', taskError)
       },
       ...floodWait.callbacks,
     },
-    accountsStore.activeAccount,
+    account,
   )
 
   downloadTask.value = task
 
   try {
     const result = await task.promise
+    if (downloadTask.value !== task || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     await loadStoredExports()
+    if (downloadTask.value !== task || accountsStore.activeAccountId !== accountId) {
+      return
+    }
 
     selectedExport.value = result.chatExport
     exportMessages.value = result.messages
@@ -227,6 +262,10 @@ async function startDownload() {
 
     uiStore.showToast('success', t('llmExport.downloadComplete'))
   } catch (taskError) {
+    if (downloadTask.value !== task || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     if (taskError instanceof DOMException && taskError.name === 'AbortError') {
       uiStore.showToast('info', t('llmExport.downloadCancelled'))
     } else {
@@ -249,12 +288,13 @@ function stopAndSaveDownload() {
 
 async function handleExportSelect(chatExport: ChatExport) {
   const requestId = ++exportSelectionRequestId
+  const accountId = accountsStore.activeAccountId
   isLoadingSelectedExport.value = true
   error.value = ''
 
   try {
     const result = await chatHistoryService.loadChatExport(chatExport.id)
-    if (requestId !== exportSelectionRequestId) {
+    if (requestId !== exportSelectionRequestId || accountsStore.activeAccountId !== accountId) {
       return
     }
 
@@ -263,13 +303,13 @@ async function handleExportSelect(chatExport: ChatExport) {
       exportMessages.value = result.messages
     }
   } catch (loadError) {
-    if (requestId !== exportSelectionRequestId) {
+    if (requestId !== exportSelectionRequestId || accountsStore.activeAccountId !== accountId) {
       return
     }
 
     error.value = loadError instanceof Error ? loadError.message : t('common.error')
   } finally {
-    if (requestId === exportSelectionRequestId) {
+    if (requestId === exportSelectionRequestId && accountsStore.activeAccountId === accountId) {
       isLoadingSelectedExport.value = false
     }
   }
@@ -363,6 +403,7 @@ async function downloadAsZip() {
   floodWait.reset()
   archiveProgress.value = null
   error.value = ''
+  const accountId = accountsStore.activeAccountId
 
   const task = chatArchiveService.createArchiveTask(
     selectedExport.value,
@@ -370,7 +411,9 @@ async function downloadAsZip() {
     formatConfig.value,
     {
       onProgress: (progress) => {
-        archiveProgress.value = { ...progress }
+        if (accountsStore.activeAccountId === accountId) {
+          archiveProgress.value = { ...progress }
+        }
       },
       onError: (taskError, messageId) => {
         console.warn('Archive media download failed', messageId, taskError)
@@ -383,12 +426,20 @@ async function downloadAsZip() {
 
   try {
     const result = await task.promise
+    if (archiveTask.value !== task || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     downloadArchiveResult(result)
 
     if (result.mediaFailures.length > 0) {
       uiStore.showToast('warning', t('export.failedSkip', { count: result.mediaFailures.length }))
     }
   } catch (taskError) {
+    if (archiveTask.value !== task || accountsStore.activeAccountId !== accountId) {
+      return
+    }
+
     if (!(taskError instanceof DOMException && taskError.name === 'AbortError')) {
       const friendlyError = toUserFriendlyError(taskError)
       error.value = friendlyError.message

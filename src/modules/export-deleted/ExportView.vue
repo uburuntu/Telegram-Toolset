@@ -98,6 +98,7 @@ const floodWaitRemaining = ref(0)
 // Store last export result for ZIP download
 const lastExportResult = ref<BackupWithMessages | null>(null)
 let chatsRequestId = 0
+let exportRequestId = 0
 
 // Computed
 const filteredChats = computed(() => {
@@ -146,6 +147,9 @@ const phaseLabel = computed(() => {
 })
 
 onUnmounted(() => {
+  chatsRequestId++
+  exportRequestId++
+
   // Cancel any in-progress export on unmount
   if (exportService.isExporting) {
     exportService.cancel()
@@ -155,6 +159,9 @@ onUnmounted(() => {
 watch(
   () => accountsStore.activeAccountId,
   async () => {
+    chatsRequestId++
+    exportRequestId++
+
     if (exportService.isExporting) {
       exportService.cancel()
     }
@@ -167,6 +174,7 @@ watch(
     lastExportResult.value = null
     searchQuery.value = ''
     error.value = ''
+    isLoading.value = false
 
     if (accountsStore.activeAccount?.type !== 'user') {
       chats.value = []
@@ -186,24 +194,25 @@ function selectChat(chat: ChatInfo) {
 
 async function loadChats() {
   const requestId = ++chatsRequestId
+  const accountId = accountsStore.activeAccountId
   isLoading.value = true
   error.value = ''
 
   try {
     const loadedChats = await telegramService.getDialogs(100)
-    if (requestId !== chatsRequestId) {
+    if (requestId !== chatsRequestId || accountsStore.activeAccountId !== accountId) {
       return
     }
 
     chats.value = loadedChats
   } catch (loadError) {
-    if (requestId !== chatsRequestId) {
+    if (requestId !== chatsRequestId || accountsStore.activeAccountId !== accountId) {
       return
     }
 
     error.value = loadError instanceof Error ? loadError.message : t('common.error')
   } finally {
-    if (requestId === chatsRequestId) {
+    if (requestId === chatsRequestId && accountsStore.activeAccountId === accountId) {
       isLoading.value = false
     }
   }
@@ -237,7 +246,18 @@ function resetExport() {
 }
 
 function cancelExport() {
+  if (currentProgress.value?.phase === 'saving') {
+    return
+  }
+
+  exportRequestId++
   exportService.cancel()
+  backupsStore.cancelExport()
+  currentProgress.value = null
+  floodWaitSeconds.value = 0
+  floodWaitRemaining.value = 0
+  step.value = 'configure'
+  uiStore.showToast('info', t('export.cancelled'))
 }
 
 async function handleManualReconnect() {
@@ -260,7 +280,19 @@ async function handleManualReconnect() {
 }
 
 async function startExport() {
-  if (!selectedChat.value) return
+  const chat = selectedChat.value
+  const ownerAccount = accountsStore.activeAccount
+  if (!chat || ownerAccount?.type !== 'user') return
+
+  const requestId = ++exportRequestId
+  const ownerAccountId = ownerAccount.id
+  const isCurrentExport = () =>
+    requestId === exportRequestId && accountsStore.activeAccountId === ownerAccountId
+  const assertCurrentExport = () => {
+    if (!isCurrentExport()) {
+      throw new DOMException('Export no longer belongs to the active account', 'AbortError')
+    }
+  }
 
   step.value = 'exporting'
   error.value = ''
@@ -268,8 +300,8 @@ async function startExport() {
   floodWaitSeconds.value = 0
 
   const config: ExportConfig = {
-    chatId: selectedChat.value.id,
-    chatTitle: selectedChat.value.title,
+    chatId: chat.id,
+    chatTitle: chat.title,
     exportMode: exportMode.value,
     storageStrategy: 'indexeddb',
     // Date filters
@@ -277,16 +309,19 @@ async function startExport() {
     maxDate: useDateFilter.value ? parseDateInputBoundary(maxDate.value, 'end') : undefined,
   }
 
-  // Check storage
-  const strategy = await quotaManager.determineExportStrategy(100_000_000) // Estimate
-  if (strategy.warnUser) {
-    uiStore.showToast('warning', t('export.largeExportWarning'))
-  }
-
   try {
+    // Check storage
+    const strategy = await quotaManager.determineExportStrategy(100_000_000) // Estimate
+    assertCurrentExport()
+    if (strategy.warnUser) {
+      uiStore.showToast('warning', t('export.largeExportWarning'))
+    }
+
     // Use the new ExportService with callbacks
     const result = await exportService.exportDeletedMessages(config, {
       onProgress: (progress) => {
+        if (!isCurrentExport()) return
+
         currentProgress.value = { ...progress }
         backupsStore.updateExportProgress({
           phase: progress.phase,
@@ -299,30 +334,38 @@ async function startExport() {
         })
       },
       onFloodWait: (seconds) => {
+        if (!isCurrentExport()) return
+
         floodWaitSeconds.value = seconds
         floodWaitRemaining.value = seconds
         uiStore.showToast('warning', t('export.rateLimited', { seconds }))
       },
       onFloodWaitCountdown: (remaining) => {
+        if (!isCurrentExport()) return
+
         floodWaitRemaining.value = remaining
         if (remaining === 0) {
           floodWaitSeconds.value = 0
         }
       },
       onError: (err, messageId) => {
+        if (!isCurrentExport()) return
         console.error(`Failed to process message ${messageId}:`, err)
       },
     })
+    assertCurrentExport()
 
     // Create backup from results
+    currentProgress.value = { ...result.progress, phase: 'saving' }
     backupsStore.updateExportProgress({ phase: 'saving' })
 
     const backup = await backupManager.createBackup(
       config,
       result.messages,
       result.mediaBlobs,
-      accountsStore.activeAccount,
+      ownerAccount,
     )
+    assertCurrentExport()
     backupsStore.addBackup(backup)
 
     // Store for potential ZIP download
@@ -340,6 +383,10 @@ async function startExport() {
       await downloadAsZip()
     }
   } catch (e) {
+    if (!isCurrentExport()) {
+      return
+    }
+
     if (e instanceof DOMException && e.name === 'AbortError') {
       uiStore.showToast('info', t('export.cancelled'))
       step.value = 'configure'
@@ -822,7 +869,7 @@ function formatDate(date?: Date): string {
         </div>
 
         <button
-          v-if="currentProgress?.phase !== 'error'"
+          v-if="currentProgress?.phase !== 'error' && currentProgress?.phase !== 'saving'"
           @click="cancelExport"
           class="mt-6 px-4 py-2 rounded-md font-medium text-sm bg-red-600 text-white hover:bg-red-700 transition-colors duration-100"
         >
