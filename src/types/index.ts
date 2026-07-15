@@ -19,4 +19,5 @@ export type {
 export * from './llm-export'
 export * from './module'
 export * from './ownership'
+export * from './principal'
 export * from './telegram'

@@ -2,6 +2,8 @@
  * Account type definitions for multi-account support
  */
 
+import type { TelegramPrincipal } from './principal'
+
 export type AccountType = 'user' | 'bot'
 
 /**
@@ -19,6 +21,14 @@ export interface SavedAccount {
   label: string // Display name: "John Doe" or "MyBot"
   username?: string // @username
   firstName?: string // First name from Telegram
+
+  /**
+   * Stable Telegram identity for this account. The local `id` is only an installation-scoped
+   * record key; `principal` is the durable authority used for ownership and re-login matching.
+   * Optional for backward compatibility with accounts saved before this field existed; it is
+   * backfilled on the next successful authentication.
+   */
+  principal?: TelegramPrincipal
 
   // User account specific
   phone?: string
