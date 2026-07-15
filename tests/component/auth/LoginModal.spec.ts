@@ -41,6 +41,7 @@ vi.mock('@/services/telegram/client', () => ({
     abortCurrentUserAuth: vi.fn(),
     beginActiveAccountTransition: vi.fn(() => 1),
     completeActiveAccountTransition: vi.fn(),
+    markActiveUserSession: vi.fn(),
     getSessionString: vi.fn(),
     resetForNewUserLogin: vi.fn(),
     useUserAccountSession: vi.fn(),

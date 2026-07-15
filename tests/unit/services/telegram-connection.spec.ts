@@ -139,4 +139,90 @@ describe('telegramService connection state', () => {
     expect(oldGetDialogs).not.toHaveBeenCalled()
     expect(newGetDialogs).toHaveBeenCalledWith({ limit: 10 })
   })
+
+  it('clears session ownership when aborting an auth attempt tears down the client', async () => {
+    service.client = {
+      disconnect: vi.fn().mockResolvedValue(undefined),
+    }
+    service._activeSessionAccountId = 'account-a'
+
+    await telegramService.abortCurrentUserAuth()
+
+    expect(service.client).toBeNull()
+    expect(service._activeSessionAccountId).toBeNull()
+  })
+
+  it('records session ownership for a freshly authenticated login', () => {
+    service._activeSessionAccountId = null
+
+    telegramService.markActiveUserSession('account-b')
+    expect(service._activeSessionAccountId).toBe('account-b')
+
+    // A blank id must never clobber established ownership.
+    telegramService.markActiveUserSession('')
+    expect(service._activeSessionAccountId).toBe('account-b')
+  })
+
+  it('keeps a just-authenticated client instead of rebuilding it for the same account', async () => {
+    const accountsStore = useAccountsStore()
+    accountsStore.accounts = [
+      {
+        id: 'account-b',
+        type: 'user',
+        label: 'Account B',
+        phone: '+10000000002',
+        sessionString: 'session-b',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]
+    const markReady = vi.spyOn(accountsStore, 'markAccountSessionReady')
+
+    const client = { connected: true, disconnect: vi.fn().mockResolvedValue(undefined) }
+    service.client = client
+    service._activeSessionAccountId = 'account-b'
+    const initSpy = vi.spyOn(service, 'initClient')
+
+    const result = await telegramService.useUserAccountSession({
+      accountId: 'account-b',
+      sessionString: 'session-b',
+      apiId: 123,
+      apiHash: 'hash',
+    })
+
+    expect(result).toBe(true)
+    expect(client.disconnect).not.toHaveBeenCalled()
+    expect(initSpy).not.toHaveBeenCalled()
+    expect(service.client).toBe(client)
+    expect(markReady).toHaveBeenCalledWith('account-b')
+
+    initSpy.mockRestore()
+  })
+
+  it('rebuilds the session when the connected client belongs to another account', async () => {
+    service.client = { connected: true, disconnect: vi.fn().mockResolvedValue(undefined) }
+    service._activeSessionAccountId = 'account-a'
+
+    const disconnectSpy = vi.spyOn(service, 'disconnect').mockResolvedValue(undefined)
+    const initSpy = vi.spyOn(service, 'initClient').mockResolvedValue(undefined)
+    const connectSpy = vi.spyOn(service, 'connect').mockResolvedValue(true)
+    const stateSpy = vi.spyOn(service, 'setAccountSessionState').mockResolvedValue(undefined)
+
+    const result = await telegramService.useUserAccountSession({
+      accountId: 'account-b',
+      sessionString: '',
+      apiId: 123,
+      apiHash: 'hash',
+    })
+
+    expect(result).toBe(true)
+    expect(disconnectSpy).toHaveBeenCalledTimes(1)
+    expect(initSpy).toHaveBeenCalledWith(123, 'hash')
+    expect(connectSpy).toHaveBeenCalledWith('account-b')
+
+    disconnectSpy.mockRestore()
+    initSpy.mockRestore()
+    connectSpy.mockRestore()
+    stateSpy.mockRestore()
+  })
 })

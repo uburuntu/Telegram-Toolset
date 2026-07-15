@@ -425,6 +425,10 @@ async function observeUserAuth(
       return
     }
 
+    // The interactive login connected via client.start(), so tell the gateway
+    // which account now owns the live session before the active-account watcher
+    // runs; otherwise it would tear the fresh session down and rebuild it.
+    telegramService.markActiveUserSession(accountId)
     accountsStore.markAccountSessionReady(accountId)
     accountsStore.setActiveAccount(accountId)
     pendingSubmissionStep.value = null
