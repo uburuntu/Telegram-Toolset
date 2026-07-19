@@ -140,7 +140,10 @@ describe('backupManager ownership', () => {
       }),
     ]
 
-    const visibleBackups = await backupManager.listBackupsForAccount(account)
+    // Recovery is an explicit lifecycle step (driven from the accounts store on add/activation),
+    // separate from the pure list read (ARCHITECTURE.md §6).
+    const recovered = await backupManager.recoverArchivedBackupsForAccount(account)
+    expect(recovered).toBe(1)
 
     expect(dbMocks.saveBackup).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -152,6 +155,8 @@ describe('backupManager ownership', () => {
         archivedReason: undefined,
       }),
     )
+
+    const visibleBackups = await backupManager.listBackupsForAccount(account)
     expect(visibleBackups.map((backup) => backup.id)).toEqual([
       'owned-backup',
       'archived-backup',
@@ -230,7 +235,10 @@ describe('backupManager ownership', () => {
       }),
     ]
 
-    const visible = await backupManager.listBackupsForAccount(reinstalledAccount)
+    // Recovery is an explicit lifecycle step (driven from the accounts store on add/activation),
+    // separate from the pure list read (ARCHITECTURE.md §6).
+    const recovered = await backupManager.recoverArchivedBackupsForAccount(reinstalledAccount)
+    expect(recovered).toBe(1)
 
     expect(dbMocks.saveBackup).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -241,6 +249,8 @@ describe('backupManager ownership', () => {
         archivedAt: undefined,
       }),
     )
+
+    const visible = await backupManager.listBackupsForAccount(reinstalledAccount)
     expect(visible.map((backup) => backup.id)).toEqual(['archived-by-principal'])
   })
 
@@ -261,10 +271,12 @@ describe('backupManager ownership', () => {
       }),
     ]
 
-    const visible = await backupManager.listBackupsForAccount(otherAccount)
-
-    expect(visible).toEqual([])
+    const recovered = await backupManager.recoverArchivedBackupsForAccount(otherAccount)
+    expect(recovered).toBe(0)
     expect(dbMocks.saveBackup).not.toHaveBeenCalled()
+
+    const visible = await backupManager.listBackupsForAccount(otherAccount)
+    expect(visible).toEqual([])
   })
 
   it('archives verified backups by principal even when the local account id changed', async () => {

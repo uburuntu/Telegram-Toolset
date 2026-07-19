@@ -32,6 +32,7 @@ import {
   listChatExportsForAccount,
   listQuarantinedChatExports,
   reconcileChatExport,
+  recoverArchivedChatExportsForAccount,
   saveChatExportBundle,
 } from '@/services/llm-export/store'
 
@@ -135,7 +136,10 @@ describe('llm export ownership', () => {
       }),
     ]
 
-    const visibleExports = await listChatExportsForAccount(account)
+    // Recovery is an explicit lifecycle step (driven from the accounts store on add/activation),
+    // separate from the pure list read (ARCHITECTURE.md §6).
+    const recovered = await recoverArchivedChatExportsForAccount(account)
+    expect(recovered).toBe(1)
 
     expect(dbMocks.saveChatExport).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -147,6 +151,8 @@ describe('llm export ownership', () => {
         archivedReason: undefined,
       }),
     )
+
+    const visibleExports = await listChatExportsForAccount(account)
     expect(visibleExports.map((chatExport) => chatExport.id)).toEqual([
       'owned-export',
       'archived-export',

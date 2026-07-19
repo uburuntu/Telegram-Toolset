@@ -180,6 +180,9 @@ export const useAccountsStore = defineStore('accounts', () => {
 
   let loadPromise: Promise<void> | null = null
   let reloadPromise: Promise<void> | null = null
+  // Coalesces concurrent archive-recovery runs per account id so lifecycle triggers (add, activation,
+  // startup) cannot race one another into duplicate recovery mutations (ARCHITECTURE.md §6).
+  const recoveryInFlight = new Map<string, Promise<void>>()
 
   // Notify peer tabs after a committed mutation and reload when a peer notifies us, so no tab keeps
   // showing account/ownership state another tab has already changed (ARCHITECTURE.md §6). Falls back
@@ -350,6 +353,12 @@ export const useAccountsStore = defineStore('accounts', () => {
     loadPromise = (async () => {
       try {
         await applyStorageToState({ migrate: true })
+        // Retry any archive recovery a prior session may have left incomplete for the account
+        // restored as active (ARCHITECTURE.md §6). Fire-and-forget: boot must not block on a scan.
+        const active = activeAccount.value
+        if (active?.type === 'user') {
+          void recoverAccountOwnedData(active)
+        }
       } catch (error) {
         console.error('Failed to load accounts from storage:', error)
       } finally {
@@ -385,6 +394,45 @@ export const useAccountsStore = defineStore('accounts', () => {
     })()
 
     return reloadPromise
+  }
+
+  /**
+   * Reclaim archived backups and chat exports for a user account (ARCHITECTURE.md §1 & §6). Recovery
+   * is an explicit lifecycle step — triggered on add, activation, and startup — rather than a hidden
+   * side effect of a list read, so it never races a concurrent list. Runs are coalesced per account
+   * id and swallow their own errors: a failed reclaim must not fail the login/activation that
+   * triggered it (the archived data stays recoverable and is retried on the next lifecycle event).
+   */
+  function recoverAccountOwnedData(account: SavedAccount): Promise<void> {
+    if (account.type !== 'user') {
+      return Promise.resolve()
+    }
+
+    const existing = recoveryInFlight.get(account.id)
+    if (existing) {
+      return existing
+    }
+
+    const run = (async () => {
+      try {
+        const [{ backupManager }, { chatHistoryService }] = await Promise.all([
+          import('@/services/storage/backup-manager'),
+          import('@/services/llm-export/chat-history-service'),
+        ])
+
+        await Promise.all([
+          backupManager.recoverArchivedBackupsForAccount(account),
+          chatHistoryService.recoverArchivedChatExportsForAccount(account),
+        ])
+      } catch (error) {
+        console.error('Failed to recover account-owned data:', error)
+      } finally {
+        recoveryInFlight.delete(account.id)
+      }
+    })()
+
+    recoveryInFlight.set(account.id, run)
+    return run
   }
 
   async function setApiCredentials(credentials: ApiCredentials): Promise<void> {
@@ -439,6 +487,11 @@ export const useAccountsStore = defineStore('accounts', () => {
       await persistAccountSecret(newAccount)
       persistMetadataToLocalStorage()
       crossTab.post()
+      if (newAccount.type === 'user') {
+        // Reclaim any archived data for this identity before the caller navigates to a list view, so
+        // a re-login surfaces the account's prior backups/exports (ARCHITECTURE.md §1 & §6).
+        await recoverAccountOwnedData(newAccount)
+      }
       return newAccount
     } catch (error) {
       accounts.value = accounts.value.filter(
@@ -631,6 +684,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     isAccountCorrupted,
     loadFromStorage,
     reloadFromStorage,
+    recoverAccountOwnedData,
     addAccount,
     updateAccount,
     removeAccount,

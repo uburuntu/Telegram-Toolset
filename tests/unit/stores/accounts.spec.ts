@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { watch } from 'vue'
 import { useAccountsStore } from '@/stores/accounts'
+import type { SavedAccount } from '@/types/account'
 
 const vaultState = vi.hoisted(() => ({
   apiCredentials: null as { apiId: number; apiHash: string } | null,
@@ -34,10 +35,12 @@ const vaultApi = vi.hoisted(() => ({
 
 const backupManagerApi = vi.hoisted(() => ({
   archiveBackupsForRemovedAccount: vi.fn(async () => 0),
+  recoverArchivedBackupsForAccount: vi.fn(async () => 0),
 }))
 
 const chatHistoryServiceApi = vi.hoisted(() => ({
   archiveChatExportsForRemovedAccount: vi.fn(async () => 0),
+  recoverArchivedChatExportsForAccount: vi.fn(async () => 0),
 }))
 
 // Capture the store's cross-tab wiring: the callback it registers (invoked to simulate a peer tab
@@ -600,6 +603,65 @@ describe('accounts store', () => {
 
       expect(store.accounts.map((account) => account.id)).toEqual(['good'])
       expect(store.activeAccountId).toBe('good')
+    })
+  })
+
+  describe('archive recovery lifecycle', () => {
+    it('reclaims archived data when a user account is added', async () => {
+      const store = useAccountsStore()
+      await store.loadFromStorage()
+
+      const account = await store.addAccount({
+        type: 'user',
+        label: 'Reinstalled',
+        phone: '+1555000000',
+        sessionString: 'session',
+      })
+
+      expect(backupManagerApi.recoverArchivedBackupsForAccount).toHaveBeenCalledWith(
+        expect.objectContaining({ id: account.id }),
+      )
+      expect(chatHistoryServiceApi.recoverArchivedChatExportsForAccount).toHaveBeenCalledWith(
+        expect.objectContaining({ id: account.id }),
+      )
+    })
+
+    it('does not run archive recovery for bot accounts', async () => {
+      const store = useAccountsStore()
+      await store.loadFromStorage()
+
+      await store.addAccount({
+        type: 'bot',
+        label: 'Bot',
+        botToken: '123:abc',
+        sessionString: 'bot_session',
+      })
+
+      expect(backupManagerApi.recoverArchivedBackupsForAccount).not.toHaveBeenCalled()
+      expect(chatHistoryServiceApi.recoverArchivedChatExportsForAccount).not.toHaveBeenCalled()
+    })
+
+    it('coalesces concurrent recovery runs for the same account', async () => {
+      const store = useAccountsStore()
+      await store.loadFromStorage()
+
+      const account: SavedAccount = {
+        id: 'coalesce',
+        type: 'user',
+        label: 'Coalesce',
+        phone: '+1666000000',
+        sessionString: 'session',
+        createdAt: new Date(),
+        lastUsedAt: new Date(),
+      }
+
+      await Promise.all([
+        store.recoverAccountOwnedData(account),
+        store.recoverAccountOwnedData(account),
+      ])
+
+      expect(backupManagerApi.recoverArchivedBackupsForAccount).toHaveBeenCalledTimes(1)
+      expect(chatHistoryServiceApi.recoverArchivedChatExportsForAccount).toHaveBeenCalledTimes(1)
     })
   })
 })

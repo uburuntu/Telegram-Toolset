@@ -67,12 +67,16 @@ class BackupManager {
     return sortBackupsByCreatedAt(backups.map(normalizeBackup))
   }
 
+  /**
+   * Pure lifecycle read: return the backups visible to `account` without mutating anything. Archive
+   * recovery is a separate, explicitly triggered lifecycle step (see `recoverArchivedBackupsForAccount`,
+   * driven from the accounts store on add/activation) so a list call never races a concurrent recovery
+   * mutation (ARCHITECTURE.md §6).
+   */
   async listBackupsForAccount(account: SavedAccount | null): Promise<Backup[]> {
     if (!account || account.type !== 'user') {
       return []
     }
-
-    await this.recoverArchivedBackupsForAccount(account)
 
     const backups = await this.listBackups()
     return backups.filter((backup) => isVisibleToAccount(backup, account))
