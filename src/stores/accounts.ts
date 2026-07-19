@@ -355,6 +355,24 @@ export const useAccountsStore = defineStore('accounts', () => {
     }
   }
 
+  /**
+   * Explicitly clear the shared stored API credentials (ARCHITECTURE.md §7). Available from the
+   * account-independent local-data workspace so retained credentials can be removed even with no
+   * account present.
+   */
+  async function clearApiCredentials(): Promise<void> {
+    const previousCredentials = apiCredentials.value
+    apiCredentials.value = null
+
+    try {
+      await saveSecureApiCredentials(null)
+      persistMetadataToLocalStorage()
+    } catch (error) {
+      apiCredentials.value = previousCredentials
+      throw error
+    }
+  }
+
   async function addAccount(
     account: Omit<SavedAccount, 'id' | 'createdAt' | 'lastUsedAt'>,
   ): Promise<SavedAccount> {
@@ -566,6 +584,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     removeAccount,
     setActiveAccount,
     setApiCredentials,
+    clearApiCredentials,
     getCompatibleAccounts,
     hasCompatibleAccount,
     isActiveAccountCompatible,
