@@ -676,5 +676,43 @@
       "failed": "Falhou",
       "cancelled": "Cancelada"
     }
+  },
+  "localData": {
+    "title": "Dados locais",
+    "description": "Backups e exportações mantidos neste dispositivo que não estão vinculados a uma conta ativa.",
+    "navLink": "Dados locais",
+    "loading": "Carregando dados locais…",
+    "empty": "Nenhum dado local está sendo mantido neste dispositivo.",
+    "emptyHint": "Backups e exportações aparecem aqui depois que a conta que os criou é removida.",
+    "summary": "{count} registros mantidos",
+    "totalSize": "{size} no total",
+    "credentialsTitle": "Credenciais de API salvas",
+    "credentialsStored": "As credenciais da API do Telegram estão salvas neste dispositivo.",
+    "credentialsEmpty": "Nenhuma credencial de API salva.",
+    "clearCredentials": "Limpar credenciais",
+    "clearCredentialsConfirm": "Remover as credenciais da API do Telegram salvas neste dispositivo? Você precisará inseri-las novamente no próximo login.",
+    "clearCredentialsDone": "Credenciais salvas removidas.",
+    "messages": "{count} mensagens",
+    "delete": "Excluir",
+    "deleteConfirm": "Excluir permanentemente este registro deste dispositivo? Esta ação não pode ser desfeita.",
+    "deleteDone": "Registro excluído.",
+    "recoverHint": "Entre com a conta proprietária para recuperar estes dados.",
+    "kindBackup": "Backup de mensagens excluídas",
+    "kindExport": "Exportação de conversa",
+    "dangerZone": "Zona de perigo",
+    "purge": "Excluir todos os dados locais",
+    "purgeConfirm": "Excluir permanentemente todos os {count} registros mantidos ({size}) deste dispositivo? Esta ação não pode ser desfeita.",
+    "purgeDone": "{count} registros excluídos.",
+    "state": {
+      "archived": "Arquivado",
+      "quarantined": "Requer atenção",
+      "legacy": "Não reivindicado"
+    },
+    "reason": {
+      "account_removed": "A conta proprietária foi removida.",
+      "owner_metadata_missing": "As informações do proprietário estão ausentes.",
+      "invalid_ownership_state": "As informações do proprietário são inconsistentes.",
+      "legacy": "Salvo antes de as contas serem rastreadas."
+    }
   }
 }

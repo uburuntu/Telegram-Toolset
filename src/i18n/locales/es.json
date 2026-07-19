@@ -676,5 +676,43 @@
       "failed": "Fallida",
       "cancelled": "Cancelada"
     }
+  },
+  "localData": {
+    "title": "Datos locales",
+    "description": "Copias de seguridad y exportaciones guardadas en este dispositivo que no están vinculadas a una cuenta activa.",
+    "navLink": "Datos locales",
+    "loading": "Cargando datos locales…",
+    "empty": "No hay datos locales guardados en este dispositivo.",
+    "emptyHint": "Las copias de seguridad y exportaciones aparecen aquí después de eliminar la cuenta que las creó.",
+    "summary": "{count} registros conservados",
+    "totalSize": "{size} en total",
+    "credentialsTitle": "Credenciales de API guardadas",
+    "credentialsStored": "Las credenciales de la API de Telegram están guardadas en este dispositivo.",
+    "credentialsEmpty": "No hay credenciales de API guardadas.",
+    "clearCredentials": "Borrar credenciales",
+    "clearCredentialsConfirm": "¿Eliminar las credenciales de la API de Telegram guardadas en este dispositivo? Tendrás que volver a introducirlas la próxima vez que inicies sesión.",
+    "clearCredentialsDone": "Credenciales guardadas eliminadas.",
+    "messages": "{count} mensajes",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar permanentemente este registro de este dispositivo? Esta acción no se puede deshacer.",
+    "deleteDone": "Registro eliminado.",
+    "recoverHint": "Inicia sesión con la cuenta propietaria para recuperar estos datos.",
+    "kindBackup": "Copia de mensajes eliminados",
+    "kindExport": "Exportación de chat",
+    "dangerZone": "Zona de peligro",
+    "purge": "Eliminar todos los datos locales",
+    "purgeConfirm": "¿Eliminar permanentemente los {count} registros conservados ({size}) de este dispositivo? Esta acción no se puede deshacer.",
+    "purgeDone": "{count} registros eliminados.",
+    "state": {
+      "archived": "Archivado",
+      "quarantined": "Requiere atención",
+      "legacy": "Sin reclamar"
+    },
+    "reason": {
+      "account_removed": "La cuenta propietaria fue eliminada.",
+      "owner_metadata_missing": "Falta la información del propietario.",
+      "invalid_ownership_state": "La información del propietario es incoherente.",
+      "legacy": "Guardado antes de que se registraran las cuentas."
+    }
   }
 }

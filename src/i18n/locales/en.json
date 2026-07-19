@@ -676,5 +676,43 @@
       "failed": "Failed",
       "cancelled": "Cancelled"
     }
+  },
+  "localData": {
+    "title": "Local data",
+    "description": "Backups and exports kept on this device that are not tied to a signed-in account.",
+    "navLink": "Local data",
+    "loading": "Loading local data…",
+    "empty": "No local data is being kept on this device.",
+    "emptyHint": "Backups and exports appear here after the account that created them is removed.",
+    "summary": "{count} retained records",
+    "totalSize": "{size} total",
+    "credentialsTitle": "Stored API credentials",
+    "credentialsStored": "Telegram API credentials are stored on this device.",
+    "credentialsEmpty": "No API credentials are stored.",
+    "clearCredentials": "Clear credentials",
+    "clearCredentialsConfirm": "Remove the stored Telegram API credentials from this device? You will need to enter them again next time you sign in.",
+    "clearCredentialsDone": "Stored credentials cleared.",
+    "messages": "{count} messages",
+    "delete": "Delete",
+    "deleteConfirm": "Permanently delete this record from this device? This cannot be undone.",
+    "deleteDone": "Record deleted.",
+    "recoverHint": "Sign in with the owning account to recover this data.",
+    "kindBackup": "Deleted-messages backup",
+    "kindExport": "Chat export",
+    "dangerZone": "Danger zone",
+    "purge": "Delete all local data",
+    "purgeConfirm": "Permanently delete all {count} retained records ({size}) from this device? This cannot be undone.",
+    "purgeDone": "Deleted {count} records.",
+    "state": {
+      "archived": "Archived",
+      "quarantined": "Needs attention",
+      "legacy": "Unclaimed"
+    },
+    "reason": {
+      "account_removed": "The owning account was removed.",
+      "owner_metadata_missing": "Owner information is missing.",
+      "invalid_ownership_state": "Owner information is inconsistent.",
+      "legacy": "Saved before accounts were tracked."
+    }
   }
 }

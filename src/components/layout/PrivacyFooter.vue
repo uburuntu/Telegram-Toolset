@@ -14,6 +14,12 @@ const repoUrl = 'https://github.com/uburuntu/Telegram-Deleted-Messages-Manager'
           <span class="text-xs">{{ t('privacy.footer') }}</span>
         </div>
         <div class="flex items-center gap-4 text-xs">
+          <router-link
+            to="/local-data"
+            class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-100"
+          >
+            {{ t('localData.navLink') }}
+          </router-link>
           <a
             :href="repoUrl"
             target="_blank"

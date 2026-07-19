@@ -676,5 +676,43 @@
       "failed": "Xatolik",
       "cancelled": "Bekor qilindi"
     }
+  },
+  "localData": {
+    "title": "Mahalliy ma'lumotlar",
+    "description": "Ushbu qurilmada saqlanadigan va faol hisobga bog'lanmagan zaxira nusxalari va eksportlar.",
+    "navLink": "Mahalliy ma'lumotlar",
+    "loading": "Mahalliy ma'lumotlar yuklanmoqda…",
+    "empty": "Ushbu qurilmada mahalliy ma'lumotlar saqlanmagan.",
+    "emptyHint": "Zaxira nusxalari va eksportlar ularni yaratgan hisob o'chirilgach shu yerda ko'rinadi.",
+    "summary": "{count} ta yozuv saqlangan",
+    "totalSize": "Jami {size}",
+    "credentialsTitle": "Saqlangan API ma'lumotlari",
+    "credentialsStored": "Telegram API ma'lumotlari ushbu qurilmada saqlangan.",
+    "credentialsEmpty": "Saqlangan API ma'lumotlari yo'q.",
+    "clearCredentials": "Ma'lumotlarni tozalash",
+    "clearCredentialsConfirm": "Ushbu qurilmadagi saqlangan Telegram API ma'lumotlari o'chirilsinmi? Keyingi safar kirganingizda ularni qayta kiritishingiz kerak bo'ladi.",
+    "clearCredentialsDone": "Saqlangan ma'lumotlar tozalandi.",
+    "messages": "{count} ta xabar",
+    "delete": "O'chirish",
+    "deleteConfirm": "Ushbu yozuv qurilmadan butunlay o'chirilsinmi? Bu amalni bekor qilib bo'lmaydi.",
+    "deleteDone": "Yozuv o'chirildi.",
+    "recoverHint": "Ushbu ma'lumotlarni tiklash uchun egasi bo'lgan hisob bilan kiring.",
+    "kindBackup": "O'chirilgan xabarlar zaxirasi",
+    "kindExport": "Suhbat eksporti",
+    "dangerZone": "Xavfli hudud",
+    "purge": "Barcha mahalliy ma'lumotlarni o'chirish",
+    "purgeConfirm": "Ushbu qurilmadagi saqlangan barcha yozuvlar ({count} ta, {size}) butunlay o'chirilsinmi? Bu amalni bekor qilib bo'lmaydi.",
+    "purgeDone": "{count} ta yozuv o'chirildi.",
+    "state": {
+      "archived": "Arxivlangan",
+      "quarantined": "E'tibor talab qiladi",
+      "legacy": "Egasiz"
+    },
+    "reason": {
+      "account_removed": "Egasi bo'lgan hisob o'chirilgan.",
+      "owner_metadata_missing": "Egasi haqidagi ma'lumot yo'q.",
+      "invalid_ownership_state": "Egasi haqidagi ma'lumot ziddiyatli.",
+      "legacy": "Hisoblar kuzatilishidan oldin saqlangan."
+    }
   }
 }
