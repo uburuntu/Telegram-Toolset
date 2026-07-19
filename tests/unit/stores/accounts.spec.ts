@@ -40,12 +40,26 @@ const chatHistoryServiceApi = vi.hoisted(() => ({
   archiveChatExportsForRemovedAccount: vi.fn(async () => 0),
 }))
 
+// Capture the store's cross-tab wiring: the callback it registers (invoked to simulate a peer tab
+// reporting a change) and a spy on the invalidations it posts after its own mutations.
+const crossTabState = vi.hoisted(() => ({
+  onInvalidated: null as null | (() => void),
+  post: vi.fn(),
+  close: vi.fn(),
+}))
+
 vi.mock('@/services/storage/secure-account-vault', () => vaultApi)
 vi.mock('@/services/storage/backup-manager', () => ({
   backupManager: backupManagerApi,
 }))
 vi.mock('@/services/llm-export/chat-history-service', () => ({
   chatHistoryService: chatHistoryServiceApi,
+}))
+vi.mock('@/services/storage/cross-tab', () => ({
+  createInvalidationChannel: (_name: string, onInvalidated: () => void) => {
+    crossTabState.onInvalidated = onInvalidated
+    return { post: crossTabState.post, close: crossTabState.close }
+  },
 }))
 
 describe('accounts store', () => {
@@ -55,6 +69,7 @@ describe('accounts store', () => {
     storage = new Map()
     vaultState.apiCredentials = null
     vaultState.accountSecrets.clear()
+    crossTabState.onInvalidated = null
     vi.clearAllMocks()
 
     vi.stubGlobal('localStorage', {
@@ -503,6 +518,88 @@ describe('accounts store', () => {
 
       expect(store.isAccountCorrupted('bad')).toBe(false)
       expect(store.accounts.map((account) => account.id)).toEqual(['good'])
+    })
+  })
+
+  describe('cross-tab invalidation', () => {
+    function writeStoredAccounts(ids: string[]): void {
+      localStorage.setItem(
+        'telegram_accounts',
+        JSON.stringify(
+          ids.map((id) => ({
+            id,
+            type: 'user',
+            label: id,
+            phone: `+1${id}`,
+            createdAt: '2026-04-20T10:00:00.000Z',
+            lastUsedAt: '2026-04-24T10:00:00.000Z',
+          })),
+        ),
+      )
+    }
+
+    it('posts an invalidation after committing a mutation', async () => {
+      const store = useAccountsStore()
+      await store.loadFromStorage()
+
+      await store.addAccount({
+        type: 'user',
+        label: 'New',
+        phone: '+1999999999',
+        sessionString: 'new-session',
+      })
+
+      expect(crossTabState.post).toHaveBeenCalled()
+    })
+
+    it('wires the invalidation callback that reloads state', () => {
+      useAccountsStore()
+      expect(crossTabState.onInvalidated).toBeTypeOf('function')
+    })
+
+    it('reloads in-memory state when a peer tab reports a change', async () => {
+      writeStoredAccounts(['good'])
+      localStorage.setItem('telegram_active_account', 'good')
+      vaultState.accountSecrets.set('good', { sessionString: 'good-session' })
+
+      const store = useAccountsStore()
+      await store.loadFromStorage()
+      expect(store.accounts).toHaveLength(1)
+
+      // Simulate another tab adding + activating a second account by writing shared storage directly.
+      writeStoredAccounts(['good', 'peer'])
+      localStorage.setItem('telegram_active_account', 'peer')
+      vaultState.accountSecrets.set('peer', { sessionString: 'peer-session' })
+
+      crossTabState.post.mockClear()
+      crossTabState.onInvalidated?.()
+      await store.reloadFromStorage()
+
+      expect(store.accounts.map((account) => account.id)).toEqual(['good', 'peer'])
+      expect(store.activeAccountId).toBe('peer')
+      // A reload triggered by a peer must not echo back into the channel.
+      expect(crossTabState.post).not.toHaveBeenCalled()
+    })
+
+    it('drops an account a peer tab removed', async () => {
+      writeStoredAccounts(['good', 'peer'])
+      localStorage.setItem('telegram_active_account', 'peer')
+      vaultState.accountSecrets.set('good', { sessionString: 'good-session' })
+      vaultState.accountSecrets.set('peer', { sessionString: 'peer-session' })
+
+      const store = useAccountsStore()
+      await store.loadFromStorage()
+      expect(store.accounts).toHaveLength(2)
+
+      // Peer removes 'peer' and re-points the active selection at the survivor.
+      writeStoredAccounts(['good'])
+      localStorage.setItem('telegram_active_account', 'good')
+      vaultState.accountSecrets.delete('peer')
+
+      await store.reloadFromStorage()
+
+      expect(store.accounts.map((account) => account.id)).toEqual(['good'])
+      expect(store.activeAccountId).toBe('good')
     })
   })
 })

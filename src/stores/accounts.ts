@@ -7,6 +7,7 @@
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, ref } from 'vue'
+import { createInvalidationChannel } from '@/services/storage/cross-tab'
 import {
   deleteSecureAccountSecret,
   loadSecureAccountSecret,
@@ -154,8 +155,8 @@ export const useAccountsStore = defineStore('accounts', () => {
   // tabs: reading it at commit time therefore fences a late write whose account was removed in
   // another tab, without waiting for a `storage`/BroadcastChannel notification. The tombstone key is
   // intentionally never deleted on removal — the advanced value is what keeps fencing late writes for
-  // that (never-reused) account id. Broader cross-tab invalidation of cached account/ownership state
-  // is separate Stage C (§6) work.
+  // that (never-reused) account id. Broader invalidation of a peer tab's *displayed* account state is
+  // handled separately by the cross-tab channel below (reload on peer mutation).
   function getAccountEpoch(id: string): number {
     const raw = localStorage.getItem(`${ACCOUNT_EPOCH_KEY_PREFIX}${id}`)
     if (raw === null) {
@@ -178,6 +179,14 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   let loadPromise: Promise<void> | null = null
+  let reloadPromise: Promise<void> | null = null
+
+  // Notify peer tabs after a committed mutation and reload when a peer notifies us, so no tab keeps
+  // showing account/ownership state another tab has already changed (ARCHITECTURE.md §6). Falls back
+  // to a no-op (reload-on-next-read) where BroadcastChannel is unavailable.
+  const crossTab = createInvalidationChannel('telegram-toolset:accounts', () => {
+    void reloadFromStorage()
+  })
 
   const activeAccount = computed(
     () => accounts.value.find((a) => a.id === activeAccountId.value) ?? null,
@@ -256,6 +265,79 @@ export const useAccountsStore = defineStore('accounts', () => {
     persistMetadataToLocalStorage()
   }
 
+  /**
+   * Read persisted metadata + secrets and publish them to the reactive refs. Shared by the initial
+   * load and by cross-tab reloads. Legacy plaintext migration only runs on the initial load
+   * (`migrate: true`); a reload is a pure read that must not perform storage writes.
+   */
+  async function applyStorageToState(options: { migrate: boolean }): Promise<void> {
+    const storedAccounts = parseStoredAccounts()
+    const legacyCredentials = parseStoredApiCredentials()
+
+    let secureCredentials: ApiCredentials | null = null
+    try {
+      secureCredentials = await loadSecureApiCredentials()
+    } catch (credentialsError) {
+      // A corrupt/undecryptable credentials record must not hide every account. Drop the cached
+      // credentials (the user re-enters them on next login) instead of failing the whole load.
+      console.error('Failed to load secure API credentials:', credentialsError)
+      secureCredentials = null
+    }
+
+    const nextApiCredentials =
+      secureCredentials ?? legacyCredentials ?? getEmbeddedApiCredentials(storedAccounts)
+
+    // Load API credentials before publishing accounts so reactive consumers never
+    // observe a user account without the shared app credentials.
+    apiCredentials.value = nextApiCredentials
+
+    // Load each account's secret independently so a single corrupt/undecryptable record is
+    // quarantined rather than rejecting the whole account list (ARCHITECTURE.md §6). A failed
+    // record leaves the account visible (from plaintext metadata) for explicit re-auth or removal.
+    const corruptedIds: string[] = []
+    const secrets = await Promise.all(
+      storedAccounts.map(async (account) => {
+        try {
+          return [account.id, await loadSecureAccountSecret(account.id)] as const
+        } catch (secretError) {
+          console.error(`Failed to load secure secret for account ${account.id}:`, secretError)
+          corruptedIds.push(account.id)
+          return [account.id, null] as const
+        }
+      }),
+    )
+    const secretByAccountId = new Map<string, PersistedAccountSecret | null>(secrets)
+
+    accounts.value = storedAccounts.map((account) =>
+      hydrateAccount(account, secretByAccountId.get(account.id) ?? null),
+    )
+    corruptedAccountIds.value = corruptedIds
+    syncSessionStateMap()
+
+    // A user account whose session secret failed to decrypt cannot connect; route it to the
+    // explicit re-login path rather than leaving it in an ambiguous 'unknown' state.
+    for (const corruptedId of corruptedIds) {
+      const corruptedAccount = accounts.value.find((account) => account.id === corruptedId)
+      if (corruptedAccount?.type === 'user') {
+        sessionStateByAccountId.value[corruptedId] = 'needs_login'
+      }
+    }
+
+    const storedActive = localStorage.getItem(ACTIVE_ACCOUNT_KEY)
+    activeAccountId.value =
+      storedActive && accounts.value.some((account) => account.id === storedActive)
+        ? storedActive
+        : null
+
+    if (
+      options.migrate &&
+      (hasLegacyPlaintextData(storedAccounts, legacyCredentials !== null) ||
+        (nextApiCredentials !== null && secureCredentials === null))
+    ) {
+      await migrateLegacyPlaintextData()
+    }
+  }
+
   async function loadFromStorage(): Promise<void> {
     if (storageLoaded.value) {
       return
@@ -267,70 +349,7 @@ export const useAccountsStore = defineStore('accounts', () => {
 
     loadPromise = (async () => {
       try {
-        const storedAccounts = parseStoredAccounts()
-        const legacyCredentials = parseStoredApiCredentials()
-
-        let secureCredentials: ApiCredentials | null = null
-        try {
-          secureCredentials = await loadSecureApiCredentials()
-        } catch (credentialsError) {
-          // A corrupt/undecryptable credentials record must not hide every account. Drop the cached
-          // credentials (the user re-enters them on next login) instead of failing the whole load.
-          console.error('Failed to load secure API credentials:', credentialsError)
-          secureCredentials = null
-        }
-
-        const nextApiCredentials =
-          secureCredentials ?? legacyCredentials ?? getEmbeddedApiCredentials(storedAccounts)
-
-        // Load API credentials before publishing accounts so reactive consumers never
-        // observe a user account without the shared app credentials.
-        apiCredentials.value = nextApiCredentials
-
-        // Load each account's secret independently so a single corrupt/undecryptable record is
-        // quarantined rather than rejecting the whole account list (ARCHITECTURE.md §6). A failed
-        // record leaves the account visible (from plaintext metadata) for explicit re-auth or removal.
-        const corruptedIds: string[] = []
-        const secrets = await Promise.all(
-          storedAccounts.map(async (account) => {
-            try {
-              return [account.id, await loadSecureAccountSecret(account.id)] as const
-            } catch (secretError) {
-              console.error(`Failed to load secure secret for account ${account.id}:`, secretError)
-              corruptedIds.push(account.id)
-              return [account.id, null] as const
-            }
-          }),
-        )
-        const secretByAccountId = new Map<string, PersistedAccountSecret | null>(secrets)
-
-        accounts.value = storedAccounts.map((account) =>
-          hydrateAccount(account, secretByAccountId.get(account.id) ?? null),
-        )
-        corruptedAccountIds.value = corruptedIds
-        syncSessionStateMap()
-
-        // A user account whose session secret failed to decrypt cannot connect; route it to the
-        // explicit re-login path rather than leaving it in an ambiguous 'unknown' state.
-        for (const corruptedId of corruptedIds) {
-          const corruptedAccount = accounts.value.find((account) => account.id === corruptedId)
-          if (corruptedAccount?.type === 'user') {
-            sessionStateByAccountId.value[corruptedId] = 'needs_login'
-          }
-        }
-
-        const storedActive = localStorage.getItem(ACTIVE_ACCOUNT_KEY)
-        activeAccountId.value =
-          storedActive && accounts.value.some((account) => account.id === storedActive)
-            ? storedActive
-            : null
-
-        if (
-          hasLegacyPlaintextData(storedAccounts, legacyCredentials !== null) ||
-          (nextApiCredentials !== null && secureCredentials === null)
-        ) {
-          await migrateLegacyPlaintextData()
-        }
+        await applyStorageToState({ migrate: true })
       } catch (error) {
         console.error('Failed to load accounts from storage:', error)
       } finally {
@@ -342,6 +361,32 @@ export const useAccountsStore = defineStore('accounts', () => {
     return loadPromise
   }
 
+  /**
+   * Re-read persisted state after a peer tab reports a mutation (ARCHITECTURE.md §6). Defers to an
+   * in-flight initial load (which reads the same fresh storage) and never re-broadcasts, so a reload
+   * cannot loop back into other tabs.
+   */
+  async function reloadFromStorage(): Promise<void> {
+    if (loadPromise) {
+      return loadPromise
+    }
+    if (reloadPromise) {
+      return reloadPromise
+    }
+
+    reloadPromise = (async () => {
+      try {
+        await applyStorageToState({ migrate: false })
+      } catch (error) {
+        console.error('Failed to reload accounts after cross-tab invalidation:', error)
+      } finally {
+        reloadPromise = null
+      }
+    })()
+
+    return reloadPromise
+  }
+
   async function setApiCredentials(credentials: ApiCredentials): Promise<void> {
     const previousCredentials = apiCredentials.value
     apiCredentials.value = credentials
@@ -349,6 +394,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     try {
       await saveSecureApiCredentials(credentials)
       persistMetadataToLocalStorage()
+      crossTab.post()
     } catch (error) {
       apiCredentials.value = previousCredentials
       throw error
@@ -367,6 +413,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     try {
       await saveSecureApiCredentials(null)
       persistMetadataToLocalStorage()
+      crossTab.post()
     } catch (error) {
       apiCredentials.value = previousCredentials
       throw error
@@ -391,6 +438,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     try {
       await persistAccountSecret(newAccount)
       persistMetadataToLocalStorage()
+      crossTab.post()
       return newAccount
     } catch (error) {
       accounts.value = accounts.value.filter(
@@ -416,6 +464,7 @@ export const useAccountsStore = defineStore('accounts', () => {
       persistMetadataToLocalStorage()
       // Writing a fresh secret repairs a previously corrupt record.
       clearCorruptedAccount(id)
+      crossTab.post()
     } catch (error) {
       accounts.value[index] = previousAccount
       throw error
@@ -467,6 +516,7 @@ export const useAccountsStore = defineStore('accounts', () => {
       await deleteSecureAccountSecret(id)
       persistMetadataToLocalStorage()
       clearCorruptedAccount(id)
+      crossTab.post()
     } catch (error) {
       accounts.value = previousAccounts
       activeAccountId.value = previousActiveAccountId
@@ -492,6 +542,7 @@ export const useAccountsStore = defineStore('accounts', () => {
 
     try {
       persistMetadataToLocalStorage()
+      crossTab.post()
     } catch (error) {
       console.error('Failed to persist active account selection:', error)
     }
@@ -579,6 +630,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     hasCorruptedAccounts,
     isAccountCorrupted,
     loadFromStorage,
+    reloadFromStorage,
     addAccount,
     updateAccount,
     removeAccount,
