@@ -115,6 +115,21 @@ export interface PurgeSummary {
 }
 
 /**
+ * Delete a single retained record. Routes through the ownership-enforced managers with a null accessor
+ * so the same {@link canManageRecord} guard that protects live-account data also gates this path: only
+ * orphaned records (archived, quarantined, legacy) can be removed account-independently.
+ */
+export async function deleteLocalRecord(
+  record: Pick<LocalDataRecord, 'id' | 'kind'>,
+): Promise<void> {
+  if (record.kind === 'backup') {
+    await backupManager.deleteBackup(record.id, null)
+  } else {
+    await chatHistoryService.deleteChatExport(record.id, null)
+  }
+}
+
+/**
  * Delete every retained (orphaned) record currently listed in the workspace. This is the opt-in bulk
  * purge; its scope is exactly the inventory returned by {@link getLocalDataInventory} — records owned
  * by a live active account are never touched here.
@@ -124,11 +139,10 @@ export async function purgeRetainedLocalData(): Promise<PurgeSummary> {
   const summary: PurgeSummary = { backups: 0, chatExports: 0 }
 
   for (const record of records) {
+    await deleteLocalRecord(record)
     if (record.kind === 'backup') {
-      await db.deleteBackup(record.id)
       summary.backups += 1
     } else {
-      await db.deleteChatExport(record.id)
       summary.chatExports += 1
     }
   }

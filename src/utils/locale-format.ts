@@ -20,6 +20,17 @@ export function formatNumberWithLocale(
   return new Intl.NumberFormat(locale, options).format(value)
 }
 
+export function formatBytesWithLocale(bytes: number, locale: string = getActiveLocale()): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return `${formatNumberWithLocale(0, undefined, locale)} B`
+  }
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.min(sizes.length - 1, Math.floor(Math.log(bytes) / Math.log(k)))
+  const value = bytes / k ** i
+  return `${formatNumberWithLocale(value, { maximumFractionDigits: 1 }, locale)} ${sizes[i]}`
+}
+
 export function formatRelativeTimeFromNow(
   targetDate: Date,
   locale: string = getActiveLocale(),

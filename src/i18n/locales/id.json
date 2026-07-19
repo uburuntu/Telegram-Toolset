@@ -676,5 +676,43 @@
       "failed": "Gagal",
       "cancelled": "Dibatalkan"
     }
+  },
+  "localData": {
+    "title": "Data lokal",
+    "description": "Cadangan dan ekspor yang disimpan di perangkat ini yang tidak terkait dengan akun yang aktif.",
+    "navLink": "Data lokal",
+    "loading": "Memuat data lokal…",
+    "empty": "Tidak ada data lokal yang disimpan di perangkat ini.",
+    "emptyHint": "Cadangan dan ekspor muncul di sini setelah akun yang membuatnya dihapus.",
+    "summary": "{count} catatan disimpan",
+    "totalSize": "Total {size}",
+    "credentialsTitle": "Kredensial API tersimpan",
+    "credentialsStored": "Kredensial API Telegram disimpan di perangkat ini.",
+    "credentialsEmpty": "Tidak ada kredensial API yang tersimpan.",
+    "clearCredentials": "Hapus kredensial",
+    "clearCredentialsConfirm": "Hapus kredensial API Telegram yang tersimpan dari perangkat ini? Anda perlu memasukkannya lagi saat berikutnya masuk.",
+    "clearCredentialsDone": "Kredensial tersimpan telah dihapus.",
+    "messages": "{count} pesan",
+    "delete": "Hapus",
+    "deleteConfirm": "Hapus catatan ini secara permanen dari perangkat ini? Tindakan ini tidak dapat dibatalkan.",
+    "deleteDone": "Catatan dihapus.",
+    "recoverHint": "Masuk dengan akun pemilik untuk memulihkan data ini.",
+    "kindBackup": "Cadangan pesan terhapus",
+    "kindExport": "Ekspor obrolan",
+    "dangerZone": "Zona berbahaya",
+    "purge": "Hapus semua data lokal",
+    "purgeConfirm": "Hapus permanen semua {count} catatan yang disimpan ({size}) dari perangkat ini? Tindakan ini tidak dapat dibatalkan.",
+    "purgeDone": "{count} catatan dihapus.",
+    "state": {
+      "archived": "Diarsipkan",
+      "quarantined": "Perlu perhatian",
+      "legacy": "Belum diklaim"
+    },
+    "reason": {
+      "account_removed": "Akun pemilik telah dihapus.",
+      "owner_metadata_missing": "Informasi pemilik tidak ada.",
+      "invalid_ownership_state": "Informasi pemilik tidak konsisten.",
+      "legacy": "Disimpan sebelum akun dilacak."
+    }
   }
 }

@@ -10,6 +10,7 @@ import { useAccountsStore } from '@/stores'
 // Lazy-loaded views
 const LandingView = () => import('@/views/LandingView.vue')
 const BackupsView = () => import('@/views/BackupsView.vue')
+const LocalDataView = () => import('@/views/LocalDataView.vue')
 
 // Build routes from modules
 const moduleRoutes: RouteRecordRaw[] = modules.map((m) => m.route)
@@ -26,6 +27,14 @@ const routes: RouteRecordRaw[] = [
     name: 'backups',
     component: BackupsView,
     meta: { requiresAuth: true, accountType: 'user' },
+  },
+  {
+    // Account-independent workspace: retained data can be inspected and cleaned up with no
+    // active account, so this route intentionally does not require auth (ARCHITECTURE.md §7).
+    path: '/local-data',
+    name: 'local-data',
+    component: LocalDataView,
+    meta: { requiresAuth: false },
   },
   // Module routes
   ...moduleRoutes,

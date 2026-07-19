@@ -676,5 +676,43 @@
       "failed": "Başarısız",
       "cancelled": "İptal edildi"
     }
+  },
+  "localData": {
+    "title": "Yerel veriler",
+    "description": "Bu cihazda tutulan, oturum açmış bir hesaba bağlı olmayan yedekler ve dışa aktarmalar.",
+    "navLink": "Yerel veriler",
+    "loading": "Yerel veriler yükleniyor…",
+    "empty": "Bu cihazda tutulan yerel veri yok.",
+    "emptyHint": "Yedekler ve dışa aktarmalar, onları oluşturan hesap kaldırıldıktan sonra burada görünür.",
+    "summary": "{count} kayıt saklanıyor",
+    "totalSize": "Toplam {size}",
+    "credentialsTitle": "Kayıtlı API kimlik bilgileri",
+    "credentialsStored": "Telegram API kimlik bilgileri bu cihazda saklanıyor.",
+    "credentialsEmpty": "Kayıtlı API kimlik bilgisi yok.",
+    "clearCredentials": "Kimlik bilgilerini temizle",
+    "clearCredentialsConfirm": "Bu cihazda saklanan Telegram API kimlik bilgileri kaldırılsın mı? Bir sonraki oturum açışınızda bunları yeniden girmeniz gerekecek.",
+    "clearCredentialsDone": "Kayıtlı kimlik bilgileri temizlendi.",
+    "messages": "{count} mesaj",
+    "delete": "Sil",
+    "deleteConfirm": "Bu kayıt bu cihazdan kalıcı olarak silinsin mi? Bu işlem geri alınamaz.",
+    "deleteDone": "Kayıt silindi.",
+    "recoverHint": "Bu verileri kurtarmak için sahibi olan hesapla oturum açın.",
+    "kindBackup": "Silinen mesaj yedeği",
+    "kindExport": "Sohbet dışa aktarımı",
+    "dangerZone": "Tehlikeli bölge",
+    "purge": "Tüm yerel verileri sil",
+    "purgeConfirm": "Bu cihazdaki saklanan {count} kaydın tamamı ({size}) kalıcı olarak silinsin mi? Bu işlem geri alınamaz.",
+    "purgeDone": "{count} kayıt silindi.",
+    "state": {
+      "archived": "Arşivlendi",
+      "quarantined": "İlgi gerekiyor",
+      "legacy": "Sahiplenilmemiş"
+    },
+    "reason": {
+      "account_removed": "Sahibi olan hesap kaldırıldı.",
+      "owner_metadata_missing": "Sahip bilgileri eksik.",
+      "invalid_ownership_state": "Sahip bilgileri tutarsız.",
+      "legacy": "Hesaplar izlenmeye başlamadan önce kaydedildi."
+    }
   }
 }

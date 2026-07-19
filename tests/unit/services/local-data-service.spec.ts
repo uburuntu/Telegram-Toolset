@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Backup, ChatExport } from '@/types'
 
-const backupManagerMock = vi.hoisted(() => ({ listBackups: vi.fn() }))
-const chatHistoryMock = vi.hoisted(() => ({ listChatExports: vi.fn() }))
+const backupManagerMock = vi.hoisted(() => ({
+  listBackups: vi.fn(),
+  deleteBackup: vi.fn(async () => {}),
+}))
+const chatHistoryMock = vi.hoisted(() => ({
+  listChatExports: vi.fn(),
+  deleteChatExport: vi.fn(async () => {}),
+}))
 const dbMock = vi.hoisted(() => ({
   getChatExportSize: vi.fn(async () => 0),
-  deleteBackup: vi.fn(async () => {}),
-  deleteChatExport: vi.fn(async () => {}),
 }))
 
 vi.mock('@/services/storage/backup-manager', () => ({ backupManager: backupManagerMock }))
@@ -103,8 +107,9 @@ describe('local-data-service', () => {
     const summary = await purgeRetainedLocalData()
 
     expect(summary).toEqual({ backups: 1, chatExports: 1 })
-    expect(dbMock.deleteBackup).toHaveBeenCalledWith('archived')
-    expect(dbMock.deleteBackup).not.toHaveBeenCalledWith('active')
-    expect(dbMock.deleteChatExport).toHaveBeenCalledWith('legacy-export')
+    // Deletes route through the ownership-enforced managers with a null accessor.
+    expect(backupManagerMock.deleteBackup).toHaveBeenCalledWith('archived', null)
+    expect(backupManagerMock.deleteBackup).not.toHaveBeenCalledWith('active', null)
+    expect(chatHistoryMock.deleteChatExport).toHaveBeenCalledWith('legacy-export', null)
   })
 })
