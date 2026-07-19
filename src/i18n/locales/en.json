@@ -664,5 +664,15 @@
       "markdown": "Markdown format with headers and formatting, good for documentation",
       "custom": "Define your own template with variables like sender, text, date"
     }
+  },
+  "jobs": {
+    "heading": "Background tasks",
+    "clearCompleted": "Clear completed",
+    "status": {
+      "running": "Running",
+      "succeeded": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    }
   }
 }
