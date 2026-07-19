@@ -1,10 +1,20 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { createJobContext } from '@/services/jobs/job-context'
 import { MAX_RECENT_JOBS, useJobsStore } from '@/stores/jobs'
 import type { RegisterJobInput } from '@/stores/jobs'
 import type { TelegramPrincipal } from '@/types'
 
 const principal: TelegramPrincipal = { kind: 'user', telegramUserId: '100' }
+
+function contextInput() {
+  return {
+    accountId: 'account-a',
+    principal,
+    sessionGeneration: 1,
+    accountEpoch: 0,
+  }
+}
 
 function input(overrides: Partial<RegisterJobInput> = {}): RegisterJobInput {
   return {
@@ -98,5 +108,40 @@ describe('useJobsStore', () => {
 
     expect(store.activeJobs.map((job) => job.operationId)).toEqual(['running'])
     expect(store.recentJobs).toHaveLength(0)
+  })
+
+  it('downgrades a succeeded settle to cancelled when the job was aborted', () => {
+    const store = useJobsStore()
+    const { context, controller } = createJobContext(contextInput())
+    store.registerFromContext(context, { kind: 'export', title: 'Export' })
+
+    controller.abort()
+    // A late completion callback reports success after the owner already cancelled the job.
+    store.settle(context.operationId, 'succeeded')
+
+    expect(store.getJob(context.operationId)?.status).toBe('cancelled')
+  })
+
+  it('keeps a genuine success when the job was not aborted', () => {
+    const store = useJobsStore()
+    const { context } = createJobContext(contextInput())
+    store.registerFromContext(context, { kind: 'export', title: 'Export' })
+
+    store.settle(context.operationId, 'succeeded')
+
+    expect(store.getJob(context.operationId)?.status).toBe('succeeded')
+  })
+
+  it('does not resurrect a signal for a replaced operation id', () => {
+    const store = useJobsStore()
+    const { context, controller } = createJobContext(contextInput())
+    store.registerFromContext(context, { kind: 'export', title: 'Export' })
+    controller.abort()
+
+    // Re-registering the same operation id without a context must drop the stale aborted signal.
+    store.register(input({ operationId: context.operationId }))
+    store.settle(context.operationId, 'succeeded')
+
+    expect(store.getJob(context.operationId)?.status).toBe('succeeded')
   })
 })

@@ -26,6 +26,10 @@ export interface RegisterJobInput {
 export const useJobsStore = defineStore('jobs', () => {
   const jobs = ref<JobRecord[]>([])
 
+  // Live abort signals for context-registered running jobs, kept out of the serializable JobRecord so
+  // the projection stays pure. Used only to defensively reclassify a settle() call (see settle()).
+  const signals = new Map<string, AbortSignal>()
+
   const activeJobs = computed(() => jobs.value.filter((job) => job.status === 'running'))
   const recentJobs = computed(() => jobs.value.filter((job) => job.status !== 'running'))
   const hasActiveJobs = computed(() => activeJobs.value.length > 0)
@@ -55,6 +59,7 @@ export const useJobsStore = defineStore('jobs', () => {
     }
 
     // Replace any prior record with the same operation id rather than duplicating.
+    signals.delete(input.operationId)
     jobs.value = [...jobs.value.filter((job) => job.operationId !== input.operationId), record]
     return record
   }
@@ -63,7 +68,7 @@ export const useJobsStore = defineStore('jobs', () => {
     context: JobContext,
     meta: { kind: JobKind; title: string; progress?: JobProgress },
   ): JobRecord {
-    return register({
+    const record = register({
       operationId: context.operationId,
       kind: meta.kind,
       title: meta.title,
@@ -73,6 +78,8 @@ export const useJobsStore = defineStore('jobs', () => {
       accountEpoch: context.accountEpoch,
       progress: meta.progress,
     })
+    signals.set(context.operationId, context.signal)
+    return record
   }
 
   function updateProgress(operationId: string, progress: JobProgress): void {
@@ -89,9 +96,14 @@ export const useJobsStore = defineStore('jobs', () => {
     if (!job) {
       return
     }
-    job.status = status
+    // A job whose owner already aborted must never be recorded as a success, even if a late caller
+    // reports 'succeeded' after cancellation (ARCHITECTURE.md §3, criterion 2).
+    const effectiveStatus =
+      status === 'succeeded' && signals.get(operationId)?.aborted ? 'cancelled' : status
+    job.status = effectiveStatus
     job.error = error
     job.updatedAt = new Date()
+    signals.delete(operationId)
     pruneRecent()
   }
 
