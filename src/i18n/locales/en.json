@@ -443,7 +443,9 @@
     "quarantinedHint": "These backups lost their link to an account and stay hidden until repaired. Assign one to the current account to restore it, or delete it.",
     "repair": "Repair",
     "repairSuccess": "Backup restored to this account.",
-    "repairError": "Failed to repair backup."
+    "repairError": "Failed to repair backup.",
+    "contentUnavailable": "Content unavailable",
+    "contentUnavailableHint": "This backup's data was removed by the browser. Only the summary remains — delete it and export again from Telegram."
   },
   "privacy": {
     "footer": "100% on-device. No data leaves your browser.",

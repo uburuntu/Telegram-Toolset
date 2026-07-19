@@ -13,6 +13,7 @@ import type {
 } from '@/types'
 import { safeJsonStringify, stripRawMessage } from '@/utils/message-serialization'
 import { zipGenerator } from '../export/zip-generator'
+import { listEvictedBackupIds } from './content-health'
 import * as db from './indexed-db'
 import {
   archiveOwnership,
@@ -221,6 +222,14 @@ class BackupManager {
   async listQuarantinedBackups(): Promise<Backup[]> {
     const backups = await this.listBackups()
     return backups.filter((backup) => normalizeOwnership(backup).health === 'quarantined')
+  }
+
+  /**
+   * Ids of backups whose content was lost to browser eviction (metadata survives, messages gone).
+   * Callers surface these as recoverable-but-empty without hiding the rest of the inventory.
+   */
+  async listEvictedBackupIds(backups: Backup[]): Promise<Set<string>> {
+    return listEvictedBackupIds(backups)
   }
 
   /**

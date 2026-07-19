@@ -14,8 +14,13 @@ const backupsStore = useBackupsStore()
 const uiStore = useUiStore()
 const archivedBackups = ref<Backup[]>([])
 const quarantinedBackups = ref<Backup[]>([])
+const evictedBackupIds = ref<Set<string>>(new Set())
 const loadError = ref('')
 let backupsRequestId = 0
+
+function isEvicted(id: string): boolean {
+  return evictedBackupIds.value.has(id)
+}
 
 async function loadBackups() {
   const requestId = ++backupsRequestId
@@ -31,6 +36,11 @@ async function loadBackups() {
     ])
     const archived = await backupManager.listArchivedBackups()
     const quarantined = await backupManager.listQuarantinedBackups()
+    const evicted = await backupManager.listEvictedBackupIds([
+      ...backups,
+      ...archived,
+      ...quarantined,
+    ])
 
     if (requestId !== backupsRequestId || accountsStore.activeAccountId !== accountId) {
       return
@@ -39,6 +49,7 @@ async function loadBackups() {
     backupsStore.setBackups(backups)
     archivedBackups.value = archived
     quarantinedBackups.value = quarantined
+    evictedBackupIds.value = evicted
     backupsStore.setStorageEstimate(estimate)
   } catch (error) {
     if (requestId !== backupsRequestId || accountsStore.activeAccountId !== accountId) {
@@ -70,6 +81,7 @@ watch(
     backupsStore.clearSelection()
     archivedBackups.value = []
     quarantinedBackups.value = []
+    evictedBackupIds.value = new Set()
     loadError.value = ''
     await loadBackups()
   },
@@ -263,7 +275,17 @@ async function handleDownload(id: string) {
                 , {{ backup.mediaTypes.documents }} {{ t('backups.docs') }}
               </template>
             </p>
-            <div v-if="backup.ownershipState === 'legacy'" class="mt-3 space-y-2">
+            <div v-if="isEvicted(backup.id)" class="mt-3 space-y-2">
+              <span
+                class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-200"
+              >
+                {{ t('backups.contentUnavailable') }}
+              </span>
+              <p class="text-xs text-red-700 dark:text-red-300">
+                {{ t('backups.contentUnavailableHint') }}
+              </p>
+            </div>
+            <div v-else-if="backup.ownershipState === 'legacy'" class="mt-3 space-y-2">
               <span
                 class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
               >
@@ -276,13 +298,14 @@ async function handleDownload(id: string) {
           </div>
           <div class="flex flex-wrap justify-end gap-2">
             <button
-              v-if="backup.ownershipState === 'legacy'"
+              v-if="backup.ownershipState === 'legacy' && !isEvicted(backup.id)"
               @click="handleClaim(backup.id)"
               class="px-4 py-2 rounded-md font-medium text-sm transition-colors duration-100 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-900/70"
             >
               {{ t('backups.claim') }}
             </button>
             <button
+              v-if="!isEvicted(backup.id)"
               @click="handleDownload(backup.id)"
               class="px-4 py-2 rounded-md font-medium text-sm transition-colors duration-100 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
             >

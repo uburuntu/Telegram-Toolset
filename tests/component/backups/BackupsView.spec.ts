@@ -13,6 +13,7 @@ vi.mock('@/services/storage/backup-manager', () => ({
     listBackupsForAccount: vi.fn(),
     listArchivedBackups: vi.fn(),
     listQuarantinedBackups: vi.fn(),
+    listEvictedBackupIds: vi.fn(),
     claimLegacyBackup: vi.fn(),
     reconcileBackup: vi.fn(),
     exportBackupToZip: vi.fn(),
@@ -90,6 +91,7 @@ describe('BackupsView', () => {
       percentUsed: 33,
     })
     vi.mocked(backupManager.listQuarantinedBackups).mockResolvedValue([])
+    vi.mocked(backupManager.listEvictedBackupIds).mockResolvedValue(new Set())
   })
 
   it('renders legacy and archived lifecycle states', async () => {
@@ -221,6 +223,42 @@ describe('BackupsView', () => {
 
     expect(backupManager.reconcileBackup).toHaveBeenCalledWith('broken-backup', account)
     expect(useUiStore().toasts[0]?.message).toBe('Backup restored to this account.')
+  })
+
+  it('flags an evicted backup and gates its download while keeping the rest of the list', async () => {
+    vi.mocked(backupManager.listBackupsForAccount).mockResolvedValue([
+      createBackup({ id: 'healthy', chatTitle: 'Healthy Backup', ownershipState: 'owned' }),
+      createBackup({ id: 'evicted', chatTitle: 'Evicted Backup', ownershipState: 'owned' }),
+    ])
+    vi.mocked(backupManager.listArchivedBackups).mockResolvedValue([])
+    vi.mocked(backupManager.listEvictedBackupIds).mockResolvedValue(new Set(['evicted']))
+
+    const wrapper = mount(BackupsView, {
+      global: {
+        plugins: [pinia, i18n],
+        stubs: { RouterLink: { template: '<a><slot /></a>' } },
+      },
+    })
+
+    await flushPromises()
+
+    const text = wrapper.text()
+    // Remaining inventory stays visible; the evicted record is flagged, not hidden.
+    expect(text).toContain('Healthy Backup')
+    expect(text).toContain('Evicted Backup')
+    expect(text).toContain('Content unavailable')
+
+    const articles = wrapper.findAll('article')
+    const evictedCard = articles.find((article) => article.text().includes('Evicted Backup'))
+    const healthyCard = articles.find((article) => article.text().includes('Healthy Backup'))
+    const downloadLabel = i18n.global.t('backups.downloadZip')
+    const deleteLabel = i18n.global.t('common.delete')
+
+    // The evicted card cannot download stale/empty content but can still be deleted (recovery).
+    expect(evictedCard?.findAll('button').some((b) => b.text() === downloadLabel)).toBe(false)
+    expect(evictedCard?.findAll('button').some((b) => b.text() === deleteLabel)).toBe(true)
+    // A healthy backup keeps its export fallback.
+    expect(healthyCard?.findAll('button').some((b) => b.text() === downloadLabel)).toBe(true)
   })
 
   it('shows load failures instead of a valid empty state', async () => {
