@@ -37,12 +37,28 @@ export class VaultKeyUnavailableError extends Error {
   }
 }
 
+const VAULT_KEY_LOCK = 'telegram-toolset:vault-master-key'
+
 function getWebCrypto(): Crypto {
   if (!globalThis.crypto?.subtle) {
     throw new Error('Secure storage requires WebCrypto support.')
   }
 
   return globalThis.crypto
+}
+
+/**
+ * Run first-use key creation under a cross-tab Web Lock where available, so two tabs cannot mint
+ * incompatible master keys and strand each other's secrets (ARCHITECTURE.md §6). When the Web Locks
+ * API is unavailable the caller falls back to an add-if-absent winner read inside the critical section.
+ */
+async function withVaultKeyLock<T>(critical: () => Promise<T>): Promise<T> {
+  const locks = globalThis.navigator?.locks
+  if (!locks?.request) {
+    return critical()
+  }
+
+  return locks.request(VAULT_KEY_LOCK, () => critical()) as Promise<T>
 }
 
 async function createVaultKey(): Promise<CryptoKey> {
@@ -71,17 +87,26 @@ async function resolveVaultKey(createIfMissing: boolean): Promise<CryptoKey> {
     throw new VaultKeyUnavailableError()
   }
 
-  const orphanCount = await countSecureVaultSecrets()
-  if (orphanCount > 0) {
-    console.error(
-      `Secure vault master key is missing while ${orphanCount} secret(s) exist; clearing the unreadable secrets before creating a new key.`,
-    )
-    await clearSecureVaultSecrets()
-  }
+  return withVaultKeyLock(async () => {
+    // Re-read inside the lock: another tab may have created the key while we waited for it. This is
+    // the add-if-absent winner read that prevents a second incompatible key from being minted.
+    const winner = await getSecureVaultKey(MASTER_KEY_ID)
+    if (winner) {
+      return winner
+    }
 
-  const nextKey = await createVaultKey()
-  await putSecureVaultKey(MASTER_KEY_ID, nextKey)
-  return nextKey
+    const orphanCount = await countSecureVaultSecrets()
+    if (orphanCount > 0) {
+      console.error(
+        `Secure vault master key is missing while ${orphanCount} secret(s) exist; clearing the unreadable secrets before creating a new key.`,
+      )
+      await clearSecureVaultSecrets()
+    }
+
+    const nextKey = await createVaultKey()
+    await putSecureVaultKey(MASTER_KEY_ID, nextKey)
+    return nextKey
+  })
 }
 
 function getVaultKey(createIfMissing = true): Promise<CryptoKey> {

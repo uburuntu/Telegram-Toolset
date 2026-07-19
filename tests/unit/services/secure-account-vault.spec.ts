@@ -1,5 +1,5 @@
 import { webcrypto } from 'node:crypto'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.stubGlobal('crypto', webcrypto)
 
@@ -40,6 +40,11 @@ describe('secure-account-vault', () => {
     vaultStore.secrets.clear()
     vi.clearAllMocks()
     vi.resetModules()
+    vi.stubGlobal('crypto', webcrypto)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('round-trips API credentials and account secrets', async () => {
@@ -137,5 +142,48 @@ describe('secure-account-vault', () => {
     vaultStore.secrets.set('api-credentials', { id: 'api-credentials', iv, ciphertext })
 
     await expect(vault.loadSecureApiCredentials()).rejects.toThrow(/validation/)
+  })
+
+  it('creates the master key under a cross-tab Web Lock when available', async () => {
+    const request = vi.fn(async (_name: string, cb: () => Promise<unknown>) => cb())
+    vi.stubGlobal('navigator', { locks: { request } })
+
+    const vault = await loadVault()
+    await vault.saveSecureAccountSecret('acc', { sessionString: 's' })
+
+    expect(request).toHaveBeenCalledWith(
+      'telegram-toolset:vault-master-key',
+      expect.any(Function),
+    )
+    expect(vaultStore.keys.has(MASTER_KEY_ID)).toBe(true)
+  })
+
+  it('reuses a key another tab created while waiting for the lock', async () => {
+    const winnerKey = await webcrypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
+      'encrypt',
+      'decrypt',
+    ])
+    const request = vi.fn(async (_name: string, cb: () => Promise<unknown>) => {
+      // Simulate the winning tab installing the key before we enter the critical section.
+      vaultStore.keys.set(MASTER_KEY_ID, winnerKey)
+      return cb()
+    })
+    vi.stubGlobal('navigator', { locks: { request } })
+
+    const vault = await loadVault()
+    await vault.saveSecureAccountSecret('acc', { sessionString: 's' })
+
+    // The existing key was reused rather than overwritten by a freshly minted one.
+    expect(vaultStore.keys.get(MASTER_KEY_ID)).toBe(winnerKey)
+  })
+
+  it('falls back to add-if-absent creation when Web Locks are unavailable', async () => {
+    vi.stubGlobal('navigator', {})
+
+    const vault = await loadVault()
+    await vault.saveSecureAccountSecret('acc', { sessionString: 's' })
+
+    expect(vaultStore.keys.has(MASTER_KEY_ID)).toBe(true)
+    expect(await vault.loadSecureAccountSecret('acc')).toEqual({ sessionString: 's' })
   })
 })
