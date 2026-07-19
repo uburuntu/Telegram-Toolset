@@ -467,3 +467,13 @@ export async function deleteSecureVaultSecret(id: string): Promise<void> {
   const db = await getDB()
   await db.delete('secureVaultSecrets', id)
 }
+
+export async function countSecureVaultSecrets(): Promise<number> {
+  const db = await getDB()
+  return db.count('secureVaultSecrets')
+}
+
+export async function clearSecureVaultSecrets(): Promise<void> {
+  const db = await getDB()
+  await db.clear('secureVaultSecrets')
+}
