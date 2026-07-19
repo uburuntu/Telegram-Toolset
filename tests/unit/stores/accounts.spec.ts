@@ -320,6 +320,26 @@ describe('accounts store', () => {
     expect(store.getAccountEpoch(account.id)).toBe(0)
   })
 
+  it('reads an epoch advance made by another tab (durable cross-tab fence)', async () => {
+    const store = useAccountsStore()
+    const account = await store.addAccount({
+      type: 'user',
+      label: 'Test User',
+      phone: '+1234567890',
+      sessionString: 'saved-session',
+    })
+
+    const capturedAtJobStart = store.getAccountEpoch(account.id)
+    expect(capturedAtJobStart).toBe(0)
+
+    // Another tab removes the account and advances the durable, localStorage-backed epoch.
+    storage.set(`telegram_account_epoch:${account.id}`, '1')
+
+    expect(store.getAccountEpoch(account.id)).toBe(1)
+    // A commit fence comparing the captured epoch would now reject the stale write.
+    expect(store.getAccountEpoch(account.id)).not.toBe(capturedAtJobStart)
+  })
+
   it('rolls the account epoch back when secret deletion fails during removal', async () => {
     vaultApi.deleteSecureAccountSecret.mockRejectedValueOnce(new Error('secret delete failed'))
 

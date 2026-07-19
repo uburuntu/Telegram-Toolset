@@ -84,8 +84,9 @@ export function isContextCurrent(context: JobContext, environment: JobEnvironmen
 /**
  * A commit may land only when the owning account epoch is unchanged. This is deliberately narrower
  * than {@link isContextCurrent}: a write for account A must be rejected once A has been removed
- * (epoch advanced), even if the user has since switched to account B and back. The durable,
- * cross-tab epoch that also fences other tabs arrives in Stage C (§6).
+ * (epoch advanced), even if the user has since switched to account B and back. When the caller
+ * sources `accountEpoch` from the accounts store (localStorage-backed), this fence is also cross-tab.
+ * Broader cross-tab invalidation of cached account/ownership state remains Stage C (§6) work.
  */
 export function isCommitAllowed(
   context: JobContext,

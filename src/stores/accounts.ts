@@ -22,6 +22,7 @@ import { principalsMatch } from '@/utils/principal'
 const ACCOUNTS_STORAGE_KEY = 'telegram_accounts'
 const ACTIVE_ACCOUNT_KEY = 'telegram_active_account'
 const API_CREDENTIALS_KEY = 'telegram_api_credentials'
+const ACCOUNT_EPOCH_KEY_PREFIX = 'telegram_account_epoch:'
 
 type StoredAccountRecord = Omit<
   SavedAccount,
@@ -143,20 +144,33 @@ export const useAccountsStore = defineStore('accounts', () => {
 
   // Monotonic per-account epoch. Removing an account advances its epoch before any archival runs, so
   // long-running jobs that captured the prior epoch fail their commit fence instead of writing an
-  // owned record for an account that is being torn down (ARCHITECTURE.md §3, criterion 4). Account
-  // ids are UUIDs and never reused, so a re-added same-principal account gets a fresh id and epoch 0.
-  const accountEpochs = ref<Record<string, number>>({})
-
+  // owned record for an account that is being torn down (ARCHITECTURE.md §3, criteria 4 & 5).
+  //
+  // It is persisted per account in localStorage, which is synchronously consistent across same-origin
+  // tabs: reading it at commit time therefore fences a late write whose account was removed in
+  // another tab, without waiting for a `storage`/BroadcastChannel notification. The tombstone key is
+  // intentionally never deleted on removal — the advanced value is what keeps fencing late writes for
+  // that (never-reused) account id. Broader cross-tab invalidation of cached account/ownership state
+  // is separate Stage C (§6) work.
   function getAccountEpoch(id: string): number {
-    return accountEpochs.value[id] ?? 0
+    const raw = localStorage.getItem(`${ACCOUNT_EPOCH_KEY_PREFIX}${id}`)
+    if (raw === null) {
+      return 0
+    }
+    const parsed = Number.parseInt(raw, 10)
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
+  }
+
+  function setAccountEpoch(id: string, epoch: number): void {
+    localStorage.setItem(`${ACCOUNT_EPOCH_KEY_PREFIX}${id}`, String(epoch))
   }
 
   function bumpAccountEpoch(id: string): void {
-    accountEpochs.value = { ...accountEpochs.value, [id]: getAccountEpoch(id) + 1 }
+    setAccountEpoch(id, getAccountEpoch(id) + 1)
   }
 
   function restoreAccountEpoch(id: string, epoch: number): void {
-    accountEpochs.value = { ...accountEpochs.value, [id]: epoch }
+    setAccountEpoch(id, epoch)
   }
 
   let loadPromise: Promise<void> | null = null
