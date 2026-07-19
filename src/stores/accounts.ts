@@ -141,6 +141,10 @@ export const useAccountsStore = defineStore('accounts', () => {
   const apiCredentials = ref<ApiCredentials | null>(null)
   const sessionStateByAccountId = ref<Record<string, AccountSessionState>>({})
   const storageLoaded = ref(false)
+  // Ids of accounts whose encrypted secret failed to load/decrypt at startup. The account stays
+  // visible from its plaintext metadata so a single corrupt record cannot hide the others; the user
+  // can re-authenticate or remove it explicitly (ARCHITECTURE.md §6).
+  const corruptedAccountIds = ref<string[]>([])
 
   // Monotonic per-account epoch. Removing an account advances its epoch before any archival runs, so
   // long-running jobs that captured the prior epoch fail their commit fence instead of writing an
@@ -186,6 +190,11 @@ export const useAccountsStore = defineStore('accounts', () => {
   const hasBotAccount = computed(() => botAccounts.value.length > 0)
   const isActiveAccountUser = computed(() => activeAccount.value?.type === 'user')
   const isActiveAccountBot = computed(() => activeAccount.value?.type === 'bot')
+  const hasCorruptedAccounts = computed(() => corruptedAccountIds.value.length > 0)
+
+  function isAccountCorrupted(id: string | null | undefined): boolean {
+    return id != null && corruptedAccountIds.value.includes(id)
+  }
 
   const activeAccountSessionState = computed(() => {
     if (!activeAccount.value || activeAccount.value.type !== 'user') {
@@ -229,6 +238,14 @@ export const useAccountsStore = defineStore('accounts', () => {
     localStorage.removeItem(API_CREDENTIALS_KEY)
   }
 
+  function clearCorruptedAccount(id: string): void {
+    if (corruptedAccountIds.value.includes(id)) {
+      corruptedAccountIds.value = corruptedAccountIds.value.filter(
+        (corruptedId) => corruptedId !== id,
+      )
+    }
+  }
+
   async function persistAccountSecret(account: SavedAccount): Promise<void> {
     await saveSecureAccountSecret(account.id, getPersistedAccountSecret(account))
   }
@@ -252,7 +269,17 @@ export const useAccountsStore = defineStore('accounts', () => {
       try {
         const storedAccounts = parseStoredAccounts()
         const legacyCredentials = parseStoredApiCredentials()
-        const secureCredentials = await loadSecureApiCredentials()
+
+        let secureCredentials: ApiCredentials | null = null
+        try {
+          secureCredentials = await loadSecureApiCredentials()
+        } catch (credentialsError) {
+          // A corrupt/undecryptable credentials record must not hide every account. Drop the cached
+          // credentials (the user re-enters them on next login) instead of failing the whole load.
+          console.error('Failed to load secure API credentials:', credentialsError)
+          secureCredentials = null
+        }
+
         const nextApiCredentials =
           secureCredentials ?? legacyCredentials ?? getEmbeddedApiCredentials(storedAccounts)
 
@@ -260,17 +287,37 @@ export const useAccountsStore = defineStore('accounts', () => {
         // observe a user account without the shared app credentials.
         apiCredentials.value = nextApiCredentials
 
+        // Load each account's secret independently so a single corrupt/undecryptable record is
+        // quarantined rather than rejecting the whole account list (ARCHITECTURE.md §6). A failed
+        // record leaves the account visible (from plaintext metadata) for explicit re-auth or removal.
+        const corruptedIds: string[] = []
         const secrets = await Promise.all(
-          storedAccounts.map(
-            async (account) => [account.id, await loadSecureAccountSecret(account.id)] as const,
-          ),
+          storedAccounts.map(async (account) => {
+            try {
+              return [account.id, await loadSecureAccountSecret(account.id)] as const
+            } catch (secretError) {
+              console.error(`Failed to load secure secret for account ${account.id}:`, secretError)
+              corruptedIds.push(account.id)
+              return [account.id, null] as const
+            }
+          }),
         )
         const secretByAccountId = new Map<string, PersistedAccountSecret | null>(secrets)
 
         accounts.value = storedAccounts.map((account) =>
           hydrateAccount(account, secretByAccountId.get(account.id) ?? null),
         )
+        corruptedAccountIds.value = corruptedIds
         syncSessionStateMap()
+
+        // A user account whose session secret failed to decrypt cannot connect; route it to the
+        // explicit re-login path rather than leaving it in an ambiguous 'unknown' state.
+        for (const corruptedId of corruptedIds) {
+          const corruptedAccount = accounts.value.find((account) => account.id === corruptedId)
+          if (corruptedAccount?.type === 'user') {
+            sessionStateByAccountId.value[corruptedId] = 'needs_login'
+          }
+        }
 
         const storedActive = localStorage.getItem(ACTIVE_ACCOUNT_KEY)
         activeAccountId.value =
@@ -349,6 +396,8 @@ export const useAccountsStore = defineStore('accounts', () => {
     try {
       await persistAccountSecret(nextAccount)
       persistMetadataToLocalStorage()
+      // Writing a fresh secret repairs a previously corrupt record.
+      clearCorruptedAccount(id)
     } catch (error) {
       accounts.value[index] = previousAccount
       throw error
@@ -399,6 +448,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     try {
       await deleteSecureAccountSecret(id)
       persistMetadataToLocalStorage()
+      clearCorruptedAccount(id)
     } catch (error) {
       accounts.value = previousAccounts
       activeAccountId.value = previousActiveAccountId
@@ -507,6 +557,9 @@ export const useAccountsStore = defineStore('accounts', () => {
     isActiveAccountBot,
     activeAccountSessionState,
     activeAccountNeedsLogin,
+    corruptedAccountIds,
+    hasCorruptedAccounts,
+    isAccountCorrupted,
     loadFromStorage,
     addAccount,
     updateAccount,

@@ -104,7 +104,9 @@
     "needsLogin": "Giriş gerekiyor",
     "logInAgain": "Tekrar Giriş Yap",
     "sessionExpiredTitle": "{name} için yeniden giriş gerekiyor",
-    "sessionExpiredDescription": "Bu hesap hâlâ seçili, ancak kaydedilmiş Telegram oturumu artık geçerli değil. Yeniden giriş yapana kadar Telegram işlemleri çalışmaz."
+    "sessionExpiredDescription": "Bu hesap hâlâ seçili, ancak kaydedilmiş Telegram oturumu artık geçerli değil. Yeniden giriş yapana kadar Telegram işlemleri çalışmaz.",
+    "secretUnreadable": "Dikkat gerekiyor",
+    "secretUnreadableHint": "Bu hesabın kayıtlı oturum açma verileri okunamadı. Tekrar giriş yapın veya hesabı kaldırın."
   },
   "auth": {
     "addAccount": "Hesap Ekle",

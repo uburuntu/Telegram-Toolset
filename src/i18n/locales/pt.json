@@ -104,7 +104,9 @@
     "needsLogin": "Precisa entrar",
     "logInAgain": "Entrar Novamente",
     "sessionExpiredTitle": "{name} precisa entrar novamente",
-    "sessionExpiredDescription": "Esta conta ainda está selecionada, mas a sessão salva do Telegram não é mais válida. As ações do Telegram não funcionarão até que você entre novamente."
+    "sessionExpiredDescription": "Esta conta ainda está selecionada, mas a sessão salva do Telegram não é mais válida. As ações do Telegram não funcionarão até que você entre novamente.",
+    "secretUnreadable": "Requer atenção",
+    "secretUnreadableHint": "Não foi possível ler os dados de login salvos desta conta. Faça login novamente ou remova-a."
   },
   "auth": {
     "addAccount": "Adicionar Conta",

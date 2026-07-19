@@ -104,7 +104,9 @@
     "updating": "Updating...",
     "adding": "Adding...",
     "duplicateBotWarning": "This bot is already added. Proceeding will update the existing token.",
-    "addAccountTitle": "Add Account"
+    "addAccountTitle": "Add Account",
+    "secretUnreadable": "Needs attention",
+    "secretUnreadableHint": "This account's saved sign-in data couldn't be read. Log in again or remove it."
   },
   "auth": {
     "addAccount": "Add Account",
