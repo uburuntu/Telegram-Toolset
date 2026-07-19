@@ -437,3 +437,45 @@ describe('backupManager createBackup commit fence', () => {
     expect(dbMocks.saveBackupBundle).not.toHaveBeenCalled()
   })
 })
+
+describe('backupManager access enforcement', () => {
+  const owner = createUserAccount({ id: 'owner', principal: { kind: 'user', telegramUserId: '100' } })
+  const other = createUserAccount({ id: 'other', principal: { kind: 'user', telegramUserId: '200' } })
+
+  beforeEach(() => {
+    state.backups = [
+      createBackup({
+        id: 'owned',
+        ownerAccountId: 'owner',
+        ownerPrincipal: { kind: 'user', telegramUserId: '100' },
+        ownershipState: 'owned',
+        ownerVerification: 'verified',
+        lifecycle: 'active',
+      }),
+    ]
+    vi.clearAllMocks()
+    dbMocks.getBackup.mockImplementation(async (id: string) =>
+      state.backups.find((item) => item.id === id),
+    )
+    dbMocks.getMessagesByBackup.mockResolvedValue([])
+    dbMocks.getMediaByBackup.mockResolvedValue(new Map())
+  })
+
+  it('returns content to the owner but null to another principal or no account', async () => {
+    expect(await backupManager.getBackup('owned', owner)).not.toBeNull()
+    expect(await backupManager.getBackup('owned', other)).toBeNull()
+    expect(await backupManager.getBackup('owned', null)).toBeNull()
+  })
+
+  it('refuses to delete another principal owned backup', async () => {
+    await expect(backupManager.deleteBackup('owned', other)).rejects.toThrow('Not authorized')
+    expect(dbMocks.deleteBackup).not.toHaveBeenCalled()
+
+    await backupManager.deleteBackup('owned', owner)
+    expect(dbMocks.deleteBackup).toHaveBeenCalledWith('owned')
+  })
+
+  it('refuses to export another principal owned backup', async () => {
+    await expect(backupManager.exportBackupToZip('owned', other)).rejects.toThrow('not found')
+  })
+})

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   archiveOwnership,
+  canAccessContent,
+  canManageRecord,
   claimOwnership,
   createOwnedOwnership,
   deriveLegacyOwnershipState,
@@ -300,5 +302,52 @@ describe('archive + claim', () => {
     expect(claimed.health).toBe('healthy')
     // The claimed record is now consistently owned/visible by the claiming account.
     expect(isOwnedByAccount(toStoredOwnership(claimed), account)).toBe(true)
+  })
+})
+
+describe('access policy (canAccessContent / canManageRecord)', () => {
+  const owner = makeAccount({ id: 'owner', principal: principal100 })
+  const other = makeAccount({ id: 'other', principal: { kind: 'user', telegramUserId: '200' } })
+
+  const ownedRecord: StoredRecordOwnership = {
+    ownershipState: 'owned',
+    ownerAccountId: 'owner',
+    ownerPrincipal: principal100,
+  }
+  const archivedRecord: StoredRecordOwnership = {
+    ownershipState: 'archived',
+    ownerAccountId: 'owner',
+    ownerPrincipal: principal100,
+    ownerVerification: 'verified',
+    lifecycle: 'archived',
+  }
+  const legacyRecord: StoredRecordOwnership = { ownershipState: 'legacy' }
+  const quarantinedRecord: StoredRecordOwnership = {
+    ownerVerification: 'legacy',
+    ownerPrincipal: principal100,
+  }
+
+  it('grants content access only to the owner (or unclaimed legacy)', () => {
+    expect(canAccessContent(ownedRecord, owner)).toBe(true)
+    expect(canAccessContent(ownedRecord, other)).toBe(false)
+    expect(canAccessContent(legacyRecord, other)).toBe(true)
+    expect(canAccessContent(ownedRecord, null)).toBe(false)
+  })
+
+  it('never exposes archived or quarantined content to an active account', () => {
+    expect(canAccessContent(archivedRecord, owner)).toBe(false)
+    expect(canAccessContent(archivedRecord, other)).toBe(false)
+    expect(canAccessContent(quarantinedRecord, owner)).toBe(false)
+  })
+
+  it('protects another active owner from management but allows orphan cleanup', () => {
+    expect(canManageRecord(ownedRecord, owner)).toBe(true)
+    expect(canManageRecord(ownedRecord, other)).toBe(false)
+    // Orphaned records are manageable account-independently.
+    expect(canManageRecord(archivedRecord, null)).toBe(true)
+    expect(canManageRecord(quarantinedRecord, null)).toBe(true)
+    expect(canManageRecord(legacyRecord, null)).toBe(true)
+    // ...but a live account's active record is still protected from a null-context purge.
+    expect(canManageRecord(ownedRecord, null)).toBe(false)
   })
 })
