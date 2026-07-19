@@ -141,14 +141,18 @@ export async function listChatExports(): Promise<ChatExport[]> {
   return sortChatExportsByCreatedAt(chatExports.map(normalizeChatExport))
 }
 
+/**
+ * Pure lifecycle read: return the chat exports visible to `account` without mutating anything.
+ * Archive recovery is a separate, explicitly triggered lifecycle step (see
+ * `recoverArchivedChatExportsForAccount`, driven from the accounts store on add/activation) so a list
+ * call never races a concurrent recovery mutation (ARCHITECTURE.md §6).
+ */
 export async function listChatExportsForAccount(
   account: SavedAccount | null,
 ): Promise<ChatExport[]> {
   if (!account || account.type !== 'user') {
     return []
   }
-
-  await recoverArchivedChatExportsForAccount(account)
 
   const chatExports = await listChatExports()
   return chatExports.filter((chatExport) => isChatExportVisibleToAccount(chatExport, account))
