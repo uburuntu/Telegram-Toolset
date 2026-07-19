@@ -310,7 +310,10 @@ async function handleExportSelect(chatExport: ChatExport) {
   error.value = ''
 
   try {
-    const result = await chatHistoryService.loadChatExport(chatExport.id)
+    const result = await chatHistoryService.loadChatExport(
+      chatExport.id,
+      accountsStore.activeAccount,
+    )
     if (requestId !== exportSelectionRequestId || accountsStore.activeAccountId !== accountId) {
       return
     }
@@ -334,7 +337,7 @@ async function handleExportSelect(chatExport: ChatExport) {
 
 async function handleExportDelete(exportId: string) {
   try {
-    await chatHistoryService.deleteChatExport(exportId)
+    await chatHistoryService.deleteChatExport(exportId, accountsStore.activeAccount)
     await loadStoredExports()
 
     if (selectedExport.value?.id === exportId) {

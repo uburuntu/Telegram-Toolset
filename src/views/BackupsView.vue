@@ -94,7 +94,7 @@ async function handleDelete(id: string) {
   if (!confirm(t('backups.confirmDelete'))) return
 
   try {
-    await backupManager.deleteBackup(id)
+    await backupManager.deleteBackup(id, accountsStore.activeAccount)
     await loadBackups()
   } catch (error) {
     console.error('Failed to delete backup:', error)
@@ -136,7 +136,7 @@ async function handleReconcile(id: string) {
 
 async function handleDownload(id: string) {
   try {
-    await backupManager.exportBackupToZip(id)
+    await backupManager.exportBackupToZip(id, accountsStore.activeAccount)
   } catch (error) {
     console.error('Failed to export backup:', error)
     uiStore.showToast('error', t('common.error'))

@@ -87,7 +87,7 @@ watch(
     }
 
     try {
-      const fullBackup = await backupManager.getBackup(backup.id)
+      const fullBackup = await backupManager.getBackup(backup.id, accountsStore.activeAccount)
       if (requestId !== sampleBackupRequestId) {
         return
       }
@@ -315,7 +315,7 @@ async function startResend() {
 
   try {
     // Load full backup with messages
-    const backup = await backupManager.getBackup(backupSummary.id)
+    const backup = await backupManager.getBackup(backupSummary.id, accountsStore.activeAccount)
     if (!isCurrentResend()) return
 
     if (!backup) {

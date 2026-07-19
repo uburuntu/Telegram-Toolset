@@ -238,8 +238,11 @@ class ChatHistoryService {
     return this.createDownloadTask(chatInfo, options, callbacks, owner, commitOptions).promise
   }
 
-  async loadChatExport(exportId: string): Promise<ChatHistoryResult | null> {
-    return loadChatExportBundle(exportId)
+  async loadChatExport(
+    exportId: string,
+    accessor: SavedAccount | null,
+  ): Promise<ChatHistoryResult | null> {
+    return loadChatExportBundle(exportId, accessor)
   }
 
   async listChatExports(): Promise<ChatExport[]> {
@@ -258,8 +261,8 @@ class ChatHistoryService {
     return listQuarantinedChatExports()
   }
 
-  async deleteChatExport(exportId: string): Promise<void> {
-    await deleteChatExport(exportId)
+  async deleteChatExport(exportId: string, accessor: SavedAccount | null): Promise<void> {
+    await deleteChatExport(exportId, accessor)
   }
 
   async claimLegacyChatExport(exportId: string, account: SavedAccount): Promise<ChatExport> {
@@ -270,8 +273,8 @@ class ChatHistoryService {
     return reconcileChatExport(exportId, account)
   }
 
-  async getChatMessages(exportId: string): Promise<ChatMessage[]> {
-    return getChatMessages(exportId)
+  async getChatMessages(exportId: string, accessor: SavedAccount | null): Promise<ChatMessage[]> {
+    return getChatMessages(exportId, accessor)
   }
 
   async hasExistingExport(chatId: bigint): Promise<ChatExport | null> {

@@ -9,6 +9,8 @@ import { getMarkedPeerIdForChat } from '@/utils/telegram-peers'
 import * as db from '../storage/indexed-db'
 import {
   archiveOwnership,
+  canAccessContent,
+  canManageRecord,
   claimOwnership,
   isLegacyClaimable,
   isOwnedByAccount,
@@ -104,9 +106,22 @@ export async function saveChatExportBundle(
   }
 }
 
-export async function loadChatExportBundle(exportId: string): Promise<ChatHistoryResult | null> {
+/**
+ * Read a chat export and its messages. `accessor` is the account context requesting the read; content
+ * is returned only when that account owns the record (or it is unclaimed legacy). Archived,
+ * quarantined, and other-owner exports return null so an unrelated active account can never read
+ * another principal's content (ARCHITECTURE.md §6 & §7).
+ */
+export async function loadChatExportBundle(
+  exportId: string,
+  accessor: SavedAccount | null,
+): Promise<ChatHistoryResult | null> {
   const chatExport = await db.getChatExport(exportId)
   if (!chatExport) {
+    return null
+  }
+
+  if (!canAccessContent(chatExport, accessor)) {
     return null
   }
 
@@ -152,7 +167,25 @@ export async function listQuarantinedChatExports(): Promise<ChatExport[]> {
   return chatExports.filter((chatExport) => normalizeOwnership(chatExport).health === 'quarantined')
 }
 
-export async function deleteChatExport(exportId: string): Promise<void> {
+/**
+ * Delete a chat export. `accessor` is the account context requesting the deletion; the owner may
+ * delete their own records and orphaned records (archived/quarantined/legacy) are manageable
+ * account-independently (`accessor` null), but an active export owned by a different principal is
+ * protected (ARCHITECTURE.md §6 & §7).
+ */
+export async function deleteChatExport(
+  exportId: string,
+  accessor: SavedAccount | null,
+): Promise<void> {
+  const chatExport = await db.getChatExport(exportId)
+  if (!chatExport) {
+    return
+  }
+
+  if (!canManageRecord(chatExport, accessor)) {
+    throw new Error('Not authorized to delete this chat export')
+  }
+
   await db.deleteChatExport(exportId)
 }
 
@@ -215,8 +248,11 @@ export async function claimLegacyChatExport(
   return normalizeChatExport(claimedChatExport)
 }
 
-export async function getChatMessages(exportId: string): Promise<ChatMessage[]> {
-  const result = await loadChatExportBundle(exportId)
+export async function getChatMessages(
+  exportId: string,
+  accessor: SavedAccount | null,
+): Promise<ChatMessage[]> {
+  const result = await loadChatExportBundle(exportId, accessor)
   return result?.messages ?? []
 }
 

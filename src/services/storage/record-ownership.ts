@@ -231,6 +231,41 @@ export function isVisibleToAccount(record: StoredRecordOwnership, account: Saved
 }
 
 /**
+ * Whether a caller holding `account` context may read a record's *content* (messages/media). Only the
+ * owner (or an unclaimed legacy record) qualifies; archived, quarantined, and other-owner records are
+ * denied so that merely having a different account active never exposes someone else's content
+ * (ARCHITECTURE.md §6 & §7). Archived data must be recovered/claimed first, which makes it active+owned.
+ */
+export function canAccessContent(
+  record: StoredRecordOwnership,
+  account: SavedAccount | null | undefined,
+): boolean {
+  return account != null && isVisibleToAccount(record, account)
+}
+
+/**
+ * Whether a caller may delete/manage a record. The owner may manage their own records; orphaned
+ * records (archived, quarantined, or unclaimed legacy) have no live owner and are manageable from the
+ * account-independent local-data workspace (`account` may be null). An active + healthy record owned
+ * by a *different* principal/account is protected (ARCHITECTURE.md §6 & §7).
+ */
+export function canManageRecord(
+  record: StoredRecordOwnership,
+  account: SavedAccount | null | undefined,
+): boolean {
+  if (account && isVisibleToAccount(record, account)) {
+    return true
+  }
+
+  const ownership = normalizeOwnership(record)
+  const isOrphan =
+    ownership.lifecycle === 'archived' ||
+    ownership.health !== 'healthy' ||
+    ownership.verification === 'legacy'
+  return isOrphan
+}
+
+/**
  * Whether an archived record can be recovered for `account`, and through which channel. Principal
  * match is authoritative; the phone bridge only applies to pre-principal archives so migrating
  * users are never stranded, and it never upgrades verification.

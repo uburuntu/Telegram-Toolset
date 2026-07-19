@@ -16,6 +16,8 @@ import { zipGenerator } from '../export/zip-generator'
 import * as db from './indexed-db'
 import {
   archiveOwnership,
+  canAccessContent,
+  canManageRecord,
   claimOwnership,
   isLegacyClaimable,
   isOwnedByAccount,
@@ -82,9 +84,19 @@ class BackupManager {
     )
   }
 
-  async getBackup(id: string): Promise<BackupWithMessages | null> {
+  /**
+   * Read a backup and its content. `accessor` is the account context requesting the read; content is
+   * returned only when that account owns the record (or it is an unclaimed legacy record). Archived,
+   * quarantined, and other-owner records return null so an unrelated active account can never read
+   * another principal's content (ARCHITECTURE.md §6 & §7).
+   */
+  async getBackup(id: string, accessor: SavedAccount | null): Promise<BackupWithMessages | null> {
     const backup = await db.getBackup(id)
     if (!backup) return null
+
+    if (!canAccessContent(backup, accessor)) {
+      return null
+    }
 
     const messages = await db.getMessagesByBackup(id)
     const mediaBlobs = await db.getMediaByBackup(id)
@@ -162,7 +174,22 @@ class BackupManager {
     return normalizeBackup(backup)
   }
 
-  async deleteBackup(id: string): Promise<void> {
+  /**
+   * Delete a backup. `accessor` is the account context requesting the deletion; the owner may delete
+   * their own records and orphaned records (archived/quarantined/legacy) are manageable
+   * account-independently (`accessor` null), but an active record owned by a different principal is
+   * protected (ARCHITECTURE.md §6 & §7).
+   */
+  async deleteBackup(id: string, accessor: SavedAccount | null): Promise<void> {
+    const backup = await db.getBackup(id)
+    if (!backup) {
+      return
+    }
+
+    if (!canManageRecord(backup, accessor)) {
+      throw new Error('Not authorized to delete this backup')
+    }
+
     await db.deleteBackup(id)
   }
 
@@ -228,8 +255,8 @@ class BackupManager {
     return db.calculateBackupSize(id)
   }
 
-  async exportBackupToZip(id: string): Promise<void> {
-    const backup = await this.getBackup(id)
+  async exportBackupToZip(id: string, accessor: SavedAccount | null): Promise<void> {
+    const backup = await this.getBackup(id, accessor)
     if (!backup) {
       throw new Error('Backup not found')
     }
@@ -237,7 +264,7 @@ class BackupManager {
     await zipGenerator.generateAndDownload(backup)
   }
 
-  async mergeBackups(ids: string[]): Promise<Backup> {
+  async mergeBackups(ids: string[], accessor: SavedAccount | null): Promise<Backup> {
     if (ids.length < 2) {
       throw new Error('Need at least 2 backups to merge')
     }
@@ -247,7 +274,10 @@ class BackupManager {
     let chatId: bigint | null = null
 
     for (const id of ids) {
-      const backup = await this.getBackup(id)
+      // getBackup enforces per-owner content access, so a set spanning owners cannot be merged: a
+      // record the accessor does not own resolves to null and is rejected here (ARCHITECTURE.md §6,
+      // "reject mixed-owner merges").
+      const backup = await this.getBackup(id, accessor)
       if (!backup) {
         throw new Error(`Backup ${id} not found`)
       }
@@ -301,7 +331,7 @@ class BackupManager {
 
     // Delete original backups
     for (const id of ids) {
-      await this.deleteBackup(id)
+      await this.deleteBackup(id, accessor)
     }
 
     return mergedBackup
