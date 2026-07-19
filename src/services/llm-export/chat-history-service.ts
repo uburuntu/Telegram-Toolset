@@ -17,6 +17,7 @@ import type {
   CommitOptions,
   SavedAccount,
 } from '@/types'
+import { listEvictedChatExportIds } from '../storage/content-health'
 import { ownershipForAccount, toStoredOwnership } from '../storage/record-ownership'
 import { telegramGateway } from '../telegram/gateway'
 import { createFloodWaitSubscription } from '../telegram/rate-limiter'
@@ -259,6 +260,14 @@ class ChatHistoryService {
 
   async listQuarantinedChatExports(): Promise<ChatExport[]> {
     return listQuarantinedChatExports()
+  }
+
+  /**
+   * Ids of chat exports whose message content was lost to browser eviction (metadata survives).
+   * Callers surface these as recoverable-but-empty (re-export) without hiding the rest of the list.
+   */
+  async listEvictedChatExportIds(chatExports: ChatExport[]): Promise<Set<string>> {
+    return listEvictedChatExportIds(chatExports)
   }
 
   async deleteChatExport(exportId: string, accessor: SavedAccount | null): Promise<void> {

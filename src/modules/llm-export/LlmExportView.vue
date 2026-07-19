@@ -2,6 +2,7 @@
 import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloodWaitIndicator from '@/components/common/FloodWaitIndicator.vue'
+import PersistenceNotice from '@/components/storage/PersistenceNotice.vue'
 import { useFloodWait } from '@/composables'
 import { chatArchiveService } from '@/services/llm-export/archive-service'
 import { chatHistoryService } from '@/services/llm-export/chat-history-service'
@@ -10,6 +11,7 @@ import {
   getFormatFileExtension,
   getFormatMimeType,
 } from '@/services/llm-export/format-service'
+import { quotaManager } from '@/services/storage/quota'
 import { telegramService } from '@/services/telegram/client'
 import { useAccountsStore, useUiStore } from '@/stores'
 import type {
@@ -50,6 +52,7 @@ const archiveProgress = ref<ChatArchiveProgress | null>(null)
 const cachedExports = ref<ChatExport[]>([])
 const archivedExports = ref<ChatExport[]>([])
 const quarantinedExports = ref<ChatExport[]>([])
+const evictedExportIds = ref<Set<string>>(new Set())
 const isLoadingExportsList = ref(false)
 const exportsError = ref('')
 const selectedExport = ref<ChatExport | null>(null)
@@ -121,6 +124,7 @@ watch(
     cachedExports.value = []
     archivedExports.value = []
     quarantinedExports.value = []
+    evictedExportIds.value = new Set()
     isLoadingChats.value = false
     isLoadingExportsList.value = false
     isLoadingSelectedExport.value = false
@@ -171,6 +175,10 @@ function sortChatExportsByNewest(chatExports: ChatExport[]): ChatExport[] {
   return chatExports.sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
 }
 
+function isExportEvicted(id: string): boolean {
+  return evictedExportIds.value.has(id)
+}
+
 async function loadStoredExports() {
   const requestId = ++storedExportsRequestId
   const account = accountsStore.activeAccount
@@ -182,6 +190,11 @@ async function loadStoredExports() {
     const visibleExports = await chatHistoryService.listChatExportsForAccount(account)
     const archived = await chatHistoryService.listArchivedChatExports()
     const quarantined = await chatHistoryService.listQuarantinedChatExports()
+    const evicted = await chatHistoryService.listEvictedChatExportIds([
+      ...visibleExports,
+      ...archived,
+      ...quarantined,
+    ])
     if (requestId !== storedExportsRequestId || accountsStore.activeAccountId !== accountId) {
       return
     }
@@ -189,6 +202,7 @@ async function loadStoredExports() {
     cachedExports.value = sortChatExportsByNewest(visibleExports)
     archivedExports.value = sortChatExportsByNewest(archived)
     quarantinedExports.value = sortChatExportsByNewest(quarantined)
+    evictedExportIds.value = evicted
 
     if (
       selectedExport.value &&
@@ -223,6 +237,10 @@ async function startDownload() {
   error.value = ''
   downloadProgress.value = null
   floodWait.reset()
+  // This is a durable local-data workflow (the export is persisted to IndexedDB), so request
+  // persistent storage now; denial degrades to best-effort with the persistence notice shown
+  // (ARCHITECTURE.md §6).
+  await quotaManager.ensurePersisted()
   const account = accountsStore.activeAccount
   const accountId = account?.id ?? null
   const ownerEpoch = accountId !== null ? accountsStore.getAccountEpoch(accountId) : null
@@ -304,6 +322,12 @@ function stopAndSaveDownload() {
 }
 
 async function handleExportSelect(chatExport: ChatExport) {
+  // An evicted export has metadata but no message rows; opening it would render an empty workspace
+  // with no explanation. Surface the content-unavailable state instead (ARCHITECTURE.md §6).
+  if (isExportEvicted(chatExport.id)) {
+    return
+  }
+
   const requestId = ++exportSelectionRequestId
   const accountId = accountsStore.activeAccountId
   isLoadingSelectedExport.value = true
@@ -503,6 +527,8 @@ function cancelArchiveDownload() {
       </p>
     </header>
 
+    <PersistenceNotice />
+
     <div class="flex gap-1 border-b border-gray-200 dark:border-gray-800">
       <button
         class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors duration-100"
@@ -613,6 +639,7 @@ function cancelArchiveDownload() {
           :exports="cachedExports"
           :archived-exports="archivedExports"
           :quarantined-exports="quarantinedExports"
+          :evicted-export-ids="evictedExportIds"
           :can-reconcile="accountsStore.activeAccount?.type === 'user'"
           :selected-export-id="selectedExport?.id"
           :is-loading-list="isLoadingExportsList"

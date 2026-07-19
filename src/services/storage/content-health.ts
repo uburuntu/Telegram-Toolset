@@ -49,3 +49,25 @@ export async function listEvictedBackupIds(backups: BackupContentRef[]): Promise
   )
   return evicted
 }
+
+/**
+ * Return the ids of chat exports whose content was evicted. A per-record probe failure is treated as
+ * healthy so a transient read error never hides an otherwise-listable export.
+ */
+export async function listEvictedChatExportIds(
+  chatExports: ChatExportContentRef[],
+): Promise<Set<string>> {
+  const evicted = new Set<string>()
+  await Promise.all(
+    chatExports.map(async (chatExport) => {
+      try {
+        if (await isChatExportContentEvicted(chatExport)) {
+          evicted.add(chatExport.id)
+        }
+      } catch (error) {
+        console.error(`Failed to probe content health for chat export ${chatExport.id}:`, error)
+      }
+    }),
+  )
+  return evicted
+}

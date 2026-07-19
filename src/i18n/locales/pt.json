@@ -667,7 +667,9 @@
     "quarantinedHint": "Essas exportações perderam o vínculo com uma conta e ficam ocultas até serem reparadas. Atribua uma à conta atual para restaurá-la ou exclua-a.",
     "repair": "Reparar",
     "repairSuccess": "Exportação restaurada nesta conta.",
-    "repairError": "Falha ao reparar a exportação."
+    "repairError": "Falha ao reparar a exportação.",
+    "contentUnavailable": "Conteúdo indisponível",
+    "contentUnavailableHint": "O navegador removeu os dados deste backup. Resta apenas o resumo — exclua-o e exporte novamente do Telegram."
   },
   "jobs": {
     "heading": "Tarefas em segundo plano",

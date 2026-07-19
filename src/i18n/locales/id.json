@@ -667,7 +667,9 @@
     "quarantinedHint": "Ekspor ini kehilangan tautan ke akun dan tetap tersembunyi sampai diperbaiki. Tetapkan salah satu ke akun saat ini untuk memulihkannya, atau hapus.",
     "repair": "Perbaiki",
     "repairSuccess": "Ekspor dipulihkan ke akun ini.",
-    "repairError": "Gagal memperbaiki ekspor."
+    "repairError": "Gagal memperbaiki ekspor.",
+    "contentUnavailable": "Konten tidak tersedia",
+    "contentUnavailableHint": "Data cadangan ini dihapus oleh peramban. Hanya ringkasan yang tersisa — hapus dan ekspor lagi dari Telegram."
   },
   "jobs": {
     "heading": "Tugas latar belakang",

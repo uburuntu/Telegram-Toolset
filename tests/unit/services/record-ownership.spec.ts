@@ -350,4 +350,15 @@ describe('access policy (canAccessContent / canManageRecord)', () => {
     // ...but a live account's active record is still protected from a null-context purge.
     expect(canManageRecord(ownedRecord, null)).toBe(false)
   })
+
+  it('lets any active account delete an orphaned record owned by a different principal', () => {
+    // Intended scope: orphaned inventory (archived/quarantined/legacy) is manageable by whoever is
+    // present, since it never exposes content — only allows deletion. This locks that scope so a
+    // future ownership tweak cannot silently start protecting orphans from cross-account cleanup.
+    expect(canManageRecord(archivedRecord, other)).toBe(true)
+    expect(canManageRecord(quarantinedRecord, other)).toBe(true)
+    expect(canManageRecord(legacyRecord, other)).toBe(true)
+    // Content of that archived record is still never readable by the other account.
+    expect(canAccessContent(archivedRecord, other)).toBe(false)
+  })
 })
