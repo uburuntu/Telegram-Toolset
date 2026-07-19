@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import PersistenceNotice from '@/components/storage/PersistenceNotice.vue'
 import {
   deleteLocalRecord,
   getLocalDataInventory,
@@ -147,6 +148,8 @@ async function handleClearCredentials(): Promise<void> {
         {{ t('localData.description') }}
       </p>
     </header>
+
+    <PersistenceNotice />
 
     <div v-if="isLoading" class="text-center py-12">
       <div

@@ -714,5 +714,10 @@
       "invalid_ownership_state": "Sahip bilgileri tutarsız.",
       "legacy": "Hesaplar izlenmeye başlamadan önce kaydedildi."
     }
+  },
+  "persistence": {
+    "bestEffortTitle": "Depolama garantili değil",
+    "unsupportedTitle": "Depolama kalıcılığı bilinmiyor",
+    "body": "Tarayıcınız yer açmak için bu verileri kaldırabilir; bu yüzden bunları garantili değil olarak görün — kalıcı bir yedek değildir. Saklamak istediğiniz her şeyin bir kopyasını indirin."
   }
 }

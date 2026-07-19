@@ -714,5 +714,10 @@
       "invalid_ownership_state": "Owner information is inconsistent.",
       "legacy": "Saved before accounts were tracked."
     }
+  },
+  "persistence": {
+    "bestEffortTitle": "Storage is best-effort",
+    "unsupportedTitle": "Storage durability unknown",
+    "body": "Your browser may remove this data to free up space, so treat it as best-effort — not a durable backup. Download a copy of anything you want to keep."
   }
 }

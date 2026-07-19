@@ -2,7 +2,12 @@
  * Storage quota management
  */
 
-import type { ExportStrategy, StorageCheckResult, StorageEstimate } from '@/types'
+import type {
+  ExportStrategy,
+  PersistenceStatus,
+  StorageCheckResult,
+  StorageEstimate,
+} from '@/types'
 
 const LOW_SPACE_THRESHOLD = 0.8 // 80%
 const CRITICAL_SPACE_THRESHOLD = 0.95 // 95%
@@ -85,6 +90,39 @@ class QuotaManager {
     } catch {
       return false
     }
+  }
+
+  /**
+   * Report the current durability of on-device storage without requesting anything. Read-only so it
+   * can be surfaced on load; treats an unsupported or failing API as `unsupported` (best-effort).
+   */
+  async getPersistenceStatus(): Promise<PersistenceStatus> {
+    if (!navigator.storage?.persisted) {
+      return 'unsupported'
+    }
+
+    try {
+      return (await navigator.storage.persisted()) ? 'persisted' : 'best-effort'
+    } catch {
+      return 'unsupported'
+    }
+  }
+
+  /**
+   * Request persistent storage at the start of a durable local-data workflow (e.g. saving a backup or
+   * export). Denied or unsupported persistence resolves to `best-effort`/`unsupported` rather than
+   * throwing, so callers can continue while honestly labeling the result as non-durable.
+   */
+  async ensurePersisted(): Promise<PersistenceStatus> {
+    if (!navigator.storage?.persist) {
+      return 'unsupported'
+    }
+
+    if (await this.isPersisted()) {
+      return 'persisted'
+    }
+
+    return (await this.requestPersistentStorage()) ? 'persisted' : 'best-effort'
   }
 
   async determineExportStrategy(estimatedSize: number): Promise<ExportStrategy> {

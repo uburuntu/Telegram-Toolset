@@ -83,6 +83,77 @@ describe('QuotaManager', () => {
     })
   })
 
+  describe('getPersistenceStatus', () => {
+    it('reports persisted when the browser granted persistence', async () => {
+      vi.stubGlobal('navigator', {
+        storage: { persisted: vi.fn().mockResolvedValue(true) },
+      })
+
+      expect(await quotaManager.getPersistenceStatus()).toBe('persisted')
+    })
+
+    it('reports best-effort when persistence is available but not granted', async () => {
+      vi.stubGlobal('navigator', {
+        storage: { persisted: vi.fn().mockResolvedValue(false) },
+      })
+
+      expect(await quotaManager.getPersistenceStatus()).toBe('best-effort')
+    })
+
+    it('reports unsupported when the persistence API is missing', async () => {
+      vi.stubGlobal('navigator', { storage: {} })
+
+      expect(await quotaManager.getPersistenceStatus()).toBe('unsupported')
+    })
+
+    it('does not request persistence (read-only probe)', async () => {
+      const persist = vi.fn().mockResolvedValue(true)
+      vi.stubGlobal('navigator', {
+        storage: { persist, persisted: vi.fn().mockResolvedValue(false) },
+      })
+
+      await quotaManager.getPersistenceStatus()
+
+      expect(persist).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('ensurePersisted', () => {
+    it('requests persistence and returns persisted when granted', async () => {
+      const persist = vi.fn().mockResolvedValue(true)
+      vi.stubGlobal('navigator', {
+        storage: { persist, persisted: vi.fn().mockResolvedValue(false) },
+      })
+
+      expect(await quotaManager.ensurePersisted()).toBe('persisted')
+      expect(persist).toHaveBeenCalledTimes(1)
+    })
+
+    it('returns best-effort when persistence is denied', async () => {
+      vi.stubGlobal('navigator', {
+        storage: { persist: vi.fn().mockResolvedValue(false), persisted: vi.fn().mockResolvedValue(false) },
+      })
+
+      expect(await quotaManager.ensurePersisted()).toBe('best-effort')
+    })
+
+    it('does not re-request when already persisted', async () => {
+      const persist = vi.fn().mockResolvedValue(true)
+      vi.stubGlobal('navigator', {
+        storage: { persist, persisted: vi.fn().mockResolvedValue(true) },
+      })
+
+      expect(await quotaManager.ensurePersisted()).toBe('persisted')
+      expect(persist).not.toHaveBeenCalled()
+    })
+
+    it('returns unsupported when persistence is unavailable', async () => {
+      vi.stubGlobal('navigator', { storage: {} })
+
+      expect(await quotaManager.ensurePersisted()).toBe('unsupported')
+    })
+  })
+
   describe('determineExportStrategy', () => {
     it('should use IndexedDB for small exports', async () => {
       mockEstimate.mockResolvedValue({

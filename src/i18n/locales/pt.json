@@ -714,5 +714,10 @@
       "invalid_ownership_state": "As informações do proprietário são inconsistentes.",
       "legacy": "Salvo antes de as contas serem rastreadas."
     }
+  },
+  "persistence": {
+    "bestEffortTitle": "O armazenamento não é garantido",
+    "unsupportedTitle": "Durabilidade do armazenamento desconhecida",
+    "body": "Seu navegador pode remover estes dados para liberar espaço, então trate-os como não garantidos — não como um backup durável. Baixe uma cópia de tudo o que quiser manter."
   }
 }
