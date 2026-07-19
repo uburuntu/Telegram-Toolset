@@ -59,10 +59,14 @@ interface TelegramToolsetDB {
     key: string
     value: SecureVaultSecretRecord
   }
+  accountJournal: {
+    key: string
+    value: AccountJournalRecord
+  }
 }
 
 const DB_NAME = 'telegram-toolset'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 export interface BackupMediaEntry {
   messageId: number
@@ -80,6 +84,23 @@ export interface SecureVaultSecretRecord {
   id: string
   iv: Uint8Array
   ciphertext: ArrayBuffer
+}
+
+/**
+ * Write-ahead journal entry for a multi-store account mutation (localStorage metadata + IndexedDB
+ * secret). Only non-secret metadata is journaled; the encrypted secret stays in the vault. A dangling
+ * entry after a crash is reconciled on startup (ARCHITECTURE.md §6).
+ */
+export interface AccountJournalRecord {
+  id: string
+  op: 'add' | 'update' | 'remove'
+  accountId: string
+  /** Post-success localStorage metadata to establish on roll-forward (plaintext, already in LS). */
+  metadata: {
+    accounts: unknown
+    activeAccountId: string | null
+  }
+  createdAt: number
 }
 
 let dbPromise: Promise<IDBPDatabase<TelegramToolsetDB>> | null = null
@@ -166,6 +187,13 @@ async function getDB(): Promise<IDBPDatabase<TelegramToolsetDB>> {
 
           if (!db.objectStoreNames.contains('secureVaultSecrets')) {
             db.createObjectStore('secureVaultSecrets', { keyPath: 'id' })
+          }
+        }
+
+        // Version 4: Write-ahead journal for cross-store account mutations
+        if (oldVersion < 4) {
+          if (!db.objectStoreNames.contains('accountJournal')) {
+            db.createObjectStore('accountJournal', { keyPath: 'id' })
           }
         }
       },
@@ -531,4 +559,23 @@ export async function countSecureVaultSecrets(): Promise<number> {
 export async function clearSecureVaultSecrets(): Promise<void> {
   const db = await getDB()
   await db.clear('secureVaultSecrets')
+}
+
+// =============================================================================
+// Account Journal Operations
+// =============================================================================
+
+export async function putAccountJournalRecord(record: AccountJournalRecord): Promise<void> {
+  const db = await getDB()
+  await db.put('accountJournal', record)
+}
+
+export async function getAllAccountJournalRecords(): Promise<AccountJournalRecord[]> {
+  const db = await getDB()
+  return db.getAll('accountJournal')
+}
+
+export async function deleteAccountJournalRecord(id: string): Promise<void> {
+  const db = await getDB()
+  await db.delete('accountJournal', id)
 }
