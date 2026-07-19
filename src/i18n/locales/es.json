@@ -667,7 +667,9 @@
     "quarantinedHint": "Estas exportaciones perdieron su vínculo con una cuenta y permanecen ocultas hasta repararse. Asigna una a la cuenta actual para restaurarla o elimínala.",
     "repair": "Reparar",
     "repairSuccess": "Exportación restaurada en esta cuenta.",
-    "repairError": "No se pudo reparar la exportación."
+    "repairError": "No se pudo reparar la exportación.",
+    "contentUnavailable": "Contenido no disponible",
+    "contentUnavailableHint": "El navegador eliminó los datos de esta copia. Solo queda el resumen: elimínala y vuelve a exportar desde Telegram."
   },
   "jobs": {
     "heading": "Tareas en segundo plano",

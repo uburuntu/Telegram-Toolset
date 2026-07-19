@@ -673,7 +673,9 @@
       "custom": "Определите свой шаблон с переменными sender, text, date"
     },
     "contentSection": "Содержимое",
-    "structureSection": "Структура"
+    "structureSection": "Структура",
+    "contentUnavailable": "Содержимое недоступно",
+    "contentUnavailableHint": "Данные этой копии удалены браузером. Осталась только сводка — удалите её и экспортируйте снова из Telegram."
   },
   "jobs": {
     "heading": "Фоновые задачи",

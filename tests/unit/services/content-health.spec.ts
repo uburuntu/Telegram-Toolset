@@ -11,6 +11,7 @@ import {
   isBackupContentEvicted,
   isChatExportContentEvicted,
   listEvictedBackupIds,
+  listEvictedChatExportIds,
 } from '@/services/storage/content-health'
 
 describe('content-health', () => {
@@ -49,6 +50,22 @@ describe('content-health', () => {
       { id: 'healthy', messageCount: 4 },
       { id: 'evicted', messageCount: 4 },
       { id: 'broken', messageCount: 4 },
+    ])
+
+    expect([...evicted]).toEqual(['evicted'])
+  })
+
+  it('returns only the evicted chat-export ids and treats a probe failure as healthy', async () => {
+    dbMock.countChatExportMessages.mockImplementation(async (id: string) => {
+      if (id === 'evicted') return 0
+      if (id === 'broken') throw new Error('read failed')
+      return 7
+    })
+
+    const evicted = await listEvictedChatExportIds([
+      { id: 'healthy', messageCount: 7 },
+      { id: 'evicted', messageCount: 7 },
+      { id: 'broken', messageCount: 7 },
     ])
 
     expect([...evicted]).toEqual(['evicted'])

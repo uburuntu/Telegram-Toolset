@@ -667,7 +667,9 @@
     "quarantinedHint": "Bu dışa aktarmalar bir hesapla bağlantısını kaybetti ve onarılana kadar gizli kalır. Geri yüklemek için birini geçerli hesaba atayın veya silin.",
     "repair": "Onar",
     "repairSuccess": "Dışa aktarma bu hesaba geri yüklendi.",
-    "repairError": "Dışa aktarma onarılamadı."
+    "repairError": "Dışa aktarma onarılamadı.",
+    "contentUnavailable": "İçerik kullanılamıyor",
+    "contentUnavailableHint": "Bu yedeğin verileri tarayıcı tarafından kaldırıldı. Yalnızca özet kaldı — silin ve Telegram'dan yeniden dışa aktarın."
   },
   "jobs": {
     "heading": "Arka plan görevleri",

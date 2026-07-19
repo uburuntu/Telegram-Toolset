@@ -667,7 +667,9 @@
       "json": "JSON format for programmatic processing or API integration",
       "markdown": "Markdown format with headers and formatting, good for documentation",
       "custom": "Define your own template with variables like sender, text, date"
-    }
+    },
+    "contentUnavailable": "Content unavailable",
+    "contentUnavailableHint": "This export's data was removed by the browser. Only the summary remains — delete it and download it again from Telegram."
   },
   "jobs": {
     "heading": "Background tasks",

@@ -115,6 +115,45 @@ describe('ExportsList', () => {
     expect(wrapper.findAll('button').some((button) => button.text() === 'Repair')).toBe(false)
   })
 
+  it('surfaces evicted exports as content-unavailable, disabling selection and claim', async () => {
+    const wrapper = mount(ExportsList, {
+      props: {
+        exports: [
+          createChatExport({
+            id: 'evicted-export',
+            chatTitle: 'Evicted Export',
+            ownershipState: 'legacy',
+          }),
+        ],
+        archivedExports: [],
+        quarantinedExports: [],
+        evictedExportIds: new Set(['evicted-export']),
+        canReconcile: true,
+        isLoadingList: false,
+        isLoadingSelection: false,
+      },
+      global: {
+        plugins: [i18n],
+      },
+    })
+
+    expect(wrapper.text()).toContain('Content unavailable')
+    // The legacy claim action must not be offered for an evicted record.
+    expect(wrapper.findAll('button').some((button) => button.text() === 'Claim')).toBe(false)
+
+    // The selection button (wrapping the title) is disabled so it can't open an empty workspace.
+    const selectButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Evicted Export'))
+    expect(selectButton?.attributes('disabled')).toBeDefined()
+
+    await selectButton?.trigger('click')
+    expect(wrapper.emitted('select')).toBeFalsy()
+
+    // Deletion stays available as the recovery path.
+    expect(wrapper.findAll('button').some((button) => button.text() === 'Delete')).toBe(true)
+  })
+
   it('emits claim for legacy exports', async () => {
     const wrapper = mount(ExportsList, {
       props: {

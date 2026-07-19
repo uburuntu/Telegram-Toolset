@@ -6,6 +6,7 @@ const props = defineProps<{
   exports: ChatExport[]
   archivedExports: ChatExport[]
   quarantinedExports: ChatExport[]
+  evictedExportIds?: Set<string>
   canReconcile: boolean
   selectedExportId?: string
   isLoadingList: boolean
@@ -21,6 +22,10 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+function isEvicted(id: string): boolean {
+  return props.evictedExportIds?.has(id) ?? false
+}
 
 function formatDate(date: Date): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -112,8 +117,9 @@ function handleDelete(exportId: string) {
       >
         <div class="flex items-start gap-3">
           <button
-            class="flex flex-1 items-start gap-3 text-left"
+            class="flex flex-1 items-start gap-3 text-left disabled:opacity-70"
             :class="selectedExportId === chatExport.id ? 'text-blue-700 dark:text-blue-300' : ''"
+            :disabled="isEvicted(chatExport.id)"
             @click="emit('select', chatExport)"
           >
             <div
@@ -138,7 +144,20 @@ function handleDelete(exportId: string) {
               <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
                 {{ t('llmExport.exported') }} {{ formatDate(chatExport.createdAt) }}
               </div>
-              <div v-if="chatExport.ownershipState === 'legacy'" class="mt-2 space-y-2">
+              <div v-if="isEvicted(chatExport.id)" class="mt-2 space-y-2">
+                <span
+                  class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-200"
+                >
+                  {{ t('llmExport.contentUnavailable') }}
+                </span>
+                <p class="text-xs text-red-700 dark:text-red-300">
+                  {{ t('llmExport.contentUnavailableHint') }}
+                </p>
+              </div>
+              <div
+                v-else-if="chatExport.ownershipState === 'legacy'"
+                class="mt-2 space-y-2"
+              >
                 <span
                   class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200"
                 >
@@ -159,7 +178,7 @@ function handleDelete(exportId: string) {
 
           <div class="flex flex-wrap justify-end gap-2">
             <button
-              v-if="chatExport.ownershipState === 'legacy'"
+              v-if="chatExport.ownershipState === 'legacy' && !isEvicted(chatExport.id)"
               class="px-3 py-1.5 rounded-md font-medium text-sm bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-900/70 transition-colors duration-100"
               @click="emit('claim', chatExport.id)"
             >
@@ -274,6 +293,16 @@ function handleDelete(exportId: string) {
               class="text-xs text-gray-500 dark:text-gray-400 mt-1"
             >
               {{ t('llmExport.removedAccountPhone', { phone: chatExport.ownerAccountPhone }) }}
+            </div>
+            <div v-if="isEvicted(chatExport.id)" class="mt-2 space-y-2">
+              <span
+                class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-200"
+              >
+                {{ t('llmExport.contentUnavailable') }}
+              </span>
+              <p class="text-xs text-red-700 dark:text-red-300">
+                {{ t('llmExport.contentUnavailableHint') }}
+              </p>
             </div>
           </div>
 

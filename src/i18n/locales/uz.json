@@ -667,7 +667,9 @@
     "quarantinedHint": "Bu eksportlar hisob bilan bog‘lanishini yo‘qotgan va tiklanmaguncha yashirin bo‘ladi. Uni tiklash uchun joriy hisobga bog‘lang yoki o‘chirib tashlang.",
     "repair": "Tiklash",
     "repairSuccess": "Eksport ushbu hisobga tiklandi.",
-    "repairError": "Eksportni tiklab bo‘lmadi."
+    "repairError": "Eksportni tiklab bo‘lmadi.",
+    "contentUnavailable": "Kontent mavjud emas",
+    "contentUnavailableHint": "Ushbu zaxira ma'lumotlari brauzer tomonidan o'chirilgan. Faqat qisqacha ma'lumot qoldi — uni o'chiring va Telegram'dan qayta eksport qiling."
   },
   "jobs": {
     "heading": "Fondagi vazifalar",
