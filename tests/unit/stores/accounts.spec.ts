@@ -405,4 +405,104 @@ describe('accounts store', () => {
       'user-1',
     )
   })
+
+  describe('corrupt-secret load resilience', () => {
+    function seedTwoUserAccounts(): void {
+      localStorage.setItem(
+        'telegram_accounts',
+        JSON.stringify([
+          {
+            id: 'good',
+            type: 'user',
+            label: 'Good',
+            phone: '+1000000000',
+            createdAt: '2026-04-20T10:00:00.000Z',
+            lastUsedAt: '2026-04-24T10:00:00.000Z',
+          },
+          {
+            id: 'bad',
+            type: 'user',
+            label: 'Bad',
+            phone: '+2000000000',
+            createdAt: '2026-04-20T10:00:00.000Z',
+            lastUsedAt: '2026-04-24T10:00:00.000Z',
+          },
+        ]),
+      )
+    }
+
+    it('keeps other accounts visible when one secret fails to decrypt', async () => {
+      seedTwoUserAccounts()
+      vaultState.accountSecrets.set('good', { sessionString: 'good-session' })
+      vaultApi.loadSecureAccountSecret.mockImplementation(async (accountId: string) => {
+        if (accountId === 'bad') {
+          throw new Error('decrypt failed')
+        }
+        return vaultState.accountSecrets.get(accountId) ?? null
+      })
+
+      const store = useAccountsStore()
+      await store.loadFromStorage()
+
+      expect(store.accounts).toHaveLength(2)
+      expect(store.accounts.find((account) => account.id === 'good')?.sessionString).toBe(
+        'good-session',
+      )
+      expect(store.isAccountCorrupted('bad')).toBe(true)
+      expect(store.isAccountCorrupted('good')).toBe(false)
+      expect(store.hasCorruptedAccounts).toBe(true)
+      // A corrupt user account routes to the explicit re-login path.
+      expect(store.getAccountSessionState('bad')).toBe('needs_login')
+    })
+
+    it('does not hide accounts when the vault master key itself is unreadable', async () => {
+      seedTwoUserAccounts()
+      vaultApi.loadSecureApiCredentials.mockRejectedValueOnce(new Error('vault key missing'))
+      vaultApi.loadSecureAccountSecret.mockRejectedValue(new Error('vault key missing'))
+
+      const store = useAccountsStore()
+      await store.loadFromStorage()
+
+      expect(store.accounts).toHaveLength(2)
+      expect(store.corruptedAccountIds).toEqual(expect.arrayContaining(['good', 'bad']))
+    })
+
+    it('clears the corrupt flag after the account is re-authenticated', async () => {
+      seedTwoUserAccounts()
+      vaultApi.loadSecureAccountSecret.mockImplementation(async (accountId: string) => {
+        if (accountId === 'bad') {
+          throw new Error('decrypt failed')
+        }
+        return vaultState.accountSecrets.get(accountId) ?? null
+      })
+
+      const store = useAccountsStore()
+      await store.loadFromStorage()
+      expect(store.isAccountCorrupted('bad')).toBe(true)
+
+      await store.updateAccount('bad', { sessionString: 'recovered-session' })
+
+      expect(store.isAccountCorrupted('bad')).toBe(false)
+      expect(store.hasCorruptedAccounts).toBe(false)
+    })
+
+    it('clears the corrupt flag after the account is removed', async () => {
+      seedTwoUserAccounts()
+      vaultApi.loadSecureAccountSecret.mockImplementation(async (accountId: string) => {
+        if (accountId === 'bad') {
+          throw new Error('decrypt failed')
+        }
+        return vaultState.accountSecrets.get(accountId) ?? null
+      })
+
+      const store = useAccountsStore()
+      await store.loadFromStorage()
+      expect(store.isAccountCorrupted('bad')).toBe(true)
+
+      await store.removeAccount('bad')
+
+      expect(store.isAccountCorrupted('bad')).toBe(false)
+      expect(store.accounts.map((account) => account.id)).toEqual(['good'])
+    })
+  })
 })

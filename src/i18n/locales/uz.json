@@ -104,7 +104,9 @@
     "needsLogin": "Kirish kerak",
     "logInAgain": "Qayta kirish",
     "sessionExpiredTitle": "{name} qayta kirishi kerak",
-    "sessionExpiredDescription": "Bu hisob hali ham tanlangan, lekin saqlangan Telegram sessiyasi endi yaroqli emas. Qayta kirmaguningizcha Telegram amallari ishlamaydi."
+    "sessionExpiredDescription": "Bu hisob hali ham tanlangan, lekin saqlangan Telegram sessiyasi endi yaroqli emas. Qayta kirmaguningizcha Telegram amallari ishlamaydi.",
+    "secretUnreadable": "Eʼtibor talab qiladi",
+    "secretUnreadableHint": "Bu hisobning saqlangan kirish maʼlumotlari oʻqib boʻlmadi. Qayta kiring yoki uni oʻchiring."
   },
   "auth": {
     "addAccount": "Hisob qo'shish",

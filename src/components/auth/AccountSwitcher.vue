@@ -62,6 +62,10 @@ function isAccountNeedsLogin(account: SavedAccount): boolean {
   )
 }
 
+function isAccountCorrupted(account: SavedAccount): boolean {
+  return accountsStore.isAccountCorrupted(account.id)
+}
+
 const displayName = computed(() => {
   if (!accountsStore.activeAccount) {
     return t('accounts.notLoggedIn')
@@ -132,11 +136,13 @@ const activeAccountNeedsLogin = computed(
             :key="account.id"
             :class="[
               'flex items-center gap-2 rounded-md px-2.5 py-2 transition-colors duration-100',
-              isAccountNeedsLogin(account)
-                ? 'bg-amber-50 dark:bg-amber-950/20'
-                : isAccountSelected(account.id)
-                  ? 'bg-blue-50 dark:bg-blue-900/30'
-                  : 'hover:bg-gray-50 dark:hover:bg-gray-800',
+              isAccountCorrupted(account)
+                ? 'bg-red-50 dark:bg-red-950/20'
+                : isAccountNeedsLogin(account)
+                  ? 'bg-amber-50 dark:bg-amber-950/20'
+                  : isAccountSelected(account.id)
+                    ? 'bg-blue-50 dark:bg-blue-900/30'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800',
             ]"
           >
             <button
@@ -164,7 +170,14 @@ const activeAccountNeedsLogin = computed(
 
             <div class="flex items-center gap-1.5 pl-2">
               <span
-                v-if="isAccountNeedsLogin(account)"
+                v-if="isAccountCorrupted(account)"
+                :title="t('accounts.secretUnreadableHint')"
+                class="px-2 py-1 rounded-full text-[11px] font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200"
+              >
+                {{ t('accounts.secretUnreadable') }}
+              </span>
+              <span
+                v-else-if="isAccountNeedsLogin(account)"
                 class="px-2 py-1 rounded-full text-[11px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
               >
                 {{ t('accounts.needsLogin') }}
