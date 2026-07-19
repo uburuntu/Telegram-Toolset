@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import PersistenceNotice from '@/components/storage/PersistenceNotice.vue'
 import { backupManager } from '@/services/storage/backup-manager'
 import { quotaManager } from '@/services/storage/quota'
 import { useAccountsStore, useBackupsStore, useUiStore } from '@/stores'
@@ -160,6 +161,8 @@ async function handleDownload(id: string) {
         {{ t('backups.newExport') }}
       </router-link>
     </header>
+
+    <PersistenceNotice />
 
     <div
       class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm mb-6"

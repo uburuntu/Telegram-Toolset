@@ -714,5 +714,10 @@
       "invalid_ownership_state": "Egasi haqidagi ma'lumot ziddiyatli.",
       "legacy": "Hisoblar kuzatilishidan oldin saqlangan."
     }
+  },
+  "persistence": {
+    "bestEffortTitle": "Saqlash kafolatlanmagan",
+    "unsupportedTitle": "Saqlash barqarorligi noma'lum",
+    "body": "Brauzeringiz joy bo'shatish uchun bu ma'lumotlarni o'chirishi mumkin, shuning uchun ularni kafolatlanmagan deb hisoblang — bu barqaror zaxira nusxasi emas. Saqlamoqchi bo'lgan hamma narsangizning nusxasini yuklab oling."
   }
 }

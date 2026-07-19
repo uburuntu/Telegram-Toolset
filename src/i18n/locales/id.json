@@ -714,5 +714,10 @@
       "invalid_ownership_state": "Informasi pemilik tidak konsisten.",
       "legacy": "Disimpan sebelum akun dilacak."
     }
+  },
+  "persistence": {
+    "bestEffortTitle": "Penyimpanan tidak dijamin",
+    "unsupportedTitle": "Ketahanan penyimpanan tidak diketahui",
+    "body": "Peramban Anda dapat menghapus data ini untuk mengosongkan ruang, jadi anggap sebagai tidak dijamin — bukan cadangan yang tahan lama. Unduh salinan apa pun yang ingin Anda simpan."
   }
 }

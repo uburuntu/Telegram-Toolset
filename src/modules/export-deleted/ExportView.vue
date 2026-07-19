@@ -318,6 +318,10 @@ async function startExport() {
   }
 
   try {
+    // Request durable storage now that the user is starting a durable local-data workflow. A denied
+    // or unsupported result is best-effort, not a failure, so the export still proceeds.
+    void quotaManager.ensurePersisted()
+
     // Check storage
     const strategy = await quotaManager.determineExportStrategy(100_000_000) // Estimate
     assertCurrentExport()

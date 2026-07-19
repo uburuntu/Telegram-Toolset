@@ -125,6 +125,14 @@ export interface StorageEstimate {
   percentUsed: number
 }
 
+/**
+ * Durability of on-device storage for the current origin (ARCHITECTURE.md §6):
+ * - `persisted`: the browser granted persistent storage; data is not evicted under pressure.
+ * - `best-effort`: storage works but the browser may evict it; never present this as a durable backup.
+ * - `unsupported`: the Storage persistence API is unavailable; treat as best-effort.
+ */
+export type PersistenceStatus = 'persisted' | 'best-effort' | 'unsupported'
+
 export interface StorageCheckResult {
   canStore: boolean
   reason?: 'quota_exceeded' | 'low_space_warning'

@@ -714,5 +714,10 @@
       "invalid_ownership_state": "La información del propietario es incoherente.",
       "legacy": "Guardado antes de que se registraran las cuentas."
     }
+  },
+  "persistence": {
+    "bestEffortTitle": "El almacenamiento no está garantizado",
+    "unsupportedTitle": "Durabilidad del almacenamiento desconocida",
+    "body": "Tu navegador puede eliminar estos datos para liberar espacio, así que considéralos no garantizados, no una copia de seguridad duradera. Descarga una copia de todo lo que quieras conservar."
   }
 }

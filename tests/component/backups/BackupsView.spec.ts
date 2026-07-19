@@ -23,6 +23,7 @@ vi.mock('@/services/storage/backup-manager', () => ({
 vi.mock('@/services/storage/quota', () => ({
   quotaManager: {
     getStorageEstimate: vi.fn(),
+    getPersistenceStatus: vi.fn().mockResolvedValue('persisted'),
   },
 }))
 
