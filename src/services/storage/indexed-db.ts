@@ -84,9 +84,39 @@ export interface SecureVaultSecretRecord {
 
 let dbPromise: Promise<IDBPDatabase<TelegramToolsetDB>> | null = null
 
+/**
+ * Drop the cached connection so the next {@link getDB} reopens a fresh one. Used when the browser
+ * terminates the connection, when another tab needs to upgrade the schema, or when an open attempt
+ * fails — none of which should leave a permanently poisoned promise (ARCHITECTURE.md §6).
+ */
+function resetDbConnection(): void {
+  dbPromise = null
+}
+
 async function getDB(): Promise<IDBPDatabase<TelegramToolsetDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<TelegramToolsetDB>(DB_NAME, DB_VERSION, {
+    const pending = openDB<TelegramToolsetDB>(DB_NAME, DB_VERSION, {
+      blocked(currentVersion, blockedVersion) {
+        // Another tab still holds an older connection; the upgrade waits until it closes.
+        console.warn(
+          `IndexedDB upgrade to v${blockedVersion} is blocked by an open connection at v${currentVersion}. Close other tabs of this app to continue.`,
+        )
+      },
+      blocking(currentVersion, blockedVersion, event) {
+        // A newer tab wants to upgrade the schema. Close this connection so it can proceed and drop
+        // the cache so our next call reopens against the new version instead of deadlocking.
+        console.warn(
+          `Closing IndexedDB v${currentVersion} so another tab can upgrade to v${blockedVersion}.`,
+        )
+        const connection = event.target as { close?: () => void } | null
+        connection?.close?.()
+        resetDbConnection()
+      },
+      terminated() {
+        // The browser abnormally closed the connection (e.g. storage reclamation). Reopen lazily.
+        console.warn('IndexedDB connection was terminated; it will reopen on next use.')
+        resetDbConnection()
+      },
       upgrade(db, oldVersion) {
         // Version 1: Original schema
         if (oldVersion < 1) {
@@ -140,6 +170,13 @@ async function getDB(): Promise<IDBPDatabase<TelegramToolsetDB>> {
         }
       },
     })
+
+    // A failed open (blocked forever, quota, private-mode denial) must not poison the cache; drop it
+    // so the next call can retry a fresh open.
+    pending.catch(() => {
+      resetDbConnection()
+    })
+    dbPromise = pending
   }
   return dbPromise
 }
