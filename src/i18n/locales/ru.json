@@ -670,5 +670,15 @@
     },
     "contentSection": "Содержимое",
     "structureSection": "Структура"
+  },
+  "jobs": {
+    "heading": "Фоновые задачи",
+    "clearCompleted": "Очистить завершённые",
+    "status": {
+      "running": "Выполняется",
+      "succeeded": "Готово",
+      "failed": "Ошибка",
+      "cancelled": "Отменено"
+    }
   }
 }

@@ -664,5 +664,15 @@
     "repair": "إصلاح",
     "repairSuccess": "تمت استعادة التصدير إلى هذا الحساب.",
     "repairError": "تعذّر إصلاح التصدير."
+  },
+  "jobs": {
+    "heading": "المهام في الخلفية",
+    "clearCompleted": "مسح المكتملة",
+    "status": {
+      "running": "قيد التنفيذ",
+      "succeeded": "اكتملت",
+      "failed": "فشلت",
+      "cancelled": "أُلغيت"
+    }
   }
 }

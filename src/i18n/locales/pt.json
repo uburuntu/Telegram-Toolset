@@ -664,5 +664,15 @@
     "repair": "Reparar",
     "repairSuccess": "Exportação restaurada nesta conta.",
     "repairError": "Falha ao reparar a exportação."
+  },
+  "jobs": {
+    "heading": "Tarefas em segundo plano",
+    "clearCompleted": "Limpar concluídas",
+    "status": {
+      "running": "Em andamento",
+      "succeeded": "Concluída",
+      "failed": "Falhou",
+      "cancelled": "Cancelada"
+    }
   }
 }

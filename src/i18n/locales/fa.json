@@ -664,5 +664,15 @@
     "repair": "تعمیر",
     "repairSuccess": "خروجی به این حساب بازیابی شد.",
     "repairError": "تعمیر خروجی ناموفق بود."
+  },
+  "jobs": {
+    "heading": "کارهای پس‌زمینه",
+    "clearCompleted": "پاک کردن تکمیل‌شده‌ها",
+    "status": {
+      "running": "در حال اجرا",
+      "succeeded": "تکمیل شد",
+      "failed": "ناموفق",
+      "cancelled": "لغو شد"
+    }
   }
 }

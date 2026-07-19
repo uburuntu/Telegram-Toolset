@@ -664,5 +664,15 @@
     "repair": "Onar",
     "repairSuccess": "Dışa aktarma bu hesaba geri yüklendi.",
     "repairError": "Dışa aktarma onarılamadı."
+  },
+  "jobs": {
+    "heading": "Arka plan görevleri",
+    "clearCompleted": "Tamamlananları temizle",
+    "status": {
+      "running": "Çalışıyor",
+      "succeeded": "Tamamlandı",
+      "failed": "Başarısız",
+      "cancelled": "İptal edildi"
+    }
   }
 }

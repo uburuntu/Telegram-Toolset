@@ -664,5 +664,15 @@
     "repair": "Perbaiki",
     "repairSuccess": "Ekspor dipulihkan ke akun ini.",
     "repairError": "Gagal memperbaiki ekspor."
+  },
+  "jobs": {
+    "heading": "Tugas latar belakang",
+    "clearCompleted": "Hapus yang selesai",
+    "status": {
+      "running": "Berjalan",
+      "succeeded": "Selesai",
+      "failed": "Gagal",
+      "cancelled": "Dibatalkan"
+    }
   }
 }

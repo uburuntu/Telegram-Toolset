@@ -664,5 +664,15 @@
     "repair": "Tiklash",
     "repairSuccess": "Eksport ushbu hisobga tiklandi.",
     "repairError": "Eksportni tiklab bo‘lmadi."
+  },
+  "jobs": {
+    "heading": "Fondagi vazifalar",
+    "clearCompleted": "Yakunlanganlarni tozalash",
+    "status": {
+      "running": "Bajarilmoqda",
+      "succeeded": "Bajarildi",
+      "failed": "Xatolik",
+      "cancelled": "Bekor qilindi"
+    }
   }
 }

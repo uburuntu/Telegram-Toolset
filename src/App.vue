@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import AccountSwitcher from '@/components/auth/AccountSwitcher.vue'
 import LoginModal from '@/components/auth/LoginModal.vue'
 import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
+import JobSurface from '@/components/layout/JobSurface.vue'
 import PrivacyFooter from '@/components/layout/PrivacyFooter.vue'
 import { useActiveUserSessionSync } from '@/composables'
 import { useAccountsStore, useUiStore } from '@/stores'
@@ -110,6 +111,9 @@ useActiveUserSessionSync(showLoginModal)
         </div>
       </div>
     </header>
+
+    <!-- Persistent long-running job surface (survives route changes) -->
+    <JobSurface />
 
     <!-- Main Content -->
     <div
