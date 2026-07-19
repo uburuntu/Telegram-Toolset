@@ -7,9 +7,17 @@
 import { defineStore } from 'pinia'
 import { v4 as uuidv4 } from 'uuid'
 import { computed, ref } from 'vue'
+import {
+  type AccountJournalEntryInput,
+  beginAccountJournal,
+  completeAccountJournal,
+  readPendingAccountJournal,
+} from '@/services/storage/account-journal'
 import { createInvalidationChannel } from '@/services/storage/cross-tab'
+import type { AccountJournalRecord } from '@/services/storage/indexed-db'
 import {
   deleteSecureAccountSecret,
+  hasSecureAccountSecret,
   loadSecureAccountSecret,
   loadSecureApiCredentials,
   type PersistedAccountSecret,
@@ -133,6 +141,89 @@ function serializeAccountMetadata(account: SavedAccount): StoredAccountRecord {
     ...rest,
     createdAt: createdAt.toISOString(),
     lastUsedAt: lastUsedAt.toISOString(),
+  }
+}
+
+/**
+ * Reconciliation writes localStorage directly (before the store's reactive refs are populated), so
+ * these helpers edit only the journaled account and preserve every other entry. That keeps a stale
+ * journal snapshot from clobbering a change another tab committed during the crashed tab's dead
+ * window (ARCHITECTURE.md §6).
+ */
+function writeStoredAccounts(accounts: StoredAccountRecord[]): void {
+  if (accounts.length > 0) {
+    localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts))
+  } else {
+    localStorage.removeItem(ACCOUNTS_STORAGE_KEY)
+  }
+}
+
+function removeStoredAccountMetadata(accountId: string): void {
+  const remaining = parseStoredAccounts().filter((account) => account.id !== accountId)
+  writeStoredAccounts(remaining)
+
+  if (localStorage.getItem(ACTIVE_ACCOUNT_KEY) === accountId) {
+    const nextActive = remaining[0]?.id ?? null
+    if (nextActive) {
+      localStorage.setItem(ACTIVE_ACCOUNT_KEY, nextActive)
+    } else {
+      localStorage.removeItem(ACTIVE_ACCOUNT_KEY)
+    }
+  }
+}
+
+function upsertStoredAccountMetadata(record: AccountJournalRecord): void {
+  const snapshot = Array.isArray(record.metadata.accounts)
+    ? (record.metadata.accounts as StoredAccountRecord[])
+    : []
+  const entry = snapshot.find((account) => account?.id === record.accountId)
+  if (!entry) {
+    // No snapshot entry to roll forward to; fall back to rollback so we never leave a dangling
+    // listing for an account we cannot fully describe.
+    removeStoredAccountMetadata(record.accountId)
+    return
+  }
+
+  const current = parseStoredAccounts()
+  const index = current.findIndex((account) => account.id === record.accountId)
+  if (index === -1) {
+    current.push(entry)
+  } else {
+    current[index] = entry
+  }
+  writeStoredAccounts(current)
+}
+
+/**
+ * Resolve every account mutation a prior session left journaled (i.e. interrupted between its
+ * IndexedDB and localStorage writes) back into a consistent state (ARCHITECTURE.md §6). Runs before
+ * the store reads persisted metadata so the reactive refs observe already-reconciled storage.
+ *
+ * - `remove` is roll-forward only (deleting a secret is irreversible): ensure the secret is gone and
+ *   the account is no longer listed.
+ * - `add`/`update` roll forward when the secret landed (re-establish the metadata entry) and roll
+ *   back when it did not (drop any dangling listing so no "ghost" account survives).
+ *
+ * Each step is idempotent, so a reconcile that is itself interrupted simply resumes next startup.
+ */
+async function reconcileAccountJournal(): Promise<void> {
+  const pending = await readPendingAccountJournal()
+
+  for (const record of pending) {
+    try {
+      if (record.op === 'remove') {
+        await deleteSecureAccountSecret(record.accountId)
+        removeStoredAccountMetadata(record.accountId)
+      } else if (await hasSecureAccountSecret(record.accountId)) {
+        upsertStoredAccountMetadata(record)
+      } else {
+        removeStoredAccountMetadata(record.accountId)
+      }
+      await completeAccountJournal(record.id)
+    } catch (error) {
+      // Leave the entry in place; the next startup retries this idempotent reconciliation.
+      console.error(`Failed to reconcile account journal entry ${record.id}:`, error)
+    }
   }
 }
 
@@ -262,6 +353,17 @@ export const useAccountsStore = defineStore('accounts', () => {
     await saveSecureAccountSecret(account.id, getPersistedAccountSecret(account))
   }
 
+  /**
+   * Capture the localStorage metadata a mutation intends to establish, for the write-ahead journal.
+   * Taken after the in-memory refs are mutated so it reflects the intended post-success state.
+   */
+  function buildMetadataSnapshot(): AccountJournalEntryInput['metadata'] {
+    return {
+      accounts: accounts.value.map(serializeAccountMetadata),
+      activeAccountId: activeAccountId.value,
+    }
+  }
+
   async function migrateLegacyPlaintextData(): Promise<void> {
     await Promise.all(accounts.value.map((account) => persistAccountSecret(account)))
     await saveSecureApiCredentials(apiCredentials.value)
@@ -352,6 +454,10 @@ export const useAccountsStore = defineStore('accounts', () => {
 
     loadPromise = (async () => {
       try {
+        // Finish any account mutation a prior session left interrupted before reading persisted
+        // state, so the reactive refs are hydrated from already-consistent storage (§6). Reconcile
+        // swallows its own per-entry errors and never throws, so a snag here cannot block boot.
+        await reconcileAccountJournal()
         await applyStorageToState({ migrate: true })
         // Retry any archive recovery a prior session may have left incomplete for the account
         // restored as active (ARCHITECTURE.md §6). Fire-and-forget: boot must not block on a scan.
@@ -483,9 +589,16 @@ export const useAccountsStore = defineStore('accounts', () => {
       sessionStateByAccountId.value[newAccount.id] = 'ready'
     }
 
+    const journalId = await beginAccountJournal({
+      op: 'add',
+      accountId: newAccount.id,
+      metadata: buildMetadataSnapshot(),
+    })
+
     try {
       await persistAccountSecret(newAccount)
       persistMetadataToLocalStorage()
+      await completeAccountJournal(journalId)
       crossTab.post()
       if (newAccount.type === 'user') {
         // Reclaim any archived data for this identity before the caller navigates to a list view, so
@@ -498,6 +611,10 @@ export const useAccountsStore = defineStore('accounts', () => {
         (existingAccount) => existingAccount.id !== newAccount.id,
       )
       delete sessionStateByAccountId.value[newAccount.id]
+      // Undo any orphaned secret the partial add may have written, then drop the journal so startup
+      // reconciliation does not resurrect a mutation the caller just saw fail.
+      await deleteSecureAccountSecret(newAccount.id).catch(() => {})
+      await completeAccountJournal(journalId)
       throw error
     }
   }
@@ -512,14 +629,24 @@ export const useAccountsStore = defineStore('accounts', () => {
     const nextAccount = { ...previousAccount, ...updates } as SavedAccount
     accounts.value[index] = nextAccount
 
+    const journalId = await beginAccountJournal({
+      op: 'update',
+      accountId: id,
+      metadata: buildMetadataSnapshot(),
+    })
+
     try {
       await persistAccountSecret(nextAccount)
       persistMetadataToLocalStorage()
       // Writing a fresh secret repairs a previously corrupt record.
       clearCorruptedAccount(id)
+      await completeAccountJournal(journalId)
       crossTab.post()
     } catch (error) {
       accounts.value[index] = previousAccount
+      // The pre-existing secret keeps the account usable; clearing the journal prevents startup from
+      // re-applying the metadata this failed update rolled back in memory.
+      await completeAccountJournal(journalId)
       throw error
     }
   }
@@ -565,16 +692,41 @@ export const useAccountsStore = defineStore('accounts', () => {
       activeAccountId.value = accounts.value[0]?.id ?? null
     }
 
+    const journalId = await beginAccountJournal({
+      op: 'remove',
+      accountId: id,
+      metadata: buildMetadataSnapshot(),
+    })
+
     try {
       await deleteSecureAccountSecret(id)
       persistMetadataToLocalStorage()
       clearCorruptedAccount(id)
+      await completeAccountJournal(journalId)
       crossTab.post()
     } catch (error) {
-      accounts.value = previousAccounts
-      activeAccountId.value = previousActiveAccountId
-      sessionStateByAccountId.value = previousSessionState
-      restoreAccountEpoch(id, previousEpoch)
+      // A removal is only reversible while the secret still exists. Probe to decide which way to
+      // resolve rather than blindly restoring a possibly-secretless "ghost" account (§6).
+      let secretStillExists = false
+      try {
+        secretStillExists = await hasSecureAccountSecret(id)
+      } catch {
+        secretStillExists = false
+      }
+
+      if (secretStillExists) {
+        // The secret delete never landed — roll the whole removal back.
+        accounts.value = previousAccounts
+        activeAccountId.value = previousActiveAccountId
+        sessionStateByAccountId.value = previousSessionState
+        restoreAccountEpoch(id, previousEpoch)
+        await completeAccountJournal(journalId)
+        throw error
+      }
+
+      // The secret is gone: the removal is past the point of no return. Keep the account removed and
+      // leave the journal so startup reconciliation finishes clearing its metadata.
+      console.error('Failed to finish removing account after its secret was deleted:', error)
       throw error
     }
   }

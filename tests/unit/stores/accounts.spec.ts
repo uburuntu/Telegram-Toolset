@@ -31,6 +31,9 @@ const vaultApi = vi.hoisted(() => ({
   deleteSecureAccountSecret: vi.fn(async (accountId: string) => {
     vaultState.accountSecrets.delete(accountId)
   }),
+  hasSecureAccountSecret: vi.fn(async (accountId: string) => {
+    return vaultState.accountSecrets.has(accountId)
+  }),
 }))
 
 const backupManagerApi = vi.hoisted(() => ({
@@ -252,6 +255,30 @@ describe('accounts store', () => {
     })
     expect(persistedAccounts[0].sessionString).toBeUndefined()
     expect(localStorage.getItem('telegram_api_credentials')).toBeNull()
+  })
+
+  it('undoes a partial add when persisting metadata fails, leaving no orphaned secret', async () => {
+    const store = useAccountsStore()
+
+    // Fail the localStorage metadata write that follows the (successful) secret write, so the add
+    // partially commits: the secret lands in the vault before persistence throws.
+    ;(localStorage.setItem as unknown as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+      throw new Error('quota exceeded')
+    })
+
+    await expect(
+      store.addAccount({
+        type: 'user',
+        label: 'Test User',
+        phone: '+1234567890',
+        sessionString: 'saved-session',
+      }),
+    ).rejects.toThrow('quota exceeded')
+
+    // In-memory state is rolled back and the orphaned secret is compensated away (§6): failure at
+    // the add boundary leaves no half-committed account behind.
+    expect(store.accounts).toHaveLength(0)
+    expect(vaultState.accountSecrets.size).toBe(0)
   })
 
   it('tracks selected accounts separately from login-required state', async () => {

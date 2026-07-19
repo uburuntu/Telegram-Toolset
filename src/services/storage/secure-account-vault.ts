@@ -274,3 +274,13 @@ export async function saveSecureAccountSecret(
 export async function deleteSecureAccountSecret(accountId: string): Promise<void> {
   await deleteSecureVaultSecret(getAccountSecretId(accountId))
 }
+
+/**
+ * Existence probe for an account's secret that never touches the master key or decrypts. Journal
+ * reconciliation uses this to decide whether a crashed `add`/`update` actually landed its ciphertext,
+ * so a partial commit can be rolled forward or back without risking a spurious key mint (§6).
+ */
+export async function hasSecureAccountSecret(accountId: string): Promise<boolean> {
+  const record = await getSecureVaultSecret(getAccountSecretId(accountId))
+  return record !== undefined && record !== null
+}
