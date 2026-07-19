@@ -244,6 +244,15 @@ export async function getMessagesByBackup(backupId: string): Promise<DeletedMess
   return messages.map(({ backupId: _, ...msg }) => msg as DeletedMessage)
 }
 
+/**
+ * Count persisted message rows for a backup without deserializing them. Used to detect content that
+ * the browser evicted (metadata row survives, message rows are gone) — see content-health.ts.
+ */
+export async function countBackupMessages(backupId: string): Promise<number> {
+  const db = await getDB()
+  return db.countFromIndex('messages', 'by-backup', backupId)
+}
+
 // Media operations
 export async function saveMedia(
   backupId: string,
@@ -427,6 +436,15 @@ export async function getChatMessagesByExport(exportId: string): Promise<ChatMes
   const db = await getDB()
   const messages = await db.getAllFromIndex('chatMessages', 'by-export', exportId)
   return messages.map(({ exportId: _, ...msg }) => msg as ChatMessage)
+}
+
+/**
+ * Count persisted message rows for a chat export without deserializing them. Used to detect content
+ * the browser evicted (metadata survives, message rows are gone) — see content-health.ts.
+ */
+export async function countChatExportMessages(exportId: string): Promise<number> {
+  const db = await getDB()
+  return db.countFromIndex('chatMessages', 'by-export', exportId)
 }
 
 export async function getChatExportSize(exportId: string): Promise<number> {

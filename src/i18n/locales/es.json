@@ -443,7 +443,9 @@
     "quarantinedHint": "Estas copias de seguridad perdieron su vínculo con una cuenta y permanecen ocultas hasta repararse. Asigna una a la cuenta actual para restaurarla o elimínala.",
     "repair": "Reparar",
     "repairSuccess": "Copia de seguridad restaurada en esta cuenta.",
-    "repairError": "No se pudo reparar la copia de seguridad."
+    "repairError": "No se pudo reparar la copia de seguridad.",
+    "contentUnavailable": "Contenido no disponible",
+    "contentUnavailableHint": "El navegador eliminó los datos de esta copia. Solo queda el resumen: elimínala y vuelve a exportar desde Telegram."
   },
   "privacy": {
     "footer": "100% en el dispositivo. Ningún dato sale de su navegador.",

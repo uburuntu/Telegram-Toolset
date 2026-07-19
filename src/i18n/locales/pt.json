@@ -443,7 +443,9 @@
     "quarantinedHint": "Esses backups perderam o vínculo com uma conta e ficam ocultos até serem reparados. Atribua um à conta atual para restaurá-lo ou exclua-o.",
     "repair": "Reparar",
     "repairSuccess": "Backup restaurado nesta conta.",
-    "repairError": "Falha ao reparar o backup."
+    "repairError": "Falha ao reparar o backup.",
+    "contentUnavailable": "Conteúdo indisponível",
+    "contentUnavailableHint": "O navegador removeu os dados deste backup. Resta apenas o resumo — exclua-o e exporte novamente do Telegram."
   },
   "privacy": {
     "footer": "100% no dispositivo. Nenhum dado sai do seu navegador.",

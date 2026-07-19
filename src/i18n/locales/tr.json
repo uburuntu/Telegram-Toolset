@@ -443,7 +443,9 @@
     "quarantinedHint": "Bu yedekler bir hesapla bağlantısını kaybetti ve onarılana kadar gizli kalır. Geri yüklemek için birini geçerli hesaba atayın veya silin.",
     "repair": "Onar",
     "repairSuccess": "Yedek bu hesaba geri yüklendi.",
-    "repairError": "Yedek onarılamadı."
+    "repairError": "Yedek onarılamadı.",
+    "contentUnavailable": "İçerik kullanılamıyor",
+    "contentUnavailableHint": "Bu yedeğin verileri tarayıcı tarafından kaldırıldı. Yalnızca özet kaldı — silin ve Telegram'dan yeniden dışa aktarın."
   },
   "privacy": {
     "footer": "%100 cihaz üzerinde. Hiçbir veri tarayıcınızdan çıkmaz.",

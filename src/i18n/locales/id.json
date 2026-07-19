@@ -443,7 +443,9 @@
     "quarantinedHint": "Cadangan ini kehilangan tautan ke akun dan tetap tersembunyi sampai diperbaiki. Tetapkan salah satu ke akun saat ini untuk memulihkannya, atau hapus.",
     "repair": "Perbaiki",
     "repairSuccess": "Cadangan dipulihkan ke akun ini.",
-    "repairError": "Gagal memperbaiki cadangan."
+    "repairError": "Gagal memperbaiki cadangan.",
+    "contentUnavailable": "Konten tidak tersedia",
+    "contentUnavailableHint": "Data cadangan ini dihapus oleh peramban. Hanya ringkasan yang tersisa — hapus dan ekspor lagi dari Telegram."
   },
   "privacy": {
     "footer": "100% pada perangkat. Tidak ada data yang meninggalkan browser Anda.",

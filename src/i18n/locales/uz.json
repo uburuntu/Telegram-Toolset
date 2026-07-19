@@ -443,7 +443,9 @@
     "quarantinedHint": "Bu zaxira nusxalari hisob bilan bog‘lanishini yo‘qotgan va tiklanmaguncha yashirin bo‘ladi. Uni tiklash uchun joriy hisobga bog‘lang yoki o‘chirib tashlang.",
     "repair": "Tiklash",
     "repairSuccess": "Zaxira nusxasi ushbu hisobga tiklandi.",
-    "repairError": "Zaxira nusxasini tiklab bo‘lmadi."
+    "repairError": "Zaxira nusxasini tiklab bo‘lmadi.",
+    "contentUnavailable": "Kontent mavjud emas",
+    "contentUnavailableHint": "Ushbu zaxira ma'lumotlari brauzer tomonidan o'chirilgan. Faqat qisqacha ma'lumot qoldi — uni o'chiring va Telegram'dan qayta eksport qiling."
   },
   "privacy": {
     "footer": "100% qurilmada. Brauzeringizdan hech qanday ma'lumot chiqmaydi.",
