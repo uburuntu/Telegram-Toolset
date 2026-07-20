@@ -1,6 +1,9 @@
-import type { ChatExport, ChatInfo } from '@/types'
+import type { ChatExport, ChatInfo, PeerRef } from '@/types'
 
 export type TelegramPeerKind = 'user' | 'chat' | 'channel'
+
+/** The entity-granularity kind carried by {@link PeerRef} (distinguishes supergroup from channel). */
+export type PeerRefKind = PeerRef['kind']
 
 function normalizeNumericId(id: bigint | number | string): string {
   const value = typeof id === 'bigint' ? id.toString() : String(id)
@@ -80,4 +83,72 @@ export function normalizeMarkedPeerId(
   }
 
   return parseMarkedPeerId(peerId).markedId
+}
+
+// =============================================================================
+// PeerRef (ARCHITECTURE.md §4) — the canonical, storable peer reference.
+//
+// PeerRef.kind and the ChatInfo/ChatExport/Backup `chatType` union are the same four values, so
+// conversion between them is a direct passthrough. The `-100…` marked form is shared by supergroup
+// and channel, which is exactly why PeerRef carries the entity-derived kind separately from the id.
+// =============================================================================
+
+/** Collapse the four-way {@link PeerRefKind} down to the three marked-id families. */
+export function peerKindToMarkedKind(kind: PeerRefKind): TelegramPeerKind {
+  switch (kind) {
+    case 'user':
+      return 'user'
+    case 'group':
+      return 'chat'
+    case 'supergroup':
+    case 'channel':
+      return 'channel'
+  }
+}
+
+/**
+ * Build a {@link PeerRef} from an entity-granularity chat type plus a raw (unsigned) id. This is the
+ * reliable constructor: because `chatType` already distinguishes supergroup from channel, no peer-type
+ * guessing is involved. A leading sign on `rawId` is defensively stripped, but callers should pass
+ * the unsigned raw entity id, not a marked id.
+ */
+export function createPeerRef(
+  kind: PeerRefKind,
+  rawId: bigint | number | string,
+  accessHash?: bigint | number | string | null,
+): PeerRef {
+  const ref: PeerRef = { kind, rawId: normalizeNumericId(rawId) }
+  if (accessHash !== undefined && accessHash !== null && String(accessHash).length > 0) {
+    ref.accessHash = String(accessHash)
+  }
+  return ref
+}
+
+/** Derive the Bot API-style marked id for a {@link PeerRef}. */
+export function peerRefToMarkedId(ref: PeerRef): string {
+  return buildMarkedPeerId(peerKindToMarkedKind(ref.kind), ref.rawId)
+}
+
+/** The unsigned raw id of a {@link PeerRef} as a `bigint` (for GramJS calls that still take one). */
+export function peerRefRawBigInt(ref: PeerRef): bigint {
+  return BigInt(ref.rawId)
+}
+
+/**
+ * Structural equality for two peer references. Access hash is compared only when both sides carry one,
+ * so a freshly resolved hash does not make an otherwise-identical peer compare unequal.
+ */
+export function arePeerRefsEqual(a: PeerRef, b: PeerRef): boolean {
+  if (a.kind !== b.kind || a.rawId !== b.rawId) {
+    return false
+  }
+  if (a.accessHash !== undefined && b.accessHash !== undefined) {
+    return a.accessHash === b.accessHash
+  }
+  return true
+}
+
+/** Whether a peer kind needs an access hash to reconstruct an input peer after a cold start. */
+export function peerKindRequiresAccessHash(kind: PeerRefKind): boolean {
+  return kind !== 'group'
 }

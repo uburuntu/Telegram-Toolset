@@ -2,6 +2,23 @@
  * Telegram-related type definitions
  */
 
+/**
+ * Canonical, storable reference to a Telegram peer (ARCHITECTURE.md §4).
+ *
+ * - `rawId` is the unsigned Telegram id as a decimal string — never a Bot API "marked" id and never
+ *   a `bigint` (bigint is not JSON/IndexedDB-friendly). Derive marked ids at adapter boundaries.
+ * - `kind` carries entity granularity a marked id cannot: a `-100…` marked id is ambiguous between
+ *   `supergroup` and `channel`, so the precise kind must come from the entity, not from the number.
+ * - `accessHash` is required to rebuild an MTProto input peer for `user`, `channel`, and
+ *   `supergroup` peers after a cold start with an empty entity cache. When it is missing or stale the
+ *   peer must go through an explicit resolver/refresh path rather than peer-type guessing.
+ */
+export interface PeerRef {
+  kind: 'user' | 'group' | 'supergroup' | 'channel'
+  rawId: string
+  accessHash?: string
+}
+
 export interface ChatInfo {
   id: bigint
   /** Stable Bot API-style marked peer ID: userId, -chatId, or -100channelId */
