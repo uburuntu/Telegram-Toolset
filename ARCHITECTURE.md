@@ -306,7 +306,7 @@ Add an account-independent local-data workspace:
 
 ### Problem
 
-The quota strategy can return streaming or metadata-only behavior, but the export path still hard-codes IndexedDB and buffers media and ZIP output in memory. Large exports can perform expensive Telegram work and then fail at storage or heap limits. GramJS and all locales are also pulled into the initial application path, leaving the main bundle near its budget.
+The quota strategy can return streaming or metadata-only behavior, but the export path still hard-codes IndexedDB and buffers media and ZIP output in memory. Large exports can perform expensive Telegram work and then fail at storage or heap limits. GramJS and all locales are also pulled into the initial application path, enlarging the initial application bundle.
 
 ### Target
 
@@ -443,7 +443,7 @@ Coverage thresholds should expand only after the relevant integration seams are 
 - Add worker-backed export/archive pipelines with the committed byte, heap, and cancellation caps.
 - Implement real quota strategies.
 - Defer GramJS and locales from the initial route.
-- Expand the production-artifact browser smoke (a Chromium boot/lazy-route baseline exists) to every route and define the supported browser floor.
+- Expand the production-artifact browser smoke to every route and define the supported browser floor.
 
 ### Stage F — Workflow decomposition
 

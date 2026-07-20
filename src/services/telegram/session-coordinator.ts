@@ -1,5 +1,5 @@
 /**
- * Telegram session coordinator (ARCHITECTURE.md §2).
+ * Telegram session coordinator.
  *
  * The single owner of user-session lifecycle transitions. It serializes every activate / deactivate
  * request through one command queue, stamps each with a monotonic generation, and only publishes a
@@ -10,7 +10,7 @@
  * Before swapping the underlying session it cancels account-affine mutation jobs, but only waits to a
  * bounded deadline: a mutation that never settles cannot block a later activation, and the generation
  * fence prevents its late completion from publishing state. Heavier per-job fencing
- * (abandoned / delivery_uncertain outcomes) belongs to the job runtime in Stage B.
+ * (abandoned / delivery_uncertain outcomes) belongs to the job runtime.
  *
  * The coordinator is framework-agnostic and backend-injected so it can be unit-tested with deferred
  * promises for every ordering.

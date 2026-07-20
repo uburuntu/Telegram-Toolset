@@ -1,5 +1,5 @@
 /**
- * Account-independent local-data workspace service (ARCHITECTURE.md §7).
+ * Account-independent local-data workspace service.
  *
  * Aggregates the retained, orphaned local records (archived, quarantined, or unclaimed legacy backups
  * and chat exports) that are not tied to a live account, so a user can inspect and clean them up even

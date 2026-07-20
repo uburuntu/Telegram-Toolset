@@ -1,5 +1,5 @@
 /**
- * Build a GramJS `Api.InputPeer*` directly from a canonical {@link PeerRef} (ARCHITECTURE.md §4).
+ * Build a GramJS `Api.InputPeer*` directly from a canonical {@link PeerRef}.
  *
  * This is the payoff of storing an access hash: given a complete PeerRef, an input peer can be
  * constructed with no `getEntity` round-trip, so a chat can be re-opened after a cold start when its

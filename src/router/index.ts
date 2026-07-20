@@ -93,7 +93,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     // Account-independent workspace: retained data can be inspected and cleaned up with no
-    // active account, so this route intentionally does not require auth (ARCHITECTURE.md §7).
+    // active account, so this route intentionally does not require auth.
     path: '/local-data',
     name: 'local-data',
     component: LocalDataView,

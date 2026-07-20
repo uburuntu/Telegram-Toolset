@@ -1,11 +1,11 @@
 /**
- * Turning a stored record into something the Telegram layer can act on (ARCHITECTURE.md §4).
+ * Turning a stored record into something the Telegram layer can act on.
  *
  * Records accumulated over three schema eras:
- * - §4 records carry a full {@link PeerRef} (kind + raw id + access hash).
- * - §4 records for basic groups, or entities Telegram returned without a hash, carry a PeerRef whose
+ * - Newer records carry a full {@link PeerRef} (kind + raw id + access hash).
+ * - Newer records for basic groups, or entities Telegram returned without a hash, carry a PeerRef whose
  *   `accessHash` is absent.
- * - Pre-§4 records carry only a raw `chatId` (and sometimes a marked `chatPeerId`), with no reliable
+ * - Older records carry only a raw `chatId` (and sometimes a marked `chatPeerId`), with no reliable
  *   kind — the legacy backup path even hardcoded `chatType: 'channel'`.
  *
  * {@link resolvePeer} maps those into a typed decision so callers can build an input peer directly,

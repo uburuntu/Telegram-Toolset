@@ -3,7 +3,7 @@ import { quotaManager } from '@/services/storage/quota'
 import type { PersistenceStatus } from '@/types'
 
 /**
- * Shared, reactive view of on-device storage durability (ARCHITECTURE.md §6).
+ * Shared, reactive view of on-device storage durability.
  *
  * The status is module-scoped so every surface (backups, local-data workspace) reflects the same
  * value. `refresh()` is a read-only probe safe to call on load; `ensurePersisted()` actively requests

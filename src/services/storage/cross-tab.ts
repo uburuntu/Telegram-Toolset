@@ -1,5 +1,5 @@
 /**
- * Cross-tab invalidation channel (ARCHITECTURE.md §6).
+ * Cross-tab invalidation channel.
  *
  * Same-origin tabs each hold their own in-memory copy of account and ownership state. The
  * per-account epoch in localStorage already fences *late writes* across tabs, but a tab's

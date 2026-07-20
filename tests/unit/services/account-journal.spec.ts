@@ -4,9 +4,9 @@ import { openDB } from 'idb'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
- * Real-IndexedDB + WebCrypto integration coverage for the account journal and vault (ARCHITECTURE.md
- * §6). Each test gets a fresh IndexedDB engine and a fresh module graph so `indexed-db.ts`'s cached
- * connection is rebound to the new engine instead of a previous test's orphaned database.
+ * Real-IndexedDB + WebCrypto integration coverage for the account journal and vault. Each test gets
+ * a fresh IndexedDB engine and a fresh module graph so `indexed-db.ts`'s cached connection is
+ * rebound to the new engine instead of a previous test's orphaned database.
  */
 beforeEach(() => {
   ;(globalThis as unknown as { indexedDB: IDBFactory }).indexedDB = new IDBFactory()

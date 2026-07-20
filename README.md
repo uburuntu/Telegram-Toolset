@@ -3,7 +3,7 @@
 [![CI](https://github.com/uburuntu/Telegram-Toolset/actions/workflows/ci.yml/badge.svg)](https://github.com/uburuntu/Telegram-Toolset/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Telegram Toolset is a privacy-first, browser-only workspace for advanced Telegram operations. The repository started as a deleted-messages manager and is now being productionized into a broader modular tool platform built around a shared multi-account auth pipeline.
+Telegram Toolset is a privacy-first, browser-only workspace for advanced Telegram operations. The repository began as a deleted-messages manager and has grown into a broader modular tool platform built around a shared multi-account auth pipeline.
 
 The app runs entirely on-device. There is no backend, no tracking, and no server-side storage of Telegram data.
 
@@ -18,7 +18,7 @@ The app runs entirely on-device. There is no backend, no tracking, and no server
 | **Scheduled Messages** | View and manage scheduled messages across chats | User |
 | **LLM Context Export** | Export chat history in assistant-friendly formats for external tools | User |
 
-`Account Info`, `Export Deleted Messages`, `Resend Messages`, `Scheduled Messages`, and `LLM Context Export` are currently surfaced from the module registry in `src/modules/index.ts`. `Backups` is already part of the supported product surface, but today it is exposed as its own authenticated route/workspace rather than as a landing-page module card.
+`Account Info`, `Export Deleted Messages`, `Resend Messages`, `Scheduled Messages`, and `LLM Context Export` are surfaced from the module registry in `src/modules/index.ts`. `Backups` is part of the supported product surface, exposed as its own authenticated route/workspace rather than as a landing-page module card.
 
 ## Product Direction
 

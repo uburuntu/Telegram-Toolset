@@ -1,5 +1,5 @@
 /**
- * Shell job registry (ARCHITECTURE.md §3).
+ * Shell job registry.
  *
  * A pure, observable projection of active and recently completed jobs so the app shell can surface
  * long-running work independent of any route. Route changes must not destroy this state, and the
@@ -97,7 +97,7 @@ export const useJobsStore = defineStore('jobs', () => {
       return
     }
     // A job whose owner already aborted must never be recorded as a success, even if a late caller
-    // reports 'succeeded' after cancellation (ARCHITECTURE.md §3, criterion 2).
+    // reports 'succeeded' after cancellation.
     const effectiveStatus =
       status === 'succeeded' && signals.get(operationId)?.aborted ? 'cancelled' : status
     job.status = effectiveStatus

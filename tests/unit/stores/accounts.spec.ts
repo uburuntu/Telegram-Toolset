@@ -275,7 +275,7 @@ describe('accounts store', () => {
       }),
     ).rejects.toThrow('quota exceeded')
 
-    // In-memory state is rolled back and the orphaned secret is compensated away (§6): failure at
+    // In-memory state is rolled back and the orphaned secret is compensated away: failure at
     // the add boundary leaves no half-committed account behind.
     expect(store.accounts).toHaveLength(0)
     expect(vaultState.accountSecrets.size).toBe(0)

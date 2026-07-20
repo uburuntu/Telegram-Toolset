@@ -137,7 +137,7 @@ describe('llm export ownership', () => {
     ]
 
     // Recovery is an explicit lifecycle step (driven from the accounts store on add/activation),
-    // separate from the pure list read (ARCHITECTURE.md §6).
+    // separate from the pure list read.
     const recovered = await recoverArchivedChatExportsForAccount(account)
     expect(recovered).toBe(1)
 

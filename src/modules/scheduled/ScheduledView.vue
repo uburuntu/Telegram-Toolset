@@ -330,7 +330,7 @@ async function deleteSelectedMessages() {
     }
 
     // Delete per chat, collecting a per-peer outcome so partial success is reported accurately and
-    // a later chat's failure cannot discard earlier confirmed deletions (ARCHITECTURE.md §3).
+    // a later chat's failure cannot discard earlier confirmed deletions.
     const result = await scheduledService.deleteScheduledMessagesByPeer(messagesByChat, {
       onPeerSettled: (outcome) => {
         if (requestId !== scheduledRequestId || accountsStore.activeAccountId !== accountId) {

@@ -1,10 +1,10 @@
 /**
- * Job runner (ARCHITECTURE.md §3).
+ * Job runner.
  *
  * Owns the lifetime of a long-running job independent of any route component: it holds the job's
  * `AbortController`, mirrors progress into the shell registry (`useJobsStore`), and settles the job
  * exactly once. Because the runner — not the view — owns the controller and the in-flight promise,
- * navigating away from a route does not cancel or orphan the work (criterion 7). Cancellation is
+ * navigating away from a route does not cancel or orphan the work. Cancellation is
  * available from anywhere (e.g. the app-shell job surface) via {@link cancelJob}.
  */
 import { useJobsStore } from '@/stores/jobs'
