@@ -121,17 +121,29 @@ export async function ensureLocaleLoaded(locale: SupportedLocale): Promise<void>
 }
 
 export async function setLocale(locale: SupportedLocale): Promise<void> {
+  try {
+    await ensureLocaleLoaded(locale)
+  } catch (error) {
+    // A failed locale-chunk fetch must not switch to (or persist) a catalog we cannot display: stay
+    // on the current locale so the UI keeps rendering and the next startup is not bricked.
+    console.error(`Failed to load locale "${locale}":`, error)
+    return
+  }
+
+  localeController.locale.value = locale
+  updateDocumentLocale(locale)
+  // Persist only after the catalog is in hand, so a failed switch never leaves a broken preference
+  // that would strand the user on the fallback path on their next visit.
   if (typeof localStorage !== 'undefined' && typeof localStorage.setItem === 'function') {
     localStorage.setItem(LOCALE_STORAGE_KEY, locale)
   }
-  await ensureLocaleLoaded(locale)
-  localeController.locale.value = locale
-  updateDocumentLocale(locale)
 }
 
 /**
  * Loads and applies the stored/detected locale. Await this before mounting so
- * non-English users don't see a flash of the fallback catalog.
+ * non-English users don't see a flash of the fallback catalog. Falls back to the
+ * always-bundled English catalog if the locale chunk fails to load, so a fetch
+ * failure can never leave the app unmounted.
  */
 export async function initializeLocale(): Promise<void> {
   const locale = getStoredLocale()
@@ -139,8 +151,16 @@ export async function initializeLocale(): Promise<void> {
   if (locale === 'en') {
     return
   }
-  await ensureLocaleLoaded(locale)
-  localeController.locale.value = locale
+
+  try {
+    await ensureLocaleLoaded(locale)
+    localeController.locale.value = locale
+  } catch (error) {
+    // Offline, a stale hashed chunk after a redeploy, or a CDN hiccup must not brick startup:
+    // keep the bundled English catalog and reset the document to its direction/lang.
+    console.error(`Failed to load stored locale "${locale}"; falling back to English:`, error)
+    updateDocumentLocale('en')
+  }
 }
 
 // Set document direction/lang immediately so RTL layout is correct before the
