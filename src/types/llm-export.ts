@@ -6,7 +6,7 @@
  */
 
 import type { StoredRecordOwnership } from './ownership'
-import type { MediaType } from './telegram'
+import type { MediaType, PeerRef } from './telegram'
 
 /**
  * A single chat message for LLM export
@@ -45,6 +45,11 @@ export interface ChatExport extends StoredRecordOwnership {
   chatId: bigint
   /** Stable Bot API-style marked peer ID: userId, -chatId, or -100channelId */
   chatPeerId?: string
+  /**
+   * Canonical source-chat reference including access hash (ARCHITECTURE.md §4). Optional: records
+   * created before §4 rely on chatType/chatPeerId and are resolved on demand.
+   */
+  peerRef?: PeerRef
   chatTitle: string
   chatType: 'channel' | 'supergroup' | 'group' | 'user'
   schemaVersion?: number

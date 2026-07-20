@@ -450,6 +450,70 @@ describe('backupManager createBackup commit fence', () => {
   })
 })
 
+describe('backupManager peer references (ARCHITECTURE.md §4)', () => {
+  beforeEach(() => {
+    state.backups = []
+    vi.clearAllMocks()
+    dbMocks.countMediaTypes.mockResolvedValue(emptyMediaTypes)
+  })
+
+  it('persists the real chat type and peerRef from the export config', async () => {
+    const account = createUserAccount()
+    const peerRef = { kind: 'supergroup' as const, rawId: '100123', accessHash: 'ah-1' }
+
+    const backup = await backupManager.createBackup(
+      {
+        chatId: BigInt('100123'),
+        chatTitle: 'Dev Chat',
+        chatType: 'supergroup',
+        peerRef,
+        exportMode: 'all',
+        storageStrategy: 'indexeddb',
+      },
+      [],
+      new Map(),
+      account,
+    )
+
+    expect(backup.chatType).toBe('supergroup')
+    expect(backup.peerRef).toEqual(peerRef)
+  })
+
+  it('derives chatType from peerRef.kind when the config omits an explicit chatType', async () => {
+    const account = createUserAccount()
+
+    const backup = await backupManager.createBackup(
+      {
+        chatId: BigInt('55'),
+        chatTitle: 'A Person',
+        peerRef: { kind: 'user', rawId: '55', accessHash: 'ah-2' },
+        exportMode: 'all',
+        storageStrategy: 'indexeddb',
+      },
+      [],
+      new Map(),
+      account,
+    )
+
+    expect(backup.chatType).toBe('user')
+  })
+
+  it('falls back to a channel type with no peerRef for legacy-style configs', async () => {
+    const account = createUserAccount()
+
+    const backup = await backupManager.createBackup(
+      { chatId: BigInt('7'), chatTitle: 'Legacy', exportMode: 'all', storageStrategy: 'indexeddb' },
+      [],
+      new Map(),
+      account,
+    )
+
+    // No entity context available: the type is a documented legacy default, not a real classification.
+    expect(backup.chatType).toBe('channel')
+    expect(backup.peerRef).toBeUndefined()
+  })
+})
+
 describe('backupManager access enforcement', () => {
   const owner = createUserAccount({ id: 'owner', principal: { kind: 'user', telegramUserId: '100' } })
   const other = createUserAccount({ id: 'other', principal: { kind: 'user', telegramUserId: '200' } })

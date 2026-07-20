@@ -310,6 +310,8 @@ async function startExport() {
   const config: ExportConfig = {
     chatId: chat.id,
     chatTitle: chat.title,
+    chatType: chat.type,
+    peerRef: chat.peerRef,
     exportMode: exportMode.value,
     storageStrategy: 'indexeddb',
     // Date filters

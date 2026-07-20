@@ -4,7 +4,7 @@
 
 import { getActiveLocale } from '@/utils/locale-format'
 import type { StoredRecordOwnership } from './ownership'
-import type { DeletedMessage } from './telegram'
+import type { ChatInfo, DeletedMessage, PeerRef } from './telegram'
 
 export interface MediaTypeStats {
   photos: number
@@ -23,6 +23,12 @@ export interface MediaTypeStats {
 export interface Backup extends StoredRecordOwnership {
   id: string
   chatId: bigint
+  /**
+   * Canonical source-chat reference (ARCHITECTURE.md §4). Optional: records created before §4 have no
+   * peerRef and are resolved on demand rather than reconstructed from the (historically unreliable)
+   * chatType.
+   */
+  peerRef?: PeerRef
   chatTitle: string
   chatType: 'channel' | 'supergroup' | 'group' | 'user'
   createdAt: Date
@@ -63,6 +69,10 @@ export interface ExportProgress {
 export interface ExportConfig {
   chatId: bigint
   chatTitle: string
+  /** Source-chat entity kind, so the backup records the real type instead of a hardcoded default. */
+  chatType?: ChatInfo['type']
+  /** Canonical source-chat reference to persist on the backup (ARCHITECTURE.md §4). */
+  peerRef?: PeerRef
   exportMode: 'all' | 'media_only' | 'text_only'
   storageStrategy: 'indexeddb' | 'stream_download' | 'metadata_only'
   /** Filter: minimum message ID (export messages after this ID) */

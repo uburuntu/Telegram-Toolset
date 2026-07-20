@@ -158,8 +158,10 @@ class BackupManager {
       {
         id,
         chatId: config.chatId,
+        peerRef: config.peerRef,
         chatTitle: config.chatTitle,
-        chatType: 'channel', // Will be determined from chat info
+        // Real source-chat type from the export config (or its peerRef); no longer hardcoded.
+        chatType: config.chatType ?? config.peerRef?.kind ?? 'channel',
         createdAt: new Date(),
         messageCount: messages.length,
         mediaCount: mediaBlobs.size,
@@ -334,6 +336,8 @@ class BackupManager {
       {
         chatId: chatId!,
         chatTitle: backups[0]?.chatTitle ?? 'Merged Backup',
+        chatType: backups[0]?.chatType,
+        peerRef: backups[0]?.peerRef,
         exportMode: 'all',
         storageStrategy: 'indexeddb',
       },
