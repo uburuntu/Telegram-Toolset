@@ -125,6 +125,27 @@ describe('account journal startup reconciliation', () => {
     expect(await idb.getAllAccountJournalRecords()).toHaveLength(0)
   })
 
+  it('keeps a committed secret-less account whose metadata landed without a vault secret', async () => {
+    const { idb, vault, useAccountsStore } = await setup()
+    // A secret-less account (e.g. an empty user session) commits its metadata but writes no vault
+    // secret. Metadata is the mutation's final durable step, so a listed account means it committed;
+    // the interrupted journal-clear leaves a dangling entry that must not delete the account.
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify([storedUserAccount('acc-1', 'Sessionless')]))
+    localStorage.setItem(ACTIVE_KEY, 'acc-1')
+    await idb.putAccountJournalRecord(
+      journalRecord('add', 'acc-1', [storedUserAccount('acc-1', 'Sessionless')], 'acc-1'),
+    )
+
+    const store = useAccountsStore()
+    await store.loadFromStorage()
+
+    expect(store.accounts.map((account) => account.id)).toEqual(['acc-1'])
+    expect(await vault.hasSecureAccountSecret('acc-1')).toBe(false)
+    const persisted = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) ?? '[]')
+    expect(persisted.map((account: { id: string }) => account.id)).toEqual(['acc-1'])
+    expect(await idb.getAllAccountJournalRecords()).toHaveLength(0)
+  })
+
   it('rolls a crashed update forward, re-applying the intended metadata', async () => {
     const { idb, vault, useAccountsStore } = await setup()
     await vault.saveSecureAccountSecret('acc-1', { sessionString: 'sess' })
