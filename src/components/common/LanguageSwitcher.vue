@@ -34,8 +34,8 @@ function closeDropdown(): void {
 }
 
 function switchLanguage(code: SupportedLocale): void {
-  setLocale(code)
   closeDropdown()
+  void setLocale(code)
 }
 </script>
 
