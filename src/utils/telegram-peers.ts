@@ -119,8 +119,13 @@ export function createPeerRef(
   accessHash?: bigint | number | string | null,
 ): PeerRef {
   const ref: PeerRef = { kind, rawId: normalizeNumericId(rawId) }
-  if (accessHash !== undefined && accessHash !== null && String(accessHash).length > 0) {
-    ref.accessHash = String(accessHash)
+  if (accessHash !== undefined && accessHash !== null) {
+    const normalizedHash = String(accessHash)
+    // A zero-valued access hash is Telegram's "no hash" sentinel, not a usable hash; omit it so
+    // completeness checks route to resolution/repair instead of emitting an invalid input peer.
+    if (normalizedHash.length > 0 && normalizedHash !== '0') {
+      ref.accessHash = normalizedHash
+    }
   }
   return ref
 }
@@ -154,7 +159,18 @@ export function peerKindRequiresAccessHash(kind: PeerRefKind): boolean {
   return kind !== 'group'
 }
 
+/** The four entity-granularity kinds a {@link PeerRef} may carry. */
+const PEER_REF_KINDS: ReadonlySet<PeerRefKind> = new Set(['user', 'group', 'supergroup', 'channel'])
+
 /** Narrow a `bigint | string | PeerRef` union to a {@link PeerRef}. */
 export function isPeerRef(value: unknown): value is PeerRef {
-  return typeof value === 'object' && value !== null && 'kind' in value && 'rawId' in value
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const candidate = value as { kind?: unknown; rawId?: unknown }
+  return (
+    typeof candidate.rawId === 'string' &&
+    typeof candidate.kind === 'string' &&
+    PEER_REF_KINDS.has(candidate.kind as PeerRefKind)
+  )
 }
