@@ -111,3 +111,43 @@ export function getModulesForAccountType(type: 'user' | 'bot' | null): ToolModul
   if (!type) return modules
   return modules.filter((m) => m.accountType === 'any' || m.accountType === type)
 }
+
+const VALID_ACCOUNT_TYPES: ReadonlySet<ToolModule['accountType']> = new Set(['user', 'bot', 'any'])
+
+/**
+ * Fail fast on a misconfigured registry. Duplicate ids, route paths, or route
+ * names would otherwise surface as subtle routing/lookup bugs at runtime, so
+ * enforce the registry invariants at module load instead.
+ */
+export function validateModuleRegistry(entries: readonly ToolModule[]): void {
+  const ids = new Set<string>()
+  const paths = new Set<string>()
+  const names = new Set<string>()
+
+  for (const module of entries) {
+    if (ids.has(module.id)) {
+      throw new Error(`Duplicate module id: ${module.id}`)
+    }
+    ids.add(module.id)
+
+    if (!VALID_ACCOUNT_TYPES.has(module.accountType)) {
+      throw new Error(`Invalid accountType "${module.accountType}" for module ${module.id}`)
+    }
+
+    const { path, name } = module.route
+    if (paths.has(path)) {
+      throw new Error(`Duplicate module route path: ${path}`)
+    }
+    paths.add(path)
+
+    if (name != null) {
+      const routeName = String(name)
+      if (names.has(routeName)) {
+        throw new Error(`Duplicate module route name: ${routeName}`)
+      }
+      names.add(routeName)
+    }
+  }
+}
+
+validateModuleRegistry(modules)
