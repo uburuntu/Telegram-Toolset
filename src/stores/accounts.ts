@@ -194,6 +194,10 @@ function upsertStoredAccountMetadata(record: AccountJournalRecord): void {
   writeStoredAccounts(current)
 }
 
+function isStoredAccountMetadataPresent(accountId: string): boolean {
+  return parseStoredAccounts().some((account) => account.id === accountId)
+}
+
 /**
  * Resolve every account mutation a prior session left journaled (i.e. interrupted between its
  * IndexedDB and localStorage writes) back into a consistent state (ARCHITECTURE.md §6). Runs before
@@ -201,8 +205,11 @@ function upsertStoredAccountMetadata(record: AccountJournalRecord): void {
  *
  * - `remove` is roll-forward only (deleting a secret is irreversible): ensure the secret is gone and
  *   the account is no longer listed.
- * - `add`/`update` roll forward when the secret landed (re-establish the metadata entry) and roll
- *   back when it did not (drop any dangling listing so no "ghost" account survives).
+ * - `add`/`update` roll forward when the mutation reached a durable store: either the secret landed,
+ *   or (given the secret-before-metadata write order) the metadata listing landed, which means the
+ *   whole mutation committed and the account is simply secret-less — e.g. an empty user session,
+ *   whose vault secret is legitimately absent. They roll back (drop any dangling listing) only when
+ *   neither store recorded the mutation, so a committed account is never deleted on reconcile.
  *
  * Each step is idempotent, so a reconcile that is itself interrupted simply resumes next startup.
  */
@@ -214,7 +221,10 @@ async function reconcileAccountJournal(): Promise<void> {
       if (record.op === 'remove') {
         await deleteSecureAccountSecret(record.accountId)
         removeStoredAccountMetadata(record.accountId)
-      } else if (await hasSecureAccountSecret(record.accountId)) {
+      } else if (
+        (await hasSecureAccountSecret(record.accountId)) ||
+        isStoredAccountMetadataPresent(record.accountId)
+      ) {
         upsertStoredAccountMetadata(record)
       } else {
         removeStoredAccountMetadata(record.accountId)
