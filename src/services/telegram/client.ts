@@ -19,6 +19,7 @@ import type {
   ScheduledMessage,
   UserInfo,
 } from '@/types'
+import { entityToPeerRef } from './peer-adapter'
 
 // Reconnection settings
 const RECONNECT_DELAY_MS = 2000
@@ -947,6 +948,9 @@ class TelegramService {
 
       const id = BigInt(entity.id.toString())
       const peerId = this.getMarkedPeerId(entity)
+      // Canonical reference captured at the dialog boundary so downstream storage/jobs carry the
+      // access hash needed to rebuild an input peer after a cold start (ARCHITECTURE.md §4).
+      const peerRef = entityToPeerRef(entity) ?? undefined
       let type: ChatInfo['type'] = 'user'
       let canExport = false
 
@@ -972,6 +976,7 @@ class TelegramService {
       chats.push({
         id,
         peerId,
+        peerRef,
         title:
           'title' in entity
             ? entity.title

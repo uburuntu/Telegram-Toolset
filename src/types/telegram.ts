@@ -23,6 +23,11 @@ export interface ChatInfo {
   id: bigint
   /** Stable Bot API-style marked peer ID: userId, -chatId, or -100channelId */
   peerId?: string
+  /**
+   * Canonical peer reference including the access hash needed to reconstruct an input peer after a
+   * cold start (ARCHITECTURE.md §4). Optional while call sites migrate off raw `id`/`peerId`.
+   */
+  peerRef?: PeerRef
   title: string
   type: 'channel' | 'supergroup' | 'group' | 'user'
   username?: string
