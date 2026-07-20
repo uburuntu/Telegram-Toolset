@@ -26,8 +26,8 @@ export interface PersistedAccountSecret {
 
 /**
  * Thrown when a decrypt is attempted but the vault master key does not exist. Read paths never mint a
- * new key: doing so would silently strand every existing secret under a fresh, wrong key
- * (ARCHITECTURE.md §6). Callers treat this like any other unreadable-secret error and degrade the
+ * new key: doing so would silently strand every existing secret under a fresh, wrong key.
+ * Callers treat this like any other unreadable-secret error and degrade the
  * affected record instead of failing the whole load.
  */
 export class VaultKeyUnavailableError extends Error {
@@ -49,7 +49,7 @@ function getWebCrypto(): Crypto {
 
 /**
  * Run first-use key creation under a cross-tab Web Lock where available, so two tabs cannot mint
- * incompatible master keys and strand each other's secrets (ARCHITECTURE.md §6). When the Web Locks
+ * incompatible master keys and strand each other's secrets. When the Web Locks
  * API is unavailable the caller falls back to an add-if-absent winner read inside the critical section.
  */
 async function withVaultKeyLock<T>(critical: () => Promise<T>): Promise<T> {
@@ -278,7 +278,7 @@ export async function deleteSecureAccountSecret(accountId: string): Promise<void
 /**
  * Existence probe for an account's secret that never touches the master key or decrypts. Journal
  * reconciliation uses this to decide whether a crashed `add`/`update` actually landed its ciphertext,
- * so a partial commit can be rolled forward or back without risking a spurious key mint (§6).
+ * so a partial commit can be rolled forward or back without risking a spurious key mint.
  */
 export async function hasSecureAccountSecret(accountId: string): Promise<boolean> {
   const record = await getSecureVaultSecret(getAccountSecretId(accountId))

@@ -29,8 +29,8 @@ async function setupMockedAuthWithBackups(page: Page) {
       JSON.stringify({ apiId: 12345, apiHash: 'mock_api_hash' }),
     )
 
-    // We'll also need to set up mock backups in IndexedDB
-    // This would require more complex setup - for now we test the UI states
+    // Seeding mock backups in IndexedDB needs more complex setup, so these tests exercise the UI
+    // states.
   })
 }
 
@@ -129,19 +129,19 @@ test.describe('Resend Configuration UI', () => {
     })
   })
 
-  // These tests would require setting up mock backups in IndexedDB
-  // For now, we test that the page loads correctly
+  // Backup-dependent assertions need mock backups seeded in IndexedDB.
+  // These tests verify that the page loads correctly.
 
   test('should have all header options toggles', async ({ page }) => {
     await setupMockedAuthWithBackups(page)
     await injectMockServices(page)
 
-    // Note: This test would require a backup to be selected first
+    // Header options toggles are only available after a backup is selected.
     // We're testing that the UI elements exist when configured properly
     await page.goto('/resend')
 
     // The configuration options should be available once a backup is selected
-    // This is a placeholder for more complete tests with proper mock data
+    // Fuller assertions need proper mock backup data.
   })
 })
 

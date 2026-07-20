@@ -87,7 +87,7 @@ export function normalizeMarkedPeerId(
 }
 
 // =============================================================================
-// PeerRef (ARCHITECTURE.md §4) — the canonical, storable peer reference.
+// PeerRef — the canonical, storable peer reference.
 //
 // PeerRef.kind and the ChatInfo/ChatExport/Backup `chatType` union are the same four values, so
 // conversion between them is a direct passthrough. The `-100…` marked form is shared by supergroup

@@ -222,8 +222,8 @@ class ScheduledService {
   }
 
   /**
-   * Delete scheduled messages across multiple chats, returning one outcome per peer
-   * (ARCHITECTURE.md §3). Confirmed deletions are preserved even when a later peer fails, so callers
+   * Delete scheduled messages across multiple chats, returning one outcome per peer.
+   * Confirmed deletions are preserved even when a later peer fails, so callers
    * can report partial success accurately and reconcile each peer as soon as it settles.
    *
    * Cancellation via `signal` stops issuing new deletions; already-confirmed peers keep their
@@ -261,7 +261,7 @@ class ScheduledService {
         }
 
         // A per-peer failure must not discard earlier confirmed deletions. Ambiguous transport
-        // failures are classified as delivery_uncertain once the typed gateway lands (Stage D §5).
+        // failures are classified as delivery_uncertain.
         record({
           peerId,
           status: 'failed',

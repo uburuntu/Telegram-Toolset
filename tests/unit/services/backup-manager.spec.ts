@@ -141,7 +141,7 @@ describe('backupManager ownership', () => {
     ]
 
     // Recovery is an explicit lifecycle step (driven from the accounts store on add/activation),
-    // separate from the pure list read (ARCHITECTURE.md §6).
+    // separate from the pure list read.
     const recovered = await backupManager.recoverArchivedBackupsForAccount(account)
     expect(recovered).toBe(1)
 
@@ -236,7 +236,7 @@ describe('backupManager ownership', () => {
     ]
 
     // Recovery is an explicit lifecycle step (driven from the accounts store on add/activation),
-    // separate from the pure list read (ARCHITECTURE.md §6).
+    // separate from the pure list read.
     const recovered = await backupManager.recoverArchivedBackupsForAccount(reinstalledAccount)
     expect(recovered).toBe(1)
 
@@ -450,7 +450,7 @@ describe('backupManager createBackup commit fence', () => {
   })
 })
 
-describe('backupManager peer references (ARCHITECTURE.md §4)', () => {
+describe('backupManager peer references', () => {
   beforeEach(() => {
     state.backups = []
     vi.clearAllMocks()

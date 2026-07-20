@@ -248,12 +248,12 @@ At every stage, preserve the modular product surface and keep `Scheduled Message
 
 ### Session Coordinator (`services/telegram/session-coordinator.ts`)
 
-The single owner of user-session lifecycle transitions (ARCHITECTURE.md §2). It is framework-agnostic and backend-injected so it is unit-testable with deferred promises.
+The single owner of user-session lifecycle transitions. It is framework-agnostic and backend-injected so it is unit-testable with deferred promises.
 - **Serialized command queue**: `activate()`, `deactivate()`, `hold()` run one-at-a-time through one queue.
 - **Monotonic generation**: every request is stamped; async completions only publish a typed `SessionSnapshot` when still the latest request, so "last request wins" and "no stale activation after a later deactivation" are structural.
 - **Typed snapshot**: `idle | active | needs_login | error`; stores/UIs consume this instead of inferring state from the GramJS client.
 - **Bounded pre-swap cancellation**: before a swap it cancels account-affine mutations but waits only to a deadline; a never-settling mutation cannot block a later activation, and the generation fence prevents late completions from publishing state or starting work.
-- **Instance/backends**: `session-coordinator-instance.ts` binds the coordinator to `telegramService` + `resendService`; `useActiveUserSessionSync` computes the desired session and delegates all serialization to it. Richer per-job `abandoned` / `delivery_uncertain` fencing belongs to the Stage B job runtime.
+- **Instance/backends**: `session-coordinator-instance.ts` binds the coordinator to `telegramService` + `resendService`; `useActiveUserSessionSync` computes the desired session and delegates all serialization to it. Richer per-job `abandoned` / `delivery_uncertain` fencing belongs to the job runtime.
 
 ### Candidate credentials (`components/auth/LoginModal.vue`)
 
@@ -261,18 +261,18 @@ Entered API credentials are held in-form and committed to shared storage only af
 
 ### Account-Affine Job Runtime (`types/job.ts`, `services/jobs/`, `stores/jobs.ts`)
 
-Foundation for ARCHITECTURE.md §3. A job is a request-scoped unit of long-running work (export, resend, scheduled scan/delete, chat-history, archive) whose ownership is captured once and never re-read from global state at completion.
+A job is a request-scoped unit of long-running work (export, resend, scheduled scan/delete, chat-history, archive) whose ownership is captured once and never re-read from global state at completion.
 - **`JobContext`**: immutable `{ operationId, accountId, principal, sessionGeneration, accountEpoch, signal }` stamped at creation. `createJobContext()` owns its own `AbortController` (linked to an optional parent signal), so starting a second job can never clear or cancel the first job's controller. `isContextCurrent()` / `isCommitAllowed()` are pure fences over session generation and account epoch.
-- **Account epoch (`stores/accounts.ts`)**: a monotonic per-account counter persisted per account in `localStorage`. `removeAccount()` advances the epoch *before* archival begins and rolls it back if removal aborts. A job captures the epoch at start; a later removal advances it so a late owned-record write fails its commit instead of orphaning data that archival already skipped. Because `localStorage` is synchronously consistent across same-origin tabs, reading the epoch at commit time also fences a stale write whose account was removed in another tab (§3 criterion 5). The tombstone key is never deleted on removal (that advanced value is what keeps fencing late writes); broader cross-tab invalidation of cached account/ownership state is separate Stage C (§6) work.
+- **Account epoch (`stores/accounts.ts`)**: a monotonic per-account counter persisted per account in `localStorage`. `removeAccount()` advances the epoch *before* archival begins and rolls it back if removal aborts. A job captures the epoch at start; a later removal advances it so a late owned-record write fails its commit instead of orphaning data that archival already skipped. Because `localStorage` is synchronously consistent across same-origin tabs, reading the epoch at commit time also fences a stale write whose account was removed in another tab. The tombstone key is never deleted on removal (that advanced value is what keeps fencing late writes); broader cross-tab invalidation of cached account/ownership state is handled separately by the cross-tab invalidation channel.
 - **Commit fence (`CommitOptions.ensureCommittable`)**: threaded into the backup and LLM-export persistence boundaries (`backupManager.createBackup`, `saveChatExportBundle`). It runs synchronously immediately before the durable write and throws an `AbortError` when the owning account was removed mid-run. Views build it from the captured epoch.
 - **Multi-peer outcomes (`MultiPeerResult` / `summarizeMultiPeerResult`)**: destructive jobs across many peers record a per-peer `DeliveryOutcome` (`delivered | failed | skipped | delivery_uncertain | abandoned`). `scheduledService.deleteScheduledMessagesByPeer` reconciles each confirmed peer as it settles, so a later peer's failure never discards earlier confirmed deletions, and the view reports full/partial/failed accurately.
-- **Shell job registry (`stores/jobs.ts`)**: `useJobsStore` is a pure, observable projection of active and recently completed `JobRecord`s so the app shell can surface long-running work. Wiring existing view-owned tasks into this registry (so route unmounting no longer defines job lifetime) is still pending and touches mutation flows, so it needs a live Telegram smoke pass.
+- **Shell job registry (`stores/jobs.ts`)**: `useJobsStore` is a pure, observable projection of active and recently completed `JobRecord`s so the app shell can surface long-running work. Wiring view-owned tasks into this registry (so route unmounting no longer defines job lifetime) touches mutation flows, so it must go through a live Telegram smoke pass.
 
 ### Telegram Service (`services/telegram/client.ts`)
 
 Central singleton for all Telegram MTProto operations via GramJS:
 - **Connection lifecycle**: `connect()`, `disconnect()`, session persistence coordinated through the account store and secure vault
-- **State integrity**: unauthorized `connect()` and `disconnect()` paths now have direct unit coverage for honest connection-state transitions
+- **State integrity**: unauthorized `connect()` and `disconnect()` paths have direct unit coverage for honest connection-state transitions
 - **Authentication**: Phone + code + 2FA password flow; session string storage
 - **Entity cache**: In-memory `Map<bigint, Entity>` to avoid redundant `getEntity()` calls
 - **Key methods**:
@@ -313,7 +313,7 @@ Batch-aware message resending:
 - **quota.ts**: Storage quota monitoring, cleanup strategies
 - **Ownership model (`record-ownership.ts`)**: ownership is normalized onto three independent axes — `ownerVerification` (`verified | unverified | legacy`), `lifecycle` (`active | archived`), and `recordHealth` (`healthy | quarantined`) — with the legacy `ownershipState` (`owned | archived | legacy`) mirrored for backward compatibility. Records carry both the local `ownerAccountId` and the stable `ownerPrincipal`. Validation fails closed: internally inconsistent combinations (e.g. a non-`verified` record that still carries an `ownerPrincipal`) are quarantined rather than shown under a false owner. `archiveOwnership` is idempotent; `claimOwnership` forces `ownerPrincipal` to the claiming account's principal. Recovery is principal-first, with a `phone-bridge` channel for pre-principal records that never upgrades verification.
 - **Quarantine + explicit repair**: `listQuarantinedBackups` / `listQuarantinedChatExports` surface health-quarantined records, and `reconcileBackup` / `reconcileChatExport` are deliberate user-driven repairs that never run automatically.
-- **Commit fence**: persistence entry points accept `CommitOptions.ensureCommittable` and call it immediately before the durable write so a removed owning account cannot orphan a late owned record (§3, criterion 4).
+- **Commit fence**: persistence entry points accept `CommitOptions.ensureCommittable` and call it immediately before the durable write so a removed owning account cannot orphan a late owned record.
 
 ## Type System (`types/`)
 
@@ -322,7 +322,7 @@ Key interfaces (all exported from `types/index.ts`):
 - `ExportConfig` / `ResendConfig`: Operation configuration matching Python models
 - `ExportProgress`: Real-time progress tracking (current/total, phase, ETA, errors)
 - `Backup` / `ChatInfo` / `UserInfo`: Domain models for storage and UI
-- `JobContext` / `JobRecord` / `JobProgress`: Account-affine job runtime primitives (§3)
+- `JobContext` / `JobRecord` / `JobProgress`: Account-affine job runtime primitives
 - `DeliveryOutcome` / `PeerOutcome` / `MultiPeerResult` + `summarizeMultiPeerResult`: per-peer results for destructive multi-peer jobs
 - `CommitOptions`: commit-fence hook threaded into persistence boundaries
 
@@ -465,52 +465,9 @@ Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#lit
 3. **`|` is OK for pluralization** (e.g., `"{count} message | {count} messages"`). Escape with `{'|'}` only if you need a literal pipe character.
 4. **The error is silent in production** — the component simply won't render, with no user-visible error message. The only clue is a `SyntaxError: 10` in the browser console.
 
-## Current Implementation Status
+## Implementation Status
 
-### Completed Foundation
-- Rate limiter with FloodWait handling and exponential backoff
-- Export service with parallel downloads, retry, cancellation
-- Resend service with batching, media, header formatting
-- Telegram service enhancements (entity cache, sender resolution, sendFile)
-- ExportView and ResendView with full config options and progress display
-- Unit tests for rate-limiter, export-service, resend-service, storage, account, and Telegram gateway behavior
-- E2E tests for the mocked export flow and resend route, empty, and error states
-- Error UX: ErrorBoundary, ErrorAlert components, user-friendly error messages
-- ZIP export integration (download as ZIP option in ExportView)
-- ZIP export filename sanitization for archive safety
-- Multi-account session isolation (issue #4)
-- Encrypted IndexedDB + WebCrypto storage for API credentials, bot tokens, and user session strings, with migration from legacy plaintext localStorage
-- Account-owned backup and LLM export metadata with archive-on-remove and auto-recovery for the same phone number
-- Explicit claim/delete UI for legacy and archived local backups/exports
-- Auth modal keyboard/focus/error accessibility hardening
-- Deterministic installs and reproducible preview deploy path in CI
-- Mobile Playwright projects promoted into CI
-- Direct Telegram connection-state tests
-- App-level live-region improvements for shared errors and toast messages
-- App shell cleanup: first-run privacy gate removed, active user session sync extracted from `App.vue` into a composable
-- Stable Telegram principal identity: user/bot accounts persist Telegram's immutable id as a versioned `TelegramPrincipal`, re-login with a different identity creates a new account instead of rebinding, and archive recovery is principal-first
-- Record ownership on independent verification/lifecycle/health axes with fail-closed quarantine of inconsistent records and explicit claim/reconcile repair actions
-- Session coordinator: serialized command queue with monotonic generation fencing, typed session snapshot, and bounded pre-swap mutation cancellation; `useActiveUserSessionSync` delegates all serialization to it
-- Candidate API credentials scoped to a login attempt and committed only after Telegram accepts the login
-- Account-affine job runtime foundation: immutable `JobContext`, pure generation/epoch commit fences, and an observable shell job registry
-- Account epoch that fences late owned-record writes during account removal, wired through the backup and LLM-export commit boundaries
-- Per-peer outcomes for destructive multi-peer jobs: scheduled deletion reconciles each confirmed chat as it settles and reports full/partial/failed accurately
-- BigInt-safe JSON serialization utilities
-- `_rawMessage` stripping at persistence boundaries
-- Resend HTML escaping for user safety
-- Fresh-login session ownership with a synchronous account-transition barrier: no cross-account client reuse and no redundant teardown/rebuild of a just-authenticated session
-- Compiler-based i18n validation via `@intlify/message-compiler` (accurate syntax errors and named/list placeholder parity)
-- Production-build Chromium smoke over the built `dist` artifact in CI (boot + lazy-route load with a page/console/asset-failure policy)
-- Corepack-pinned npm across CI jobs and a latest-commit-gated GitHub Pages deploy
-
-### Productionization Gaps
-- `telegramService` is still a very large singleton with too many responsibilities.
-- Auth, export, and resend views still own too much orchestration and UI logic.
-- Long-running jobs are still owned by route components: view-owned tasks are not yet registered in the shell job registry, so navigating away can still end a job (§3 criterion 7 pending).
-- The account epoch is durable and cross-tab for the commit fence, but transactional `quiescing` removal, a shared operation journal, and BroadcastChannel invalidation of cached account/ownership state are still Stage C (§6/§7) work.
-- Resend still uses a shared service controller and reads less context at its commit boundary than export/LLM export; folding it into the job runtime needs a live Telegram smoke pass.
-- Account-owned data cleanup must continue to default to recoverable archive/quarantine behavior, not immediate hard delete.
-- If local-data cleanup grows beyond the current explicit claim/delete flow, keep delayed GC or bulk purge opt-in, documented, and tested.
-- The build still carries GramJS/browser-shim warnings and a heavy main bundle.
-- Tests are stronger at mocked service behavior than at real Telegram integration boundaries.
-- Documentation can drift behind the actual product direction if `TODO.md`, `README.md`, and `AGENTS.md` are not updated together.
+Point-in-time status is intentionally not tracked in this durable guide. For what exists today, read
+the code; for priority order and open risks, read `TODO.md`; for target boundaries, migration order,
+and acceptance criteria, read `ARCHITECTURE.md`. Record per-change status in pull requests and commit
+messages rather than here.

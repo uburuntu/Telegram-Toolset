@@ -295,7 +295,7 @@ async function startExport() {
     }
   }
   // Commit fence for the backup write: rejects if the owning account was removed mid-export, even in
-  // the narrow window after the last assertCurrentExport() (ARCHITECTURE.md §3, criterion 4).
+  // the narrow window after the last assertCurrentExport().
   const ensureCommittable = () => {
     if (accountsStore.getAccountEpoch(ownerAccountId) !== ownerEpoch) {
       throw new DOMException('Owning account was removed during export', 'AbortError')

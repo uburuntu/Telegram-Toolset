@@ -24,7 +24,7 @@ export interface Backup extends StoredRecordOwnership {
   id: string
   chatId: bigint
   /**
-   * Canonical source-chat reference (ARCHITECTURE.md §4). Optional: records created before §4 have no
+   * Canonical source-chat reference. Optional: records created before this field existed have no
    * peerRef and are resolved on demand rather than reconstructed from the (historically unreliable)
    * chatType.
    */
@@ -71,7 +71,7 @@ export interface ExportConfig {
   chatTitle: string
   /** Source-chat entity kind, so the backup records the real type instead of a hardcoded default. */
   chatType?: ChatInfo['type']
-  /** Canonical source-chat reference to persist on the backup (ARCHITECTURE.md §4). */
+  /** Canonical source-chat reference to persist on the backup. */
   peerRef?: PeerRef
   exportMode: 'all' | 'media_only' | 'text_only'
   storageStrategy: 'indexeddb' | 'stream_download' | 'metadata_only'
@@ -136,7 +136,7 @@ export interface StorageEstimate {
 }
 
 /**
- * Durability of on-device storage for the current origin (ARCHITECTURE.md §6):
+ * Durability of on-device storage for the current origin:
  * - `persisted`: the browser granted persistent storage; data is not evicted under pressure.
  * - `best-effort`: storage works but the browser may evict it; never present this as a durable backup.
  * - `unsupported`: the Storage persistence API is unavailable; treat as best-effort.

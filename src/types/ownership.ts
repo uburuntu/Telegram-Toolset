@@ -10,7 +10,7 @@ export type StoredRecordOwnershipState = 'owned' | 'archived' | 'legacy'
 export type StoredRecordArchiveReason = 'account_removed'
 
 /**
- * Ownership is modeled on three independent axes (ARCHITECTURE.md §1) so that lifecycle changes,
+ * Ownership is modeled on three independent axes so that lifecycle changes,
  * identity verification, and record health cannot be conflated into one overloaded label:
  *
  * - `ownerVerification` — is the owning Telegram identity proven?

@@ -1,5 +1,5 @@
 /**
- * Job context factory and fencing helpers (ARCHITECTURE.md §3).
+ * Job context factory and fencing helpers.
  *
  * These are pure aside from creating an `AbortController`. The factory captures ownership and the
  * session/account generations at creation time; the guards let callbacks and persistence commits
@@ -25,7 +25,7 @@ export interface OwnedJob {
 
 /**
  * Create a request-scoped job. The job owns its own controller; services must never share a mutable
- * controller across jobs (§3). A parent signal, if provided, aborts this job when it aborts.
+ * controller across jobs. A parent signal, if provided, aborts this job when it aborts.
  */
 export function createJobContext(params: CreateJobContextParams): OwnedJob {
   const controller = new AbortController()
@@ -86,7 +86,7 @@ export function isContextCurrent(context: JobContext, environment: JobEnvironmen
  * than {@link isContextCurrent}: a write for account A must be rejected once A has been removed
  * (epoch advanced), even if the user has since switched to account B and back. When the caller
  * sources `accountEpoch` from the accounts store (localStorage-backed), this fence is also cross-tab.
- * Broader cross-tab invalidation of cached account/ownership state remains Stage C (§6) work.
+ * Broader cross-tab invalidation of cached account/ownership state is handled separately.
  */
 export function isCommitAllowed(
   context: JobContext,

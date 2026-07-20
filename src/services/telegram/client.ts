@@ -316,7 +316,7 @@ class TelegramService {
     } catch (error) {
       // A thrown connect leaves no usable session. Release the socket and drop the client so a failed
       // attempt cannot linger as a half-open connection waiting for the next transition to clean it
-      // up, while still reporting the honest 'error' typed state (ARCHITECTURE.md §2, criterion 4).
+      // up, while still reporting the honest 'error' typed state.
       try {
         await this.client?.disconnect()
       } catch {
@@ -951,7 +951,7 @@ class TelegramService {
       const id = BigInt(entity.id.toString())
       const peerId = this.getMarkedPeerId(entity)
       // Canonical reference captured at the dialog boundary so downstream storage/jobs carry the
-      // access hash needed to rebuild an input peer after a cold start (ARCHITECTURE.md §4).
+      // access hash needed to rebuild an input peer after a cold start.
       const peerRef = entityToPeerRef(entity) ?? undefined
       let type: ChatInfo['type'] = 'user'
       let canExport = false
@@ -1862,7 +1862,7 @@ class TelegramService {
   async getChatMessageCount(chatId: bigint | string | PeerRef): Promise<number> {
     const client = await this.getConnectedClient()
 
-    // Warm path is unchanged; a stored PeerRef only adds a cold-start fallback (ARCHITECTURE.md §4).
+    // Warm path is unchanged; a stored PeerRef only adds a cold-start fallback.
     const inputPeer = (await resolveInputPeer(
       {
         getEntity: (id) => (client.getEntity as (value: unknown) => Promise<unknown>)(id),

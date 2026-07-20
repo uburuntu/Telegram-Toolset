@@ -1,6 +1,6 @@
 /**
- * The single adapter between GramJS runtime entities and the app's canonical {@link PeerRef}
- * (ARCHITECTURE.md §4). All GramJS entity-shape inspection for peer identity lives here so the rest
+ * The single adapter between GramJS runtime entities and the app's canonical {@link PeerRef}.
+ * All GramJS entity-shape inspection for peer identity lives here so the rest
  * of the app never re-derives peer kind, raw id, or access hash from opaque GramJS objects.
  *
  * GramJS entity shapes (structural, since the browser build's types are loose):

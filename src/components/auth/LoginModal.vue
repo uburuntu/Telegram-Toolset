@@ -103,7 +103,7 @@ const botTokenDisplay = ref('') // Input value; visual masking is provided by ty
 const botInfo = ref<BotApiUser | null>(null)
 const isValidatingToken = ref(false)
 const tokenValidated = ref(false)
-// NOTE: "tokenValidationWarning" path removed per issue #4 - bot tokens must validate successfully.
+// Bot tokens must validate successfully; there is no soft "validation warning" fallback.
 const existingBotAccount = ref<SavedAccount | null>(null)
 const userAuthPromise = ref<Promise<UserInfo> | null>(null)
 let userAuthAttemptId = 0
@@ -368,7 +368,7 @@ function handleRecoverableAuthError(authError: unknown, stage: RecoverableAuthSt
  * Commit the in-form candidate API credentials to shared storage. Called only after Telegram has
  * accepted them, and skipped when the active session already uses the same credentials (e.g. the
  * saved-credentials path). Replacing shared credentials is a discrete, rollback-safe operation
- * owned by the account store (ARCHITECTURE.md §2).
+ * owned by the account store.
  */
 async function commitCandidateCredentials(): Promise<void> {
   const parsedApiId = parseInt(apiId.value, 10)
@@ -426,7 +426,7 @@ async function persistUserAuth(
 
   // Re-login into a specific account is only allowed to update that account when it is (or can
   // become, via first-time backfill) the authenticated Telegram identity. A mismatch must never
-  // rebind an existing account and its owned data to a different identity (ARCHITECTURE.md §1).
+  // rebind an existing account and its owned data to a different identity.
   if (
     replacementAccount &&
     (!existingByPrincipal || existingByPrincipal.id === replacementAccount.id) &&
@@ -682,8 +682,8 @@ function handleCredentialsSubmit(): void {
   }
 
   // Candidate credentials stay in the form and are only committed to shared storage after Telegram
-  // accepts them (ARCHITECTURE.md §2). A failed or abandoned login must not replace working
-  // shared credentials, so nothing is persisted at this step.
+  // accepts them. A failed or abandoned login must not replace working shared credentials, so
+  // nothing is persisted at this step.
   step.value = 'phone'
 }
 

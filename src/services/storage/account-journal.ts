@@ -1,6 +1,6 @@
 /**
  * Write-ahead journal for account mutations that span localStorage metadata and the IndexedDB secret
- * vault (ARCHITECTURE.md §6). A single account add/update/remove cannot be one atomic transaction
+ * vault. A single account add/update/remove cannot be one atomic transaction
  * because the two stores are independent, so a process death between the IndexedDB write and the
  * localStorage write can leave the durable stores inconsistent (a "ghost" account whose secret is
  * gone, or an orphaned secret with no metadata).

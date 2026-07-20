@@ -238,14 +238,13 @@ async function startDownload() {
   downloadProgress.value = null
   floodWait.reset()
   // This is a durable local-data workflow (the export is persisted to IndexedDB), so request
-  // persistent storage now; denial degrades to best-effort with the persistence notice shown
-  // (ARCHITECTURE.md §6).
+  // persistent storage now; denial degrades to best-effort with the persistence notice shown.
   await quotaManager.ensurePersisted()
   const account = accountsStore.activeAccount
   const accountId = account?.id ?? null
   const ownerEpoch = accountId !== null ? accountsStore.getAccountEpoch(accountId) : null
   // Commit fence for the export write: rejects if the owning account is removed mid-download so no
-  // orphaned owned export is persisted (ARCHITECTURE.md §3, criterion 4).
+  // orphaned owned export is persisted.
   const ensureCommittable =
     accountId !== null
       ? () => {
@@ -323,7 +322,7 @@ function stopAndSaveDownload() {
 
 async function handleExportSelect(chatExport: ChatExport) {
   // An evicted export has metadata but no message rows; opening it would render an empty workspace
-  // with no explanation. Surface the content-unavailable state instead (ARCHITECTURE.md §6).
+  // with no explanation. Surface the content-unavailable state instead.
   if (isExportEvicted(chatExport.id)) {
     return
   }

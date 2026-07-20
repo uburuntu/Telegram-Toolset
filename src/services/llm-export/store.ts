@@ -95,8 +95,7 @@ export async function saveChatExportBundle(
     normalizeChatMessage(normalizedExport, message),
   )
 
-  // Fence immediately before the write so a removed account cannot leave an orphaned owned export
-  // (ARCHITECTURE.md §3, criterion 4).
+  // Fence immediately before the write so a removed account cannot leave an orphaned owned export.
   options?.ensureCommittable?.()
   await db.saveChatExportBundle(normalizedExport, normalizedMessages)
 
@@ -110,7 +109,7 @@ export async function saveChatExportBundle(
  * Read a chat export and its messages. `accessor` is the account context requesting the read; content
  * is returned only when that account owns the record (or it is unclaimed legacy). Archived,
  * quarantined, and other-owner exports return null so an unrelated active account can never read
- * another principal's content (ARCHITECTURE.md §6 & §7).
+ * another principal's content.
  */
 export async function loadChatExportBundle(
   exportId: string,
@@ -145,7 +144,7 @@ export async function listChatExports(): Promise<ChatExport[]> {
  * Pure lifecycle read: return the chat exports visible to `account` without mutating anything.
  * Archive recovery is a separate, explicitly triggered lifecycle step (see
  * `recoverArchivedChatExportsForAccount`, driven from the accounts store on add/activation) so a list
- * call never races a concurrent recovery mutation (ARCHITECTURE.md §6).
+ * call never races a concurrent recovery mutation.
  */
 export async function listChatExportsForAccount(
   account: SavedAccount | null,
@@ -175,7 +174,7 @@ export async function listQuarantinedChatExports(): Promise<ChatExport[]> {
  * Delete a chat export. `accessor` is the account context requesting the deletion; the owner may
  * delete their own records and orphaned records (archived/quarantined/legacy) are manageable
  * account-independently (`accessor` null), but an active export owned by a different principal is
- * protected (ARCHITECTURE.md §6 & §7).
+ * protected.
  */
 export async function deleteChatExport(
   exportId: string,

@@ -7,7 +7,7 @@ import { useAccountsStore } from '@/stores'
 /**
  * Bridges reactive account state to the {@link TelegramSessionCoordinator}. This composable only
  * computes the desired session from the store and hands it to the coordinator, which owns
- * serialization, generation fencing, and bounded mutation cancellation (ARCHITECTURE.md §2).
+ * serialization, generation fencing, and bounded mutation cancellation.
  */
 export function useActiveUserSessionSync(showLoginModal: ComputedRef<boolean>): void {
   const accountsStore = useAccountsStore()

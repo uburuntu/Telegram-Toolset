@@ -4,12 +4,12 @@ This file is the restart brief for the next time someone picks up the repo. It s
 
 ## Current Baseline
 
-- API credentials, bot tokens, and user session strings now persist through encrypted IndexedDB + WebCrypto.
+- API credentials, bot tokens, and user session strings persist through encrypted IndexedDB + WebCrypto.
 - Legacy plaintext auth data in `localStorage` is migrated on load and rewritten to sanitized metadata.
-- New backups and LLM exports now persist with account ownership metadata.
+- Backups and LLM exports persist with account ownership metadata.
 - Removing a user account archives its owned backups/exports instead of deleting them, and adding the same phone again recovers archived data automatically.
-- Backups and LLM exports now expose explicit legacy claim/delete actions and archived delete actions in the UI.
-- The shell no longer blocks users behind a first-run privacy modal; privacy messaging lives in the normal product chrome instead.
+- Backups and LLM exports expose explicit legacy claim/delete actions and archived delete actions in the UI.
+- Privacy messaging lives in the normal product chrome rather than behind a first-run privacy modal.
 
 ## First Steps When Returning
 

@@ -3,8 +3,8 @@ import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
- * End-to-end startup reconciliation of the account journal against a real IndexedDB vault
- * (ARCHITECTURE.md §6). Each case seeds the durable stores at a specific crash point — a dangling
+ * End-to-end startup reconciliation of the account journal against a real IndexedDB vault. Each case
+ * seeds the durable stores at a specific crash point — a dangling
  * journal entry plus whatever landed in the vault/localStorage before the process died — then drives
  * the real `loadFromStorage`, which reconciles before hydrating the reactive refs.
  *

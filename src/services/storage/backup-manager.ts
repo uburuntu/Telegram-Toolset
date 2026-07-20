@@ -71,7 +71,7 @@ class BackupManager {
    * Pure lifecycle read: return the backups visible to `account` without mutating anything. Archive
    * recovery is a separate, explicitly triggered lifecycle step (see `recoverArchivedBackupsForAccount`,
    * driven from the accounts store on add/activation) so a list call never races a concurrent recovery
-   * mutation (ARCHITECTURE.md §6).
+   * mutation.
    */
   async listBackupsForAccount(account: SavedAccount | null): Promise<Backup[]> {
     if (!account || account.type !== 'user') {
@@ -93,7 +93,7 @@ class BackupManager {
    * Read a backup and its content. `accessor` is the account context requesting the read; content is
    * returned only when that account owns the record (or it is an unclaimed legacy record). Archived,
    * quarantined, and other-owner records return null so an unrelated active account can never read
-   * another principal's content (ARCHITECTURE.md §6 & §7).
+   * another principal's content.
    */
   async getBackup(id: string, accessor: SavedAccount | null): Promise<BackupWithMessages | null> {
     const backup = await db.getBackup(id)
@@ -174,7 +174,7 @@ class BackupManager {
     )
 
     // Final fence immediately before the write: if the owning account was removed while the export
-    // ran, this throws and no orphaned owned record is persisted (ARCHITECTURE.md §3, criterion 4).
+    // ran, this throws and no orphaned owned record is persisted.
     options?.ensureCommittable?.()
     await db.saveBackupBundle(backup, messages, mediaEntries)
 
@@ -185,7 +185,7 @@ class BackupManager {
    * Delete a backup. `accessor` is the account context requesting the deletion; the owner may delete
    * their own records and orphaned records (archived/quarantined/legacy) are manageable
    * account-independently (`accessor` null), but an active record owned by a different principal is
-   * protected (ARCHITECTURE.md §6 & §7).
+   * protected.
    */
   async deleteBackup(id: string, accessor: SavedAccount | null): Promise<void> {
     const backup = await db.getBackup(id)
@@ -290,8 +290,7 @@ class BackupManager {
 
     for (const id of ids) {
       // getBackup enforces per-owner content access, so a set spanning owners cannot be merged: a
-      // record the accessor does not own resolves to null and is rejected here (ARCHITECTURE.md §6,
-      // "reject mixed-owner merges").
+      // record the accessor does not own resolves to null and is rejected here.
       const backup = await this.getBackup(id, accessor)
       if (!backup) {
         throw new Error(`Backup ${id} not found`)

@@ -3,7 +3,7 @@
  */
 
 /**
- * Canonical, storable reference to a Telegram peer (ARCHITECTURE.md §4).
+ * Canonical, storable reference to a Telegram peer.
  *
  * - `rawId` is the unsigned Telegram id as a decimal string — never a Bot API "marked" id and never
  *   a `bigint` (bigint is not JSON/IndexedDB-friendly). Derive marked ids at adapter boundaries.
@@ -25,7 +25,7 @@ export interface ChatInfo {
   peerId?: string
   /**
    * Canonical peer reference including the access hash needed to reconstruct an input peer after a
-   * cold start (ARCHITECTURE.md §4). Optional while call sites migrate off raw `id`/`peerId`.
+   * cold start. Optional; callers fall back to raw `id`/`peerId` when it is absent.
    */
   peerRef?: PeerRef
   title: string

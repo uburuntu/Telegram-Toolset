@@ -89,7 +89,7 @@ export interface SecureVaultSecretRecord {
 /**
  * Write-ahead journal entry for a multi-store account mutation (localStorage metadata + IndexedDB
  * secret). Only non-secret metadata is journaled; the encrypted secret stays in the vault. A dangling
- * entry after a crash is reconciled on startup (ARCHITECTURE.md §6).
+ * entry after a crash is reconciled on startup.
  */
 export interface AccountJournalRecord {
   id: string
@@ -108,7 +108,7 @@ let dbPromise: Promise<IDBPDatabase<TelegramToolsetDB>> | null = null
 /**
  * Drop the cached connection so the next {@link getDB} reopens a fresh one. Used when the browser
  * terminates the connection, when another tab needs to upgrade the schema, or when an open attempt
- * fails — none of which should leave a permanently poisoned promise (ARCHITECTURE.md §6).
+ * fails — none of which should leave a permanently poisoned promise.
  */
 function resetDbConnection(): void {
   dbPromise = null

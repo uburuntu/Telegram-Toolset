@@ -6,7 +6,7 @@
  * combination fail-closed (invalid state -> quarantined, never silently "owned"), and derives
  * visibility and recovery eligibility. Ownership authority is the `TelegramPrincipal`; the local
  * account UUID is only a migration bridge for pre-principal records and the phone number is never
- * an authority. See ARCHITECTURE.md §1.
+ * an authority.
  */
 import type {
   OwnershipVerification,
@@ -233,8 +233,8 @@ export function isVisibleToAccount(record: StoredRecordOwnership, account: Saved
 /**
  * Whether a caller holding `account` context may read a record's *content* (messages/media). Only the
  * owner (or an unclaimed legacy record) qualifies; archived, quarantined, and other-owner records are
- * denied so that merely having a different account active never exposes someone else's content
- * (ARCHITECTURE.md §6 & §7). Archived data must be recovered/claimed first, which makes it active+owned.
+ * denied so that merely having a different account active never exposes someone else's content.
+ * Archived data must be recovered/claimed first, which makes it active+owned.
  */
 export function canAccessContent(
   record: StoredRecordOwnership,
@@ -247,7 +247,7 @@ export function canAccessContent(
  * Whether a caller may delete/manage a record. The owner may manage their own records; orphaned
  * records (archived, quarantined, or unclaimed legacy) have no live owner and are manageable from the
  * account-independent local-data workspace (`account` may be null). An active + healthy record owned
- * by a *different* principal/account is protected (ARCHITECTURE.md §6 & §7).
+ * by a *different* principal/account is protected.
  */
 export function canManageRecord(
   record: StoredRecordOwnership,

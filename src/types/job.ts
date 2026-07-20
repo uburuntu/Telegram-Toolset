@@ -1,5 +1,5 @@
 /**
- * Account-affine job runtime types (ARCHITECTURE.md §3).
+ * Account-affine job runtime types.
  *
  * A job is a request-scoped unit of long-running work (export, resend, scheduled scan/delete,
  * chat-history export, archive build). Its {@link JobContext} is captured at creation and is
@@ -23,15 +23,15 @@ export type JobStatus = 'running' | 'succeeded' | 'failed' | 'cancelled'
  * Threaded into a persistence commit boundary so the storage layer can enforce the account-epoch
  * fence without depending on any store. `ensureCommittable` runs synchronously immediately before
  * the durable write and must throw (an AbortError) when the owning account has been removed since
- * the job started, so the write is skipped rather than orphaning an owned record (§3, criterion 4).
+ * the job started, so the write is skipped rather than orphaning an owned record.
  */
 export interface CommitOptions {
   ensureCommittable?: () => void
 }
 
 /**
- * Immutable execution context stamped onto a job at creation. `peer` intentionally arrives with the
- * canonical `PeerRef` in Stage D (§4); until then multi-peer jobs carry their own peer identifiers.
+ * Immutable execution context stamped onto a job at creation. Multi-peer jobs carry their own peer
+ * identifiers.
  */
 export interface JobContext {
   operationId: string
@@ -73,7 +73,7 @@ export interface JobRecord {
 /**
  * Delivery classification for mutations whose server acceptance cannot be confirmed. `abandoned`
  * marks a job fenced after a bounded cancellation deadline; `delivery_uncertain` marks an ambiguous
- * send that must be reconciled explicitly rather than blindly retried (see §3 and §5).
+ * send that must be reconciled explicitly rather than blindly retried.
  */
 export type DeliveryOutcome =
   | 'delivered'
@@ -84,7 +84,7 @@ export type DeliveryOutcome =
 
 /** Result of acting on a single peer within a destructive multi-peer job. */
 export interface PeerOutcome {
-  /** Stable identifier for the peer (raw id / chat id as a string until PeerRef lands in Stage D). */
+  /** Stable string identifier for the peer (raw id / chat id). */
   peerId: string
   status: DeliveryOutcome
   /** How many items were confirmed for this peer (e.g. messages deleted). */
@@ -94,7 +94,7 @@ export interface PeerOutcome {
 
 /**
  * Aggregate result for a destructive multi-peer job. Confirmed per-peer successes are preserved even
- * when a later peer fails, so partial success can be reported accurately (§3 exit criterion 6).
+ * when a later peer fails, so partial success can be reported accurately.
  */
 export interface MultiPeerResult {
   outcomes: PeerOutcome[]

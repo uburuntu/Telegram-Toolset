@@ -1,5 +1,5 @@
 /**
- * Content-health detection for evicted or incomplete local records (ARCHITECTURE.md §6).
+ * Content-health detection for evicted or incomplete local records.
  *
  * Browsers may evict best-effort storage under pressure. When a record's metadata row survives but its
  * message rows are gone, it must be surfaced as recoverable-but-empty rather than presented as an

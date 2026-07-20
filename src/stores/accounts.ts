@@ -148,7 +148,7 @@ function serializeAccountMetadata(account: SavedAccount): StoredAccountRecord {
  * Reconciliation writes localStorage directly (before the store's reactive refs are populated), so
  * these helpers edit only the journaled account and preserve every other entry. That keeps a stale
  * journal snapshot from clobbering a change another tab committed during the crashed tab's dead
- * window (ARCHITECTURE.md §6).
+ * window.
  */
 function writeStoredAccounts(accounts: StoredAccountRecord[]): void {
   if (accounts.length > 0) {
@@ -200,7 +200,7 @@ function isStoredAccountMetadataPresent(accountId: string): boolean {
 
 /**
  * Resolve every account mutation a prior session left journaled (i.e. interrupted between its
- * IndexedDB and localStorage writes) back into a consistent state (ARCHITECTURE.md §6). Runs before
+ * IndexedDB and localStorage writes) back into a consistent state. Runs before
  * the store reads persisted metadata so the reactive refs observe already-reconciled storage.
  *
  * - `remove` is roll-forward only (deleting a secret is irreversible): ensure the secret is gone and
@@ -245,12 +245,12 @@ export const useAccountsStore = defineStore('accounts', () => {
   const storageLoaded = ref(false)
   // Ids of accounts whose encrypted secret failed to load/decrypt at startup. The account stays
   // visible from its plaintext metadata so a single corrupt record cannot hide the others; the user
-  // can re-authenticate or remove it explicitly (ARCHITECTURE.md §6).
+  // can re-authenticate or remove it explicitly.
   const corruptedAccountIds = ref<string[]>([])
 
   // Monotonic per-account epoch. Removing an account advances its epoch before any archival runs, so
   // long-running jobs that captured the prior epoch fail their commit fence instead of writing an
-  // owned record for an account that is being torn down (ARCHITECTURE.md §3, criteria 4 & 5).
+  // owned record for an account that is being torn down.
   //
   // It is persisted per account in localStorage, which is synchronously consistent across same-origin
   // tabs: reading it at commit time therefore fences a late write whose account was removed in
@@ -282,11 +282,11 @@ export const useAccountsStore = defineStore('accounts', () => {
   let loadPromise: Promise<void> | null = null
   let reloadPromise: Promise<void> | null = null
   // Coalesces concurrent archive-recovery runs per account id so lifecycle triggers (add, activation,
-  // startup) cannot race one another into duplicate recovery mutations (ARCHITECTURE.md §6).
+  // startup) cannot race one another into duplicate recovery mutations.
   const recoveryInFlight = new Map<string, Promise<void>>()
 
   // Notify peer tabs after a committed mutation and reload when a peer notifies us, so no tab keeps
-  // showing account/ownership state another tab has already changed (ARCHITECTURE.md §6). Falls back
+  // showing account/ownership state another tab has already changed. Falls back
   // to a no-op (reload-on-next-read) where BroadcastChannel is unavailable.
   const crossTab = createInvalidationChannel('telegram-toolset:accounts', () => {
     void reloadFromStorage()
@@ -407,7 +407,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     apiCredentials.value = nextApiCredentials
 
     // Load each account's secret independently so a single corrupt/undecryptable record is
-    // quarantined rather than rejecting the whole account list (ARCHITECTURE.md §6). A failed
+    // quarantined rather than rejecting the whole account list. A failed
     // record leaves the account visible (from plaintext metadata) for explicit re-auth or removal.
     const corruptedIds: string[] = []
     const secrets = await Promise.all(
@@ -465,12 +465,12 @@ export const useAccountsStore = defineStore('accounts', () => {
     loadPromise = (async () => {
       try {
         // Finish any account mutation a prior session left interrupted before reading persisted
-        // state, so the reactive refs are hydrated from already-consistent storage (§6). Reconcile
+        // state, so the reactive refs are hydrated from already-consistent storage. Reconcile
         // swallows its own per-entry errors and never throws, so a snag here cannot block boot.
         await reconcileAccountJournal()
         await applyStorageToState({ migrate: true })
         // Retry any archive recovery a prior session may have left incomplete for the account
-        // restored as active (ARCHITECTURE.md §6). Fire-and-forget: boot must not block on a scan.
+        // restored as active. Fire-and-forget: boot must not block on a scan.
         const active = activeAccount.value
         if (active?.type === 'user') {
           void recoverAccountOwnedData(active)
@@ -487,7 +487,7 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   /**
-   * Re-read persisted state after a peer tab reports a mutation (ARCHITECTURE.md §6). Defers to an
+   * Re-read persisted state after a peer tab reports a mutation. Defers to an
    * in-flight initial load (which reads the same fresh storage) and never re-broadcasts, so a reload
    * cannot loop back into other tabs.
    */
@@ -513,7 +513,7 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   /**
-   * Reclaim archived backups and chat exports for a user account (ARCHITECTURE.md §1 & §6). Recovery
+   * Reclaim archived backups and chat exports for a user account. Recovery
    * is an explicit lifecycle step — triggered on add, activation, and startup — rather than a hidden
    * side effect of a list read, so it never races a concurrent list. Runs are coalesced per account
    * id and swallow their own errors: a failed reclaim must not fail the login/activation that
@@ -566,7 +566,7 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   /**
-   * Explicitly clear the shared stored API credentials (ARCHITECTURE.md §7). Available from the
+   * Explicitly clear the shared stored API credentials. Available from the
    * account-independent local-data workspace so retained credentials can be removed even with no
    * account present.
    */
@@ -612,7 +612,7 @@ export const useAccountsStore = defineStore('accounts', () => {
       crossTab.post()
       if (newAccount.type === 'user') {
         // Reclaim any archived data for this identity before the caller navigates to a list view, so
-        // a re-login surfaces the account's prior backups/exports (ARCHITECTURE.md §1 & §6).
+        // a re-login surfaces the account's prior backups/exports.
         await recoverAccountOwnedData(newAccount)
       }
       return newAccount
@@ -669,7 +669,7 @@ export const useAccountsStore = defineStore('accounts', () => {
 
     // Quiesce the account before archiving: advancing the epoch fences any in-flight job that
     // captured the prior epoch, so a late owned-record write cannot slip in after archival has
-    // already scanned the store (ARCHITECTURE.md §3, criterion 4). Rolled back if removal aborts.
+    // already scanned the store. Rolled back if removal aborts.
     const previousEpoch = getAccountEpoch(id)
     bumpAccountEpoch(id)
 
@@ -716,7 +716,7 @@ export const useAccountsStore = defineStore('accounts', () => {
       crossTab.post()
     } catch (error) {
       // A removal is only reversible while the secret still exists. Probe to decide which way to
-      // resolve rather than blindly restoring a possibly-secretless "ghost" account (§6).
+      // resolve rather than blindly restoring a possibly-secretless "ghost" account.
       let secretStillExists = false
       try {
         secretStillExists = await hasSecureAccountSecret(id)
