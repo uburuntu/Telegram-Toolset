@@ -59,7 +59,7 @@ function createUserAccount(overrides: Partial<SavedAccount> = {}): SavedAccount 
 function createBackup(overrides: Partial<Backup> = {}): Backup {
   return {
     id: 'backup-1',
-    chatId: BigInt('-1001234567890'),
+    chatId: BigInt('1234567890'),
     chatTitle: 'Test Chat',
     chatType: 'channel',
     createdAt: new Date('2024-03-10T12:00:00Z'),

@@ -34,9 +34,12 @@ vi.mock('@/utils/locale-format', () => ({
 import { scheduledService } from '@/services/scheduled/scheduled-service'
 import { telegramGateway } from '@/services/telegram/gateway'
 
+// Production-shaped ChatInfo: raw (unsigned) `id`, Bot API marked `peerId`, and a `peerRef` carrying
+// the entity kind + access hash as getDialogs produces them.
 const groupChat: ChatInfo = {
-  id: BigInt('-1001234567890'),
+  id: BigInt('1234567890'),
   peerId: '-1001234567890',
+  peerRef: { kind: 'supergroup', rawId: '1234567890', accessHash: '1000000001' },
   title: 'Core Group',
   type: 'supergroup',
   canExport: true,
@@ -45,8 +48,9 @@ const groupChat: ChatInfo = {
 }
 
 const adminChannel: ChatInfo = {
-  id: BigInt('-1001234567891'),
+  id: BigInt('1234567891'),
   peerId: '-1001234567891',
+  peerRef: { kind: 'channel', rawId: '1234567891', accessHash: '1000000002' },
   title: 'Admin Channel',
   type: 'channel',
   canExport: true,
@@ -55,8 +59,9 @@ const adminChannel: ChatInfo = {
 }
 
 const memberChannel: ChatInfo = {
-  id: BigInt('-1001234567892'),
+  id: BigInt('1234567892'),
   peerId: '-1001234567892',
+  peerRef: { kind: 'channel', rawId: '1234567892', accessHash: '1000000003' },
   title: 'Read Only Channel',
   type: 'channel',
   canExport: false,

@@ -36,7 +36,7 @@ describe('ResendService', () => {
 
   const createMessage = (overrides: Partial<DeletedMessage> = {}): DeletedMessage => ({
     id: 1,
-    chatId: BigInt('-1001234567890'),
+    chatId: BigInt('1234567890'),
     senderId: BigInt('999888777'),
     senderName: 'Alice',
     senderUsername: 'alice',
@@ -321,7 +321,7 @@ describe('ResendService', () => {
     it('should include reply link when enabled', async () => {
       const messages = [
         createMessage({
-          chatId: BigInt('-1001234567890'),
+          chatId: BigInt('1234567890'),
           replyToMsgId: 500,
         }),
       ]
@@ -341,7 +341,7 @@ describe('ResendService', () => {
     it('should use hidden reply links when enabled', async () => {
       const messages = [
         createMessage({
-          chatId: BigInt('-1001234567890'),
+          chatId: BigInt('1234567890'),
           replyToMsgId: 500,
         }),
       ]

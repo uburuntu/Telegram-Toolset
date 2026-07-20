@@ -5,7 +5,7 @@ import type { DeletedMessage, ExportConfig } from '@/types'
 const mockDeletedMessages: DeletedMessage[] = [
   {
     id: 1001,
-    chatId: BigInt('-1001234567890'),
+    chatId: BigInt('1234567890'),
     senderId: BigInt('999888777'),
     text: 'First deleted message',
     date: new Date('2024-01-15T10:30:00'),
@@ -13,7 +13,7 @@ const mockDeletedMessages: DeletedMessage[] = [
   },
   {
     id: 1002,
-    chatId: BigInt('-1001234567890'),
+    chatId: BigInt('1234567890'),
     senderId: BigInt('999888778'),
     text: 'Message with photo',
     date: new Date('2024-01-15T10:35:00'),
@@ -24,7 +24,7 @@ const mockDeletedMessages: DeletedMessage[] = [
   },
   {
     id: 1003,
-    chatId: BigInt('-1001234567890'),
+    chatId: BigInt('1234567890'),
     senderId: BigInt('999888779'),
     text: 'Video message',
     date: new Date('2024-01-15T10:40:00'),
@@ -70,7 +70,7 @@ import { telegramGateway } from '@/services/telegram/gateway'
 
 describe('ExportService', () => {
   const baseConfig: ExportConfig = {
-    chatId: BigInt('-1001234567890'),
+    chatId: BigInt('1234567890'),
     chatTitle: 'Test Channel',
     exportMode: 'all',
     storageStrategy: 'indexeddb',
