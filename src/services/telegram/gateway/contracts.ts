@@ -6,6 +6,7 @@ import type {
   ChatValidationResult,
   ConnectionState,
   DeletedMessage,
+  PeerRef,
   ScheduledMessage,
   UserInfo,
 } from '@/types'
@@ -131,7 +132,8 @@ export interface TelegramAccountGateway {
 
 export interface TelegramHistoryGateway {
   iterChatMessages(chatId: TelegramPeerRef, options?: ChatHistoryOptions): TelegramChatMessageStream
-  getChatMessageCount(chatId: TelegramPeerRef): Promise<number>
+  // Accepts a canonical PeerRef so a stored chat's message count can be estimated after a cold start.
+  getChatMessageCount(chatId: TelegramPeerRef | PeerRef): Promise<number>
 }
 
 export interface TelegramGateway {

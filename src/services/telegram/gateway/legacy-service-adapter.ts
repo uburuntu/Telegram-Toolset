@@ -5,6 +5,7 @@ import type {
   ChatValidationResult,
   ConnectionState,
   DeletedMessage,
+  PeerRef,
   ScheduledMessage,
   UserInfo,
 } from '@/types'
@@ -75,7 +76,7 @@ export interface LegacyTelegramServiceAdapterTarget {
   getScheduledMessages(chatId: bigint): Promise<ScheduledMessage[]>
   deleteScheduledMessages(chatId: bigint, messageIds: number[]): Promise<void>
   iterChatMessages(chatId: TelegramPeerRef, options?: ChatHistoryOptions): TelegramChatMessageStream
-  getChatMessageCount(chatId: TelegramPeerRef): Promise<number>
+  getChatMessageCount(chatId: TelegramPeerRef | PeerRef): Promise<number>
   getFullMe(): Promise<FullUserInfo | null>
   downloadMyProfilePhoto(): Promise<Blob | null>
   getAccountStats(): Promise<AccountStats>

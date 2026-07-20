@@ -96,7 +96,7 @@ class ChatHistoryDownloadTask implements ChatHistoryTask {
 
       try {
         const estimatedCount = await telegramGateway.history.getChatMessageCount(
-          this.chatInfo.peerId || this.chatInfo.id,
+          this.chatInfo.peerRef ?? this.chatInfo.peerId ?? this.chatInfo.id,
         )
         progress.totalEstimate = this.options.limit
           ? Math.min(estimatedCount, this.options.limit)

@@ -16,10 +16,12 @@ import type {
   ConnectionState,
   DeletedMessage,
   MediaType,
+  PeerRef,
   ScheduledMessage,
   UserInfo,
 } from '@/types'
 import { entityToPeerRef } from './peer-adapter'
+import { resolveInputPeer } from './peer-input-resolver'
 
 // Reconnection settings
 const RECONNECT_DELAY_MS = 2000
@@ -1857,12 +1859,18 @@ class TelegramService {
    * Get total message count for a chat (approximate)
    * Useful for progress estimation
    */
-  async getChatMessageCount(chatId: bigint | string): Promise<number> {
+  async getChatMessageCount(chatId: bigint | string | PeerRef): Promise<number> {
     const client = await this.getConnectedClient()
 
-    // @ts-expect-error - GramJS accepts marked peer IDs but types don't reflect it
-    const entity = await client.getEntity(chatId)
-    const inputPeer = await client.getInputEntity(entity)
+    // Warm path is unchanged; a stored PeerRef only adds a cold-start fallback (ARCHITECTURE.md §4).
+    const inputPeer = (await resolveInputPeer(
+      {
+        getEntity: (id) => (client.getEntity as (value: unknown) => Promise<unknown>)(id),
+        getInputEntity: (entity) =>
+          (client.getInputEntity as (value: unknown) => Promise<unknown>)(entity),
+      },
+      chatId,
+    )) as Api.TypeInputPeer
 
     const result = await client.invoke(
       new Api.messages.GetHistory({
