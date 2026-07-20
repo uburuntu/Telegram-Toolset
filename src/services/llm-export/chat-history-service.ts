@@ -148,6 +148,7 @@ class ChatHistoryDownloadTask implements ChatHistoryTask {
         id: this.generateExportId(),
         chatId: this.chatInfo.id,
         chatPeerId: this.chatInfo.peerId,
+        peerRef: this.chatInfo.peerRef,
         chatTitle: this.chatInfo.title,
         chatType: this.chatInfo.type,
         schemaVersion: 2,
