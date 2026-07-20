@@ -153,3 +153,8 @@ export function arePeerRefsEqual(a: PeerRef, b: PeerRef): boolean {
 export function peerKindRequiresAccessHash(kind: PeerRefKind): boolean {
   return kind !== 'group'
 }
+
+/** Narrow a `bigint | string | PeerRef` union to a {@link PeerRef}. */
+export function isPeerRef(value: unknown): value is PeerRef {
+  return typeof value === 'object' && value !== null && 'kind' in value && 'rawId' in value
+}
