@@ -27,9 +27,12 @@ const botInfo: UserInfo = {
   username: 'buildbot',
 }
 
+// Production-shaped: `id` is the raw (unsigned) id, `peerId` is its Bot API marked form, and
+// `peerRef` carries the entity kind + access hash exactly as getDialogs produces them.
 const chatInfo: ChatInfo = {
-  id: BigInt('-1001234567890'),
+  id: BigInt('1234567890'),
   peerId: '-1001234567890',
+  peerRef: { kind: 'supergroup', rawId: '1234567890', accessHash: '9998887776' },
   title: 'Gateway Chat',
   type: 'supergroup',
   canExport: true,
@@ -363,6 +366,8 @@ describe('createTelegramGateway', () => {
     }
 
     const historyCount = await gateway.history.getChatMessageCount(chatInfo.peerId!)
+    // The history count also accepts a canonical PeerRef and forwards it unchanged.
+    await gateway.history.getChatMessageCount(chatInfo.peerRef!)
 
     expect(scheduledMessages).toEqual([scheduledMessage])
     expect(fullMe).toEqual(fullUserInfo)
@@ -384,6 +389,7 @@ describe('createTelegramGateway', () => {
     expect(service.downloadMyProfilePhoto).toHaveBeenCalledTimes(1)
     expect(service.iterChatMessages).toHaveBeenCalledWith(chatInfo.peerId, { limit: 1 })
     expect(service.getChatMessageCount).toHaveBeenCalledWith(chatInfo.peerId)
+    expect(service.getChatMessageCount).toHaveBeenCalledWith(chatInfo.peerRef)
   })
 })
 
