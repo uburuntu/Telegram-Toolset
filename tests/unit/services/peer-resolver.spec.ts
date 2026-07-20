@@ -21,6 +21,8 @@ describe('isPeerRefComplete', () => {
     expect(isPeerRefComplete(supergroupNoHash)).toBe(false)
     // An empty-string hash is treated as absent.
     expect(isPeerRefComplete({ kind: 'user', rawId: '1', accessHash: '' })).toBe(false)
+    // A zero-valued hash is Telegram's "no hash" sentinel, so it is treated as absent too.
+    expect(isPeerRefComplete({ kind: 'channel', rawId: '1', accessHash: '0' })).toBe(false)
   })
 })
 
@@ -90,5 +92,7 @@ describe('peerRefToInputPeerParams', () => {
   it('returns null when a required access hash is missing', () => {
     expect(peerRefToInputPeerParams(userNoHash)).toBeNull()
     expect(peerRefToInputPeerParams(supergroupNoHash)).toBeNull()
+    // A zero-valued (sentinel) hash is not usable, so it also yields no params.
+    expect(peerRefToInputPeerParams({ kind: 'channel', rawId: '1', accessHash: '0' })).toBeNull()
   })
 })

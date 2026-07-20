@@ -5,6 +5,7 @@ import {
   createPeerRef,
   getMarkedPeerIdForChat,
   getPeerKindFromChatType,
+  isPeerRef,
   normalizeMarkedPeerId,
   parseMarkedPeerId,
   peerKindRequiresAccessHash,
@@ -78,6 +79,10 @@ describe('PeerRef conversions', () => {
     expect(createPeerRef('user', 42, null).accessHash).toBeUndefined()
     expect(createPeerRef('user', 42, '').accessHash).toBeUndefined()
     expect(createPeerRef('user', 42).accessHash).toBeUndefined()
+    // A zero-valued hash is Telegram's "no hash" sentinel, not a usable hash — omit it too.
+    expect(createPeerRef('user', 42, 0).accessHash).toBeUndefined()
+    expect(createPeerRef('channel', 42, BigInt(0)).accessHash).toBeUndefined()
+    expect(createPeerRef('channel', 42, '0').accessHash).toBeUndefined()
   })
 
   it('derives marked ids from a PeerRef, disambiguating supergroup vs channel identically', () => {
@@ -110,5 +115,26 @@ describe('PeerRef conversions', () => {
     expect(peerKindRequiresAccessHash('supergroup')).toBe(true)
     // Basic groups use InputPeerChat, which needs only the chat id.
     expect(peerKindRequiresAccessHash('group')).toBe(false)
+  })
+})
+
+describe('isPeerRef', () => {
+  it('accepts a well-formed PeerRef and rejects the other union members', () => {
+    expect(isPeerRef({ kind: 'channel', rawId: '123' })).toBe(true)
+    expect(isPeerRef({ kind: 'user', rawId: '1', accessHash: 'h' })).toBe(true)
+    expect(isPeerRef(BigInt('123'))).toBe(false)
+    expect(isPeerRef('123')).toBe(false)
+    expect(isPeerRef(null)).toBe(false)
+    expect(isPeerRef(undefined)).toBe(false)
+  })
+
+  it('rejects malformed objects that only structurally resemble a PeerRef', () => {
+    // Unknown kind must not narrow to PeerRef.
+    expect(isPeerRef({ kind: 'bot', rawId: '1' })).toBe(false)
+    // A non-string raw id (e.g. a bigint that never passed through createPeerRef) is rejected.
+    expect(isPeerRef({ kind: 'channel', rawId: BigInt('1') })).toBe(false)
+    // Missing required fields.
+    expect(isPeerRef({ kind: 'channel' })).toBe(false)
+    expect(isPeerRef({ rawId: '1' })).toBe(false)
   })
 })

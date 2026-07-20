@@ -34,7 +34,9 @@ export type PeerResolution =
   | { status: 'needs-identification'; rawId?: string; markedId?: string }
 
 function hasAccessHash(ref: PeerRef): boolean {
-  return typeof ref.accessHash === 'string' && ref.accessHash.length > 0
+  // A zero-valued hash is Telegram's "no hash" sentinel, not a usable access hash, so treat it as
+  // missing and route to resolution/repair rather than building an invalid input peer.
+  return typeof ref.accessHash === 'string' && ref.accessHash.length > 0 && ref.accessHash !== '0'
 }
 
 /** Whether a {@link PeerRef} carries everything needed to build an input peer without the network. */
