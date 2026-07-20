@@ -5,7 +5,8 @@ export type TelegramPeerKind = 'user' | 'chat' | 'channel'
 /** The entity-granularity kind carried by {@link PeerRef} (distinguishes supergroup from channel). */
 export type PeerRefKind = PeerRef['kind']
 
-function normalizeNumericId(id: bigint | number | string): string {
+/** Coerce an id to its unsigned decimal string, stripping a single leading sign if present. */
+export function normalizeNumericId(id: bigint | number | string): string {
   const value = typeof id === 'bigint' ? id.toString() : String(id)
   return value.startsWith('-') ? value.slice(1) : value
 }
