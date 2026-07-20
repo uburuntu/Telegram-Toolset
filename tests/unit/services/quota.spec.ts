@@ -42,6 +42,16 @@ describe('QuotaManager', () => {
       expect(estimate.used).toBe(0)
       expect(estimate.available).toBe(1_000_000_000)
     })
+
+    it('should fall back when the estimate call throws', async () => {
+      mockEstimate.mockRejectedValue(new Error('estimate failed'))
+
+      const estimate = await quotaManager.getStorageEstimate()
+
+      expect(estimate.used).toBe(0)
+      expect(estimate.available).toBe(1_000_000_000)
+      expect(estimate.percentUsed).toBe(0)
+    })
   })
 
   describe('checkCanStore', () => {
@@ -177,6 +187,22 @@ describe('QuotaManager', () => {
 
       expect(strategy.type).toBe('stream_download')
       expect(strategy.storeMedia).toBe(false)
+    })
+
+    it('warns when a large export fits but claims a big share of free space', async () => {
+      // 100MB used of 1GB → 900MB free. A 300MB export stays under the 80% low-space
+      // threshold (40% projected) yet exceeds 30% of the available space, so it should
+      // use IndexedDB but warn the user.
+      mockEstimate.mockResolvedValue({
+        usage: 100_000_000,
+        quota: 1_000_000_000,
+      })
+
+      const strategy = await quotaManager.determineExportStrategy(300_000_000)
+
+      expect(strategy.type).toBe('indexeddb')
+      expect(strategy.storeMedia).toBe(true)
+      expect(strategy.warnUser).toBe(true)
     })
   })
 })
