@@ -24,6 +24,13 @@ const budgets = {
     rawBytes: 50_000,
     gzipBytes: 10_000,
   },
+  // Ceiling every code-split locale chunk must stay under. Only the largest locale counts toward the
+  // JS download budget (a user fetches one locale), so this per-locale cap is what actually guards
+  // against ANY locale ballooning — not just the current largest — closing the code-split blind spot.
+  perLocaleChunk: {
+    rawBytes: 65_000,
+    gzipBytes: 16_000,
+  },
 }
 
 function formatKilobytes(bytes) {
@@ -104,10 +111,22 @@ if (!largestJsAsset) {
 // a realistic worst case (app + one locale) — while still guarding against any
 // individual locale ballooning.
 const LAZY_LOCALES = ['ru', 'es', 'id', 'pt', 'fa', 'ar', 'uz', 'tr', 'uk']
+// Vite names a locale chunk after its source basename: `./locales/ru.json` -> `ru-<hash>.js`. The
+// pattern stays permissive on the hash so it never fails to match a real locale chunk (a false
+// negative would inflate the budgeted total and fail CI spuriously). The trade-off is that a future
+// non-locale chunk whose basename starts with a locale code + `-` could match; the count check below
+// surfaces that drift instead of letting it silently skew the budget.
 const localeChunkPattern = new RegExp(`(^|/)(${LAZY_LOCALES.join('|')})-[A-Za-z0-9_-]+\\.js$`)
 
 const localeAssets = jsSummary.assets.filter((asset) => localeChunkPattern.test(asset.file))
 const nonLocaleAssets = jsSummary.assets.filter((asset) => !localeChunkPattern.test(asset.file))
+
+if (localeAssets.length !== LAZY_LOCALES.length) {
+  console.warn(
+    `Bundle check: matched ${localeAssets.length} locale chunk(s), expected ${LAZY_LOCALES.length}. ` +
+      'The locale set or the chunk-naming assumption may have drifted; verify the budget still reflects one-locale-per-user.',
+  )
+}
 
 const nonLocaleRawBytes = nonLocaleAssets.reduce((sum, asset) => sum + asset.rawBytes, 0)
 const nonLocaleGzipBytes = nonLocaleAssets.reduce((sum, asset) => sum + asset.gzipBytes, 0)
@@ -141,6 +160,16 @@ const checks = [
     label: 'Budgeted JS (gzip, app + largest locale)',
     actual: budgetedJsGzipBytes,
     limit: budgets.totalJs.gzipBytes,
+  },
+  {
+    label: 'Largest locale chunk (raw)',
+    actual: largestLocaleRawBytes,
+    limit: budgets.perLocaleChunk.rawBytes,
+  },
+  {
+    label: 'Largest locale chunk (gzip)',
+    actual: largestLocaleGzipBytes,
+    limit: budgets.perLocaleChunk.gzipBytes,
   },
   {
     label: 'Total CSS (raw)',
@@ -191,6 +220,9 @@ console.log(`Total JS:  ${formatKilobytes(jsSummary.totalRawBytes)} raw / ${form
 console.log(
   `Budgeted JS: ${formatKilobytes(budgetedJsRawBytes)} raw / ${formatKilobytes(budgetedJsGzipBytes)} gzip (app + largest of ${localeAssets.length} locale chunks)`,
 )
+console.log(
+  `Largest locale chunk: ${formatKilobytes(largestLocaleRawBytes)} raw / ${formatKilobytes(largestLocaleGzipBytes)} gzip (ceiling ${formatKilobytes(budgets.perLocaleChunk.rawBytes)} raw · ${formatKilobytes(budgets.perLocaleChunk.gzipBytes)} gzip)`,
+)
 console.log(`Total CSS: ${formatKilobytes(cssSummary.totalRawBytes)} raw / ${formatKilobytes(cssSummary.totalGzipBytes)} gzip`)
 console.log('\nTop bundle assets')
 console.log('| Asset | Raw | Gzip |')
@@ -207,6 +239,7 @@ if (process.env.GITHUB_STEP_SUMMARY) {
     `- Gzip: ${formatKilobytes(largestJsAsset.gzipBytes)} / budget ${formatKilobytes(budgets.largestJsAsset.gzipBytes)}`,
     `- Total JS: ${formatKilobytes(jsSummary.totalRawBytes)} raw / ${formatKilobytes(jsSummary.totalGzipBytes)} gzip (all locales)`,
     `- Budgeted JS: ${formatKilobytes(budgetedJsRawBytes)} raw / ${formatKilobytes(budgetedJsGzipBytes)} gzip (app + largest locale) / budget ${formatKilobytes(budgets.totalJs.rawBytes)} raw · ${formatKilobytes(budgets.totalJs.gzipBytes)} gzip`,
+    `- Largest locale chunk: ${formatKilobytes(largestLocaleRawBytes)} raw / ${formatKilobytes(largestLocaleGzipBytes)} gzip / ceiling ${formatKilobytes(budgets.perLocaleChunk.rawBytes)} raw · ${formatKilobytes(budgets.perLocaleChunk.gzipBytes)} gzip`,
     `- Total CSS: ${formatKilobytes(cssSummary.totalRawBytes)} raw / ${formatKilobytes(cssSummary.totalGzipBytes)} gzip`,
     '',
     '| Asset | Raw | Gzip |',
