@@ -28,7 +28,7 @@ The app runs entirely on-device. There is no backend, no tracking, and no server
 - Keep the app client-side and privacy-first.
 - Productionize the architecture instead of layering more logic onto oversized views and services.
 
-The priority roadmap lives in [TODO.md](./TODO.md). The staged platform design and migration plan live in [ARCHITECTURE.md](./ARCHITECTURE.md).
+Platform direction, the staged dependency order, and repo rules live in [AGENTS.md](./AGENTS.md).
 
 ## Architecture At A Glance
 
@@ -59,11 +59,9 @@ npm run test:e2e:dist
 
 ## Working In This Repo
 
-Read these files before making substantial changes:
+Read this before making substantial changes:
 
-- [TODO.md](./TODO.md) for roadmap, priorities, and restart guidance
-- [ARCHITECTURE.md](./ARCHITECTURE.md) for platform boundaries, migration order, and exit criteria
-- [AGENTS.md](./AGENTS.md) for design system rules, architecture notes, critical Telegram/browser lessons, and agent-facing repo guidance
+- [AGENTS.md](./AGENTS.md) for design system rules, architecture notes, the staged productionization order, critical Telegram/browser lessons, and agent-facing repo guidance
 
 Key contribution rules:
 
