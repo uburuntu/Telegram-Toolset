@@ -16,22 +16,20 @@ This repository is no longer treated as a single-purpose deleted-messages utilit
 
 ## Documentation Map
 
-- `TODO.md` is the restart brief and priority order for future work.
 - `README.md` is the public product/development overview.
-- `AGENTS.md` is the single agent-facing guide for repo rules, architecture notes, and product direction.
-- `ARCHITECTURE.md` is the staged plan for identity, sessions, jobs, storage, gateway, and worker boundaries.
-- If docs and current code disagree, treat the codebase as the source of current behavior and `TODO.md` as the source of target direction.
+- `AGENTS.md` is the single agent-facing guide for repo rules, architecture notes, product direction, and the staged productionization order.
+- If docs and current code disagree, treat the codebase as the source of current behavior and this guide as the source of target direction.
 
 ## Documentation Durability
 
 - Long-lived docs in this repo should capture durable guidance: product direction, architecture, operating rules, recurring pitfalls, and priority order.
-- Do not put point-in-time coordination data in `AGENTS.md`, `TODO.md`, or other durable docs. That includes PR numbers, branch names, commit SHAs, CI run IDs, "safe merge checkpoints", temporary statuses, and notes that only make sense right now.
+- Do not put point-in-time coordination data in `AGENTS.md` or other durable docs. That includes PR numbers, branch names, commit SHAs, CI run IDs, "safe merge checkpoints", temporary statuses, and notes that only make sense right now.
 - If a detail would read as strange after a few commits, a month, or to a different person, it does not belong in durable docs.
 - Put ephemeral status in PR descriptions, issues, commit messages, or short-lived handoff comments instead.
 
 ## Returning Later
 
-- Read `TODO.md` first, then this file, then `README.md`.
+- Read this file first, then `README.md`.
 - Re-establish the baseline with the standard verification commands before changing behavior.
 - Prioritize live Telegram validation and safe local-data lifecycle follow-through before major rewrites or visual refreshes.
 
@@ -226,12 +224,11 @@ Mobile-first approach: default styles for mobile, add complexity at larger break
 - **Internationalization**: `vue-i18n` is required for user-facing copy. Current locales include `en`, `ru`, `ar`, `es`, `fa`, `id`, `pt`, `tr`, `uk`, `uz`; production work must preserve escaping safety and completeness standards.
 - **Security/Privacy**: On-device only; no backend, no analytics, no tracking. Sensitive inputs must stay masked, validated, and minimally persisted.
 - **CI/Test**: Vitest (unit/component), Playwright (E2E plus a production-build Chromium smoke over the built `dist`), GitHub Actions with Corepack-pinned, deterministic `npm ci` installs, a rollback-safe (latest-commit-gated) Pages deploy, and desktop/mobile Playwright coverage in CI. The next gap is stronger live-integration and full route-level coverage, not basic CI plumbing.
-- **Architecture plan**: Follow `ARCHITECTURE.md` in dependency order. Stable principals and session/job coordination precede service and view decomposition.
+- **Architecture plan**: Follow the productionization dependency order below. Stable principals and session/job coordination precede service and view decomposition.
 
 ## Productionization Dependency Order
 
-Use `TODO.md` to choose the next milestone and follow the staged dependencies in
-`ARCHITECTURE.md` when implementing structural work:
+Follow these staged dependencies when implementing structural work:
 
 1. Establish stable principals and one session coordinator.
 2. Introduce account-affine jobs with bounded cancellation and explicit uncertain outcomes.
@@ -468,6 +465,5 @@ Per the [official docs](https://vue-i18n.intlify.dev/guide/essentials/syntax#lit
 ## Implementation Status
 
 Point-in-time status is intentionally not tracked in this durable guide. For what exists today, read
-the code; for priority order and open risks, read `TODO.md`; for target boundaries, migration order,
-and acceptance criteria, read `ARCHITECTURE.md`. Record per-change status in pull requests and commit
-messages rather than here.
+the code; for the staged direction, see the Product Vision and Productionization Dependency Order
+sections above. Record per-change status in pull requests and commit messages rather than here.
