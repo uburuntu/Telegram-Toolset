@@ -32,7 +32,7 @@ const showSessionRecoveryBanner = computed(
 const loginModalProps = computed(
   () =>
     uiStore.currentModal?.props as
-      | { requiredType?: string; targetRoute?: string; replaceAccountId?: string }
+      | { requiredType?: 'user' | 'bot' | 'any'; targetRoute?: string; replaceAccountId?: string }
       | undefined,
 )
 
@@ -150,7 +150,7 @@ useActiveUserSessionSync(showLoginModal)
     <!-- Login Modal -->
     <LoginModal
       v-if="showLoginModal"
-      :required-type="loginModalProps?.requiredType as any"
+      :required-type="loginModalProps?.requiredType"
       :target-route="loginModalProps?.targetRoute"
       :replace-account-id="loginModalProps?.replaceAccountId"
       @close="uiStore.closeModal()"

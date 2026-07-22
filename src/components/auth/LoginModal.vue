@@ -338,9 +338,9 @@ function restartUserAuthFlow(): void {
   passwordHint.value = undefined
   step.value = 'phone'
 
-  const svc: any = telegramService as any
-  if (typeof svc.resetForNewUserLogin === 'function') {
-    svc.resetForNewUserLogin().catch(() => {
+  // Guard keeps partial test/mock services safe; the method exists on the real service type.
+  if (typeof telegramService.resetForNewUserLogin === 'function') {
+    telegramService.resetForNewUserLogin().catch(() => {
       // Ignore best-effort cleanup.
     })
   }
@@ -708,8 +708,8 @@ async function handlePhoneSubmit(): Promise<void> {
 
     // IMPORTANT: Always start a *fresh* session for a new phone login.
     // Otherwise we can accidentally reuse another account's existing session and appear "already logged in".
-    if (typeof (telegramService as any).resetForNewUserLogin === 'function') {
-      await (telegramService as any).resetForNewUserLogin()
+    if (typeof telegramService.resetForNewUserLogin === 'function') {
+      await telegramService.resetForNewUserLogin()
     } else {
       // Fallback for mocks/older builds
       try {

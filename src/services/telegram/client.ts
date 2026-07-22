@@ -20,6 +20,7 @@ import type {
   ScheduledMessage,
   UserInfo,
 } from '@/types'
+import { FloodWaitLogger } from './flood-wait-logger'
 import { entityToPeerRef } from './peer-adapter'
 import { resolveInputPeer } from './peer-input-resolver'
 
@@ -27,6 +28,18 @@ import { resolveInputPeer } from './peer-input-resolver'
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_ATTEMPTS = 5
 const MESSAGE_FETCH_BATCH_SIZE = 100
+
+/**
+ * GramJS resolves native `bigint` (and marked) peer ids at runtime, but its `EntityLike` parameter
+ * type only lists the `big-integer` form and branded username/phone strings. Cast at the call
+ * boundary so peer ids stay `bigint | string` in our code while the rest of each GramJS call (option
+ * objects, message params, etc.) keeps full type-checking — a per-line `@ts-expect-error` would
+ * silently suppress those too. Compile-time only: the value is returned unchanged.
+ */
+type PeerEntityArg = Parameters<TelegramClient['getInputEntity']>[0]
+function toPeerEntityArg(id: bigint | string): PeerEntityArg {
+  return id as unknown as PeerEntityArg
+}
 
 // Deferred promise helper for interactive auth flow
 interface DeferredPromise<T> {
@@ -204,49 +217,19 @@ class TelegramService {
   }
 
   /**
-   * Custom logger that intercepts GramJS flood wait messages
-   * GramJS expects a logger with info/warn/error/debug methods
+   * Build the GramJS logger. It must be a real {@link Logger} (GramJS calls `canSend`/`_log` on it)
+   * and we intercept flood-wait notices to drive UI countdowns.
    */
-  private createCustomLogger() {
-    const processMessage = (message: string) => {
-      // Check for flood wait messages: "Sleeping for Xs on flood wait (Caused by ...)"
+  private createCustomLogger(): FloodWaitLogger {
+    return new FloodWaitLogger((message) => {
+      // "Sleeping for Xs on flood wait (Caused by <method>)" — surface the wait to listeners.
       const floodMatch = message.match(/Sleeping for (\d+)s on flood wait \(Caused by ([^)]+)\)/)
       if (floodMatch) {
         const seconds = parseInt(floodMatch[1]!, 10)
         const method = floodMatch[2] || 'unknown'
         this.emitFloodWait(seconds, method)
       }
-    }
-
-    return {
-      info: (message: string) => {
-        processMessage(message)
-        console.log(`[GramJS] ${message}`)
-      },
-      warn: (message: string) => {
-        processMessage(message)
-        console.warn(`[GramJS] ${message}`)
-      },
-      error: (message: string) => {
-        processMessage(message)
-        console.error(`[GramJS] ${message}`)
-      },
-      debug: (message: string) => {
-        processMessage(message)
-        // Only log debug in development
-        if (import.meta.env.DEV) {
-          console.debug(`[GramJS] ${message}`)
-        }
-      },
-      // Some GramJS versions also use these
-      log: (message: string) => {
-        processMessage(message)
-        console.log(`[GramJS] ${message}`)
-      },
-      setLevel: () => {
-        // No-op, we handle all levels
-      },
-    }
+    })
   }
 
   /**
@@ -273,7 +256,6 @@ class TelegramService {
       appVersion: '1.0',
       langCode: lang,
       systemLangCode: lang,
-      // @ts-expect-error - GramJS accepts a custom logger but types are incomplete
       baseLogger: this.createCustomLogger(),
     })
   }
@@ -841,7 +823,7 @@ class TelegramService {
   async logout(): Promise<void> {
     if (this.client) {
       try {
-        await this.client.invoke({ _: 'auth.logOut' } as any)
+        await this.client.invoke(new Api.auth.LogOut())
       } catch {
         // Ignore logout errors
       }
@@ -1025,8 +1007,7 @@ class TelegramService {
 
     try {
       const client = await this.getConnectedClient()
-      // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-      const entity = await client.getEntity(chatId)
+      const entity = await client.getEntity(toPeerEntityArg(chatId))
 
       if (!entity) {
         return {
@@ -1200,8 +1181,7 @@ class TelegramService {
     }
 
     const client = await this.getConnectedClient()
-    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-    const entity = await client.getEntity(chatId)
+    const entity = await client.getEntity(toPeerEntityArg(chatId))
     const inputChannel = await client.getInputEntity(entity)
 
     // Prepare date filters (convert to timestamps for comparison)
@@ -1467,8 +1447,7 @@ class TelegramService {
 
     const client = await this.getConnectedClient()
 
-    // @ts-expect-error - GramJS accepts marked peer IDs but types don't reflect it
-    const entity = await client.getEntity(chatId)
+    const entity = await client.getEntity(toPeerEntityArg(chatId))
     const uniqueIds = Array.from(new Set(messageIds))
     const messages = new Map<number, Api.Message>()
 
@@ -1502,8 +1481,7 @@ class TelegramService {
 
     if (!this.entityCache.has(cacheKey)) {
       const client = await this.getConnectedClient()
-      // @ts-expect-error - GramJS accepts marked peer IDs but types don't reflect it
-      const entity = await client.getEntity(entityId)
+      const entity = await client.getEntity(toPeerEntityArg(entityId))
       this.entityCache.set(cacheKey, entity)
     }
 
@@ -1553,8 +1531,7 @@ class TelegramService {
   async canSendToChat(chatId: bigint): Promise<boolean> {
     try {
       const client = await this.getConnectedClient()
-      // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-      const entity = await client.getEntity(chatId)
+      const entity = await client.getEntity(toPeerEntityArg(chatId))
       if (!entity) return false
       return this.canSendToEntity(entity)
     } catch {
@@ -1590,8 +1567,7 @@ class TelegramService {
   async sendMessage(chatId: bigint, text: string, parseMode?: 'html' | 'md'): Promise<void> {
     const client = await this.getConnectedClient()
 
-    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-    await client.sendMessage(chatId, {
+    await client.sendMessage(toPeerEntityArg(chatId), {
       message: text,
       parseMode: parseMode,
       silent: true,
@@ -1620,8 +1596,7 @@ class TelegramService {
     // Determine filename
     const filename = options.filename || (file instanceof File ? file.name : `file_${Date.now()}`)
 
-    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-    await client.sendFile(chatId, {
+    await client.sendFile(toPeerEntityArg(chatId), {
       file: buffer,
       caption: options.caption,
       parseMode: options.parseMode,
@@ -1641,9 +1616,8 @@ class TelegramService {
   async forwardMessage(fromChatId: bigint, toChatId: bigint, messageId: number): Promise<void> {
     const client = await this.getConnectedClient()
 
-    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-    await client.forwardMessages(toChatId, {
-      fromPeer: fromChatId,
+    await client.forwardMessages(toPeerEntityArg(toChatId), {
+      fromPeer: toPeerEntityArg(fromChatId),
       messages: [messageId],
     })
   }
@@ -1655,8 +1629,7 @@ class TelegramService {
   async getScheduledMessages(chatId: bigint): Promise<ScheduledMessage[]> {
     const client = await this.getConnectedClient()
 
-    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-    const entity = await client.getEntity(chatId)
+    const entity = await client.getEntity(toPeerEntityArg(chatId))
     const inputPeer = await client.getInputEntity(entity)
 
     const result = await client.invoke(
@@ -1710,8 +1683,7 @@ class TelegramService {
 
     const client = await this.getConnectedClient()
 
-    // @ts-expect-error - GramJS accepts bigint but types don't reflect it
-    const entity = await client.getEntity(chatId)
+    const entity = await client.getEntity(toPeerEntityArg(chatId))
     const inputPeer = await client.getInputEntity(entity)
 
     await client.invoke(
@@ -1740,8 +1712,7 @@ class TelegramService {
   ): AsyncGenerator<ChatMessage> {
     const client = await this.getConnectedClient()
 
-    // @ts-expect-error - GramJS accepts marked peer IDs but types don't reflect it
-    const entity = await client.getEntity(chatId)
+    const entity = await client.getEntity(toPeerEntityArg(chatId))
     const rawChatId =
       entity && typeof entity === 'object' && 'id' in entity
         ? BigInt((entity as { id: { toString(): string } }).id.toString())
