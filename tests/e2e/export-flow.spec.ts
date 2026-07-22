@@ -106,6 +106,12 @@ async function injectMockTelegramService(page: Page) {
         // Return a small fake blob
         return new Blob(['fake image data'], { type: 'image/jpeg' })
       },
+      // Session-lifecycle methods the app drives on startup via the session coordinator; the mock
+      // replaces the whole telegramService, so these must exist or App setup throws and nothing mounts.
+      beginActiveAccountTransition: () => 0,
+      completeActiveAccountTransition: () => {},
+      useUserAccountSession: async () => true,
+      disconnect: async () => {},
     }
   })
 }
@@ -156,6 +162,12 @@ async function injectMockTelegramServiceSlowExport(page: Page) {
         username: 'resolveduser',
       }),
       downloadMedia: async () => new Blob(['fake image data'], { type: 'image/jpeg' }),
+      // Session-lifecycle methods the app drives on startup via the session coordinator; the mock
+      // replaces the whole telegramService, so these must exist or App setup throws and nothing mounts.
+      beginActiveAccountTransition: () => 0,
+      completeActiveAccountTransition: () => {},
+      useUserAccountSession: async () => true,
+      disconnect: async () => {},
     }
   })
 }

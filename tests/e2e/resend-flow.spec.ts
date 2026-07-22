@@ -69,6 +69,12 @@ async function injectMockServices(page: Page) {
       canSendToChat: async () => true,
       sendMessage: async () => {},
       sendFile: async () => {},
+      // Session-lifecycle methods the app drives on startup via the session coordinator; the mock
+      // replaces the whole telegramService, so these must exist or App setup throws and nothing mounts.
+      beginActiveAccountTransition: () => 0,
+      completeActiveAccountTransition: () => {},
+      useUserAccountSession: async () => true,
+      disconnect: async () => {},
     }
   })
 }
