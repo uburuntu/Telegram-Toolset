@@ -440,6 +440,17 @@ When using `parseMode: 'html'` for resend, escape user text to prevent injection
 textParts.push(escapeHtml(message.text))
 ```
 
+### 8. Reactive Proxies at Structured-Clone Boundaries
+
+The structured clone algorithm (IndexedDB `put`/`add`, `postMessage`, Web Workers, `structuredClone`) rejects `Proxy` objects. **Every Vue `reactive`/`ref` value is a Proxy**, so a record built from store/UI state (e.g. a chat's `peerRef`, an account's `principal`) throws `DataCloneError: The object can not be cloned.` — but **only on WebKit/Safari**; Chromium clones reactive proxies, so CI and Chrome hide the bug. Snapshot to plain data with `toPlainSnapshot` (`utils/reactive-snapshot.ts`) before any structured-clone boundary:
+
+```javascript
+// indexed-db.ts enforces this for ALL writes — no `.put()` may bypass it.
+await store.put(toPlainSnapshot(record))
+```
+
+It deep-unwraps reactivity while preserving clone-safe leaves (bigint, Date, Blob, ArrayBuffer, typed arrays, CryptoKey) and is a no-op on already-plain data. Apply the same snapshot to any future `postMessage`/Worker payload that may carry reactive state (see the "move long-running work off the main thread" direction).
+
 ## vue-i18n Special Characters (Critical)
 
 vue-i18n v11 uses a message compiler that interprets certain characters as syntax. Using them literally in translation values causes `SyntaxError` at runtime, which **silently crashes the entire component** (no visible error in the UI — the component just disappears). `npm run check:i18n` guards this by parsing every value with the same `@intlify/message-compiler` vue-i18n uses at runtime, so malformed syntax and mismatched placeholders fail CI instead of shipping.
