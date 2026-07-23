@@ -5,6 +5,7 @@
 import { type IDBPDatabase, openDB } from 'idb'
 import type { Backup, ChatExport, ChatMessage, DeletedMessage, MediaTypeStats } from '@/types'
 import { safeJsonStringify, stripRawMessage } from '@/utils/message-serialization'
+import { toPlainSnapshot } from '@/utils/reactive-snapshot'
 
 interface TelegramToolsetDB {
   backups: {
@@ -209,10 +210,16 @@ async function getDB(): Promise<IDBPDatabase<TelegramToolsetDB>> {
   return dbPromise
 }
 
+// Write invariant: every value handed to `.put()` passes through `toPlainSnapshot` first. IndexedDB
+// stores via structured clone, which WebKit rejects with `DataCloneError` on any Vue reactive
+// `Proxy` (records often originate from reactive store/UI state). Snapshotting is a no-op on data
+// that is already plain and preserves clone-safe leaves (bigint, Date, Blob, ArrayBuffer, CryptoKey),
+// so it is applied uniformly with no exceptions rather than case-by-case.
+
 // Backup operations
 export async function saveBackup(backup: Backup): Promise<void> {
   const db = await getDB()
-  await db.put('backups', backup)
+  await db.put('backups', toPlainSnapshot(backup))
 }
 
 export async function saveBackupBundle(
@@ -223,23 +230,25 @@ export async function saveBackupBundle(
   const db = await getDB()
   const tx = db.transaction(['backups', 'messages', 'media'], 'readwrite')
 
-  await tx.objectStore('backups').put(backup)
+  await tx.objectStore('backups').put(toPlainSnapshot(backup))
 
   const messageStore = tx.objectStore('messages')
   for (const message of messages) {
     const sanitized = stripRawMessage(message)
-    await messageStore.put({ ...sanitized, backupId: backup.id })
+    await messageStore.put(toPlainSnapshot({ ...sanitized, backupId: backup.id }))
   }
 
   const mediaStore = tx.objectStore('media')
   for (const mediaEntry of mediaEntries) {
-    await mediaStore.put({
-      backupId: backup.id,
-      messageId: mediaEntry.messageId,
-      blob: mediaEntry.blob,
-      filename: mediaEntry.filename,
-      mimeType: mediaEntry.mimeType,
-    })
+    await mediaStore.put(
+      toPlainSnapshot({
+        backupId: backup.id,
+        messageId: mediaEntry.messageId,
+        blob: mediaEntry.blob,
+        filename: mediaEntry.filename,
+        mimeType: mediaEntry.mimeType,
+      }),
+    )
   }
 
   await tx.done
@@ -286,7 +295,7 @@ export async function saveMessage(backupId: string, message: DeletedMessage): Pr
   const db = await getDB()
   // Strip runtime-only `_rawMessage` before persisting (non-serializable GramJS object).
   const sanitized = stripRawMessage(message)
-  await db.put('messages', { ...sanitized, backupId })
+  await db.put('messages', toPlainSnapshot({ ...sanitized, backupId }))
 }
 
 export async function saveMessages(backupId: string, messages: DeletedMessage[]): Promise<void> {
@@ -297,7 +306,7 @@ export async function saveMessages(backupId: string, messages: DeletedMessage[])
   for (const message of messages) {
     // Strip runtime-only `_rawMessage` before persisting.
     const sanitized = stripRawMessage(message)
-    await store.put({ ...sanitized, backupId })
+    await store.put(toPlainSnapshot({ ...sanitized, backupId }))
   }
 
   await tx.done
@@ -327,7 +336,7 @@ export async function saveMedia(
   mimeType: string,
 ): Promise<void> {
   const db = await getDB()
-  await db.put('media', { backupId, messageId, blob, filename, mimeType })
+  await db.put('media', toPlainSnapshot({ backupId, messageId, blob, filename, mimeType }))
 }
 
 export async function getMedia(backupId: string, messageId: number): Promise<Blob | undefined> {
@@ -431,7 +440,7 @@ export async function countMediaTypes(
 // Chat Export operations
 export async function saveChatExport(chatExport: ChatExport): Promise<void> {
   const db = await getDB()
-  await db.put('chatExports', chatExport)
+  await db.put('chatExports', toPlainSnapshot(chatExport))
 }
 
 export async function getChatExport(id: string): Promise<ChatExport | undefined> {
@@ -465,7 +474,7 @@ export async function deleteChatExport(id: string): Promise<void> {
 // Chat Message operations (for LLM export)
 export async function saveChatMessage(exportId: string, message: ChatMessage): Promise<void> {
   const db = await getDB()
-  await db.put('chatMessages', { ...message, exportId })
+  await db.put('chatMessages', toPlainSnapshot({ ...message, exportId }))
 }
 
 export async function saveChatMessages(exportId: string, messages: ChatMessage[]): Promise<void> {
@@ -474,7 +483,7 @@ export async function saveChatMessages(exportId: string, messages: ChatMessage[]
   const store = tx.objectStore('chatMessages')
 
   for (const message of messages) {
-    await store.put({ ...message, exportId })
+    await store.put(toPlainSnapshot({ ...message, exportId }))
   }
 
   await tx.done
@@ -487,11 +496,11 @@ export async function saveChatExportBundle(
   const db = await getDB()
   const tx = db.transaction(['chatExports', 'chatMessages'], 'readwrite')
 
-  await tx.objectStore('chatExports').put(chatExport)
+  await tx.objectStore('chatExports').put(toPlainSnapshot(chatExport))
 
   const store = tx.objectStore('chatMessages')
   for (const message of messages) {
-    await store.put({ ...message, exportId: chatExport.id })
+    await store.put(toPlainSnapshot({ ...message, exportId: chatExport.id }))
   }
 
   await tx.done
@@ -531,7 +540,7 @@ export async function getSecureVaultKey(id: string): Promise<CryptoKey | undefin
 
 export async function putSecureVaultKey(id: string, key: CryptoKey): Promise<void> {
   const db = await getDB()
-  await db.put('secureVaultKeys', { id, key })
+  await db.put('secureVaultKeys', toPlainSnapshot({ id, key }))
 }
 
 export async function getSecureVaultSecret(
@@ -543,7 +552,7 @@ export async function getSecureVaultSecret(
 
 export async function putSecureVaultSecret(record: SecureVaultSecretRecord): Promise<void> {
   const db = await getDB()
-  await db.put('secureVaultSecrets', record)
+  await db.put('secureVaultSecrets', toPlainSnapshot(record))
 }
 
 export async function deleteSecureVaultSecret(id: string): Promise<void> {
@@ -567,7 +576,7 @@ export async function clearSecureVaultSecrets(): Promise<void> {
 
 export async function putAccountJournalRecord(record: AccountJournalRecord): Promise<void> {
   const db = await getDB()
-  await db.put('accountJournal', record)
+  await db.put('accountJournal', toPlainSnapshot(record))
 }
 
 export async function getAllAccountJournalRecords(): Promise<AccountJournalRecord[]> {
