@@ -33,6 +33,10 @@ test.describe('Production build smoke', () => {
       'https://telegram-toolset.rmbk.me/social-preview.png',
     )
     await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.png')
+    await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute(
+      'href',
+      '/apple-touch-icon.png',
+    )
 
     const imageDimensions = (source: string) =>
       page.evaluate(async (url) => {
@@ -50,14 +54,19 @@ test.describe('Production build smoke', () => {
     const logo = await page.request.get('/logo.png')
     expect(logo.ok()).toBe(true)
     expect(logo.headers()['content-type']).toContain('image/png')
-    expect(await imageDimensions('/logo.png')).toEqual({ width: 512, height: 512 })
+    expect(await imageDimensions('/logo.png')).toEqual({ width: 768, height: 768 })
+
+    const touchIcon = await page.request.get('/apple-touch-icon.png')
+    expect(touchIcon.ok()).toBe(true)
+    expect(touchIcon.headers()['content-type']).toContain('image/png')
+    expect(await imageDimensions('/apple-touch-icon.png')).toEqual({ width: 180, height: 180 })
 
     const socialPreview = await page.request.get('/social-preview.png')
     expect(socialPreview.ok()).toBe(true)
     expect(socialPreview.headers()['content-type']).toContain('image/png')
     expect((await socialPreview.body()).byteLength).toBeGreaterThan(10_000)
 
-    expect(await imageDimensions('/social-preview.png')).toEqual({ width: 1280, height: 640 })
+    expect(await imageDimensions('/social-preview.png')).toEqual({ width: 2560, height: 1280 })
 
     // Opening a module pulls in the lazy auth flow in the production bundle.
     await page.getByText('Account Info').click()
