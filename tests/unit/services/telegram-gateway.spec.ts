@@ -166,7 +166,13 @@ function createLegacyServiceMock(
     getScheduledMessages: vi.fn().mockResolvedValue([scheduledMessage]),
     deleteScheduledMessages: vi.fn().mockResolvedValue(undefined),
     searchOwnMessages: vi.fn().mockResolvedValue({
-      messages: [{ id: chatMessage.id, date: chatMessage.date }],
+      messages: [
+        {
+          id: chatMessage.id,
+          date: chatMessage.date,
+          preview: { kind: 'text', text: chatMessage.text! },
+        },
+      ],
       total: 1,
     }),
     deleteMessages: vi.fn().mockResolvedValue(undefined),
@@ -380,7 +386,13 @@ describe('createTelegramGateway', () => {
     await gateway.history.getChatMessageCount(chatInfo.peerRef!)
 
     expect(scheduledMessages).toEqual([scheduledMessage])
-    expect(ownMessages.messages).toEqual([{ id: chatMessage.id, date: chatMessage.date }])
+    expect(ownMessages.messages).toEqual([
+      {
+        id: chatMessage.id,
+        date: chatMessage.date,
+        preview: { kind: 'text', text: chatMessage.text },
+      },
+    ])
     expect(existingIds).toEqual([chatMessage.id])
     expect(fullMe).toEqual(fullUserInfo)
     expect(stats).toEqual(accountStats)

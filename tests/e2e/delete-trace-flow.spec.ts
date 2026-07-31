@@ -65,9 +65,21 @@ async function injectTelegramTraceMock(page: Page): Promise<void> {
         if (chatId === '-10010') {
           return {
             messages: [
-              { id: 30, date: new Date('2021-01-10T00:00:00.000Z') },
-              { id: 20, date: new Date('2020-06-10T00:00:00.000Z') },
-              { id: 10, date: new Date('2020-01-10T00:00:00.000Z') },
+              {
+                id: 30,
+                date: new Date('2021-01-10T00:00:00.000Z'),
+                preview: { kind: 'text', text: 'Five years later, remove this post.' },
+              },
+              {
+                id: 20,
+                date: new Date('2020-06-10T00:00:00.000Z'),
+                preview: { kind: 'text', text: 'A plain-text media caption.' },
+              },
+              {
+                id: 10,
+                date: new Date('2020-01-10T00:00:00.000Z'),
+                preview: { kind: 'non_text' },
+              },
             ],
             total: 3,
           }
@@ -119,6 +131,10 @@ test.describe('Delete My Messages flow', () => {
 
     await expect(page.getByRole('heading', { name: 'Review deletion' })).toBeVisible()
     await expect(page.getByText('Found 3 messages across 1 chats.')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Message preview' })).toBeVisible()
+    await expect(page.getByText('Five years later, remove this post.')).toBeVisible()
+    await expect(page.getByText('A plain-text media caption.')).toBeVisible()
+    await expect(page.getByText('[Media or sticker]')).toBeVisible()
     await page
       .getByLabel('I understand that 3 messages will be permanently deleted.')
       .check()

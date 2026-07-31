@@ -1735,10 +1735,16 @@ class TelegramService {
     const rawMessages = result.messages
     const messages = rawMessages
       .filter((message): message is Api.Message => message instanceof Api.Message)
-      .map((message) => ({
-        id: message.id,
-        date: new Date(message.date * 1000),
-      }))
+      .map((message) => {
+        const text = message.message
+        return {
+          id: message.id,
+          date: new Date(message.date * 1000),
+          preview: text.trim()
+            ? ({ kind: 'text', text } as const)
+            : ({ kind: 'non_text' } as const),
+        }
+      })
       .filter((message) => {
         if (options.minDate && message.date < options.minDate) return false
         if (options.maxDate && message.date > options.maxDate) return false
