@@ -801,6 +801,14 @@
     "contentUnavailable": "Kontent mavjud emas",
     "contentUnavailableHint": "Ushbu zaxira ma'lumotlari brauzer tomonidan o'chirilgan. Faqat qisqacha ma'lumot qoldi — uni o'chiring va Telegram'dan qayta eksport qiling."
   },
+  "connectionStatus": {
+    "connecting": "{name} Telegram’ga ulanmoqda…",
+    "reconnecting": "Ulanish uzildi. {name} qayta ulanmoqda…",
+    "rateLimited": "Telegram so‘rovlarni cheklamoqda. {seconds} soniyadan keyin davom etadi.",
+    "error": "{name} ulanmayapti. Ishingiz va mahalliy ma’lumotlaringiz o‘zgarmadi.",
+    "retry": "Qayta ulash",
+    "retrying": "Qayta ulanmoqda…"
+  },
   "jobs": {
     "heading": "Fondagi vazifalar",
     "clearCompleted": "Yakunlanganlarni tozalash",

@@ -801,6 +801,14 @@
     "contentUnavailable": "Konten tidak tersedia",
     "contentUnavailableHint": "Data cadangan ini dihapus oleh peramban. Hanya ringkasan yang tersisa — hapus dan ekspor lagi dari Telegram."
   },
+  "connectionStatus": {
+    "connecting": "Menghubungkan {name} ke Telegram…",
+    "reconnecting": "Koneksi terputus. Menghubungkan kembali {name}…",
+    "rateLimited": "Telegram membatasi permintaan. Melanjutkan dalam {seconds} dtk.",
+    "error": "Tidak dapat menghubungkan {name}. Pekerjaan dan data lokal Anda tidak berubah.",
+    "retry": "Hubungkan kembali",
+    "retrying": "Menghubungkan kembali…"
+  },
   "jobs": {
     "heading": "Tugas latar belakang",
     "clearCompleted": "Hapus yang selesai",

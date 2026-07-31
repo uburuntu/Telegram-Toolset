@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import AccountSwitcher from '@/components/auth/AccountSwitcher.vue'
 import LoginModal from '@/components/auth/LoginModal.vue'
 import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
+import ConnectionStatusBar from '@/components/layout/ConnectionStatusBar.vue'
 import JobSurface from '@/components/layout/JobSurface.vue'
 import PrivacyFooter from '@/components/layout/PrivacyFooter.vue'
 import SessionRecoveryBanner from '@/components/layout/SessionRecoveryBanner.vue'
@@ -112,6 +113,7 @@ useActiveUserSessionSync(showLoginModal)
 
     <!-- Persistent long-running job surface (survives route changes) -->
     <JobSurface />
+    <ConnectionStatusBar />
 
     <SessionRecoveryBanner
       v-if="showSessionRecoveryBanner"

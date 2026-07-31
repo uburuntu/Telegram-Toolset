@@ -108,6 +108,21 @@ describe('TelegramService connection state', () => {
     expect(stateListener).toHaveBeenLastCalledWith('disconnected')
   })
 
+  it('publishes mtcute automatic reconnection until the transport recovers', () => {
+    const stateListener = vi.fn()
+    service.onConnectionStateChange(stateListener)
+    service.currentUser = { id: BigInt(7), firstName: 'Alice' }
+    service._activeSessionAccountId = 'account-a'
+    service.setConnectionState('connected')
+
+    service.handleRuntimeConnectionState('offline')
+    expect(service.connectionState).toBe('reconnecting')
+
+    service.handleRuntimeConnectionState('connected')
+    expect(service.connectionState).toBe('connected')
+    expect(stateListener).toHaveBeenLastCalledWith('connected')
+  })
+
   it('releases the client and reports error when connect throws', async () => {
     const destroy = vi.fn().mockResolvedValue(undefined)
     service.client = {

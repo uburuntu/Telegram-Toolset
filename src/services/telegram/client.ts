@@ -174,6 +174,19 @@ export class TelegramService {
     })
   }
 
+  private handleRuntimeConnectionState(state: string): void {
+    if (state === 'offline' && this._connectionState === 'connected') {
+      this.setConnectionState('reconnecting')
+    } else if (
+      state === 'connected' &&
+      this.currentUser !== null &&
+      this._activeSessionAccountId !== null
+    ) {
+      this.reconnectAttempts = 0
+      this.setConnectionState('connected')
+    }
+  }
+
   private cancelInteractiveAuth(reason = 'AUTH_FLOW_CANCELLED'): void {
     const attempt = this.activeUserAuthAttempt
     if (!attempt) return
@@ -236,18 +249,7 @@ export class TelegramService {
     const client = createMtcuteClient(apiId, apiHash, {
       onFloodWait: (seconds, method) => this.emitFloodWait(seconds, method),
     })
-    client.onConnectionState.add((state) => {
-      if (state === 'offline' && this._connectionState === 'connected') {
-        this.setConnectionState('reconnecting')
-      } else if (
-        state === 'connected' &&
-        this.currentUser !== null &&
-        this._activeSessionAccountId !== null
-      ) {
-        this.reconnectAttempts = 0
-        this.setConnectionState('connected')
-      }
-    })
+    client.onConnectionState.add((state) => this.handleRuntimeConnectionState(state))
 
     try {
       await importSavedSession(client, this.sessionString)
