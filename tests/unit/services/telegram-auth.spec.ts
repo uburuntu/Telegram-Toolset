@@ -1,95 +1,86 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { telegramService } from '@/services/telegram/client'
+import { tl } from '@mtcute/web'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-describe('telegramService auth flow', () => {
-  const service = telegramService as any
-  const originalClient = service.client
-  const originalCurrentUser = service.currentUser
-  const originalActiveUserAuthAttempt = service.activeUserAuthAttempt
-  const originalUserAuthAttemptId = service.userAuthAttemptId
-  let consoleErrorSpy: ReturnType<typeof vi.spyOn>
+const mtcuteMethods = vi.hoisted(() => ({
+  checkPassword: vi.fn(),
+  deleteMessagesById: vi.fn(),
+  deleteScheduledMessages: vi.fn(),
+  downloadAsBuffer: vi.fn(),
+  forwardMessagesById: vi.fn(),
+  getAllScheduledMessages: vi.fn(),
+  getChat: vi.fn(),
+  getChatEventLog: vi.fn(),
+  getFullUser: vi.fn(),
+  getHistory: vi.fn(),
+  getMe: vi.fn(),
+  getMessages: vi.fn(),
+  getPasswordHint: vi.fn(),
+  getUsers: vi.fn(),
+  iterDialogs: vi.fn(),
+  iterHistory: vi.fn(),
+  logOut: vi.fn(),
+  resolvePeer: vi.fn(),
+  searchMessages: vi.fn(),
+  sendCode: vi.fn(),
+  sendMedia: vi.fn(),
+  sendText: vi.fn(),
+  signIn: vi.fn(),
+  signInBot: vi.fn(),
+}))
 
+vi.mock('@mtcute/web/methods.js', () => mtcuteMethods)
+
+import { TelegramService } from '@/services/telegram/client'
+
+describe('TelegramService auth flow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    service.client = null
-    service.currentUser = null
-    service.activeUserAuthAttempt = null
-    service.userAuthAttemptId = 0
-  })
-
-  afterEach(() => {
-    consoleErrorSpy.mockRestore()
-    service.client = originalClient
-    service.currentUser = originalCurrentUser
-    service.activeUserAuthAttempt = originalActiveUserAuthAttempt
-    service.userAuthAttemptId = originalUserAuthAttemptId
   })
 
   it('re-prompts for a verification code after a recoverable code error', async () => {
-    const codePrompts: string[] = []
-    const startMock = vi.fn(async (authParams: any) => {
-      expect(await authParams.phoneNumber()).toBe('+441234567890')
-
-      codePrompts.push('requested')
-      const firstCode = await authParams.phoneCode()
-      expect(firstCode).toBe('11111')
-
-      const invalidCodeError = Object.assign(new Error('PHONE_CODE_INVALID'), {
-        errorMessage: 'PHONE_CODE_INVALID',
-      })
-      const shouldStop = await authParams.onError(invalidCodeError)
-      expect(shouldStop).toBe(false)
-
-      codePrompts.push('requested-again')
-      const secondCode = await authParams.phoneCode()
-      expect(secondCode).toBe('22222')
-    })
-
-    const getMeMock = vi.fn().mockResolvedValue({
-      id: 42,
-      firstName: 'Auth',
-      lastName: 'Tester',
-      username: 'auth_tester',
-    })
-
+    const service = new TelegramService() as any
     service.client = {
-      start: startMock,
-      getMe: getMeMock,
-      disconnect: vi.fn().mockResolvedValue(undefined),
+      exportSession: vi.fn().mockResolvedValue('mtcute-session'),
     }
+    mtcuteMethods.sendCode.mockResolvedValue({ phoneCodeHash: 'code-hash' })
+    mtcuteMethods.signIn
+      .mockRejectedValueOnce(new tl.RpcError(400, 'PHONE_CODE_INVALID'))
+      .mockResolvedValueOnce({
+        id: 42,
+        firstName: 'Auth',
+        lastName: 'Tester',
+        username: 'auth_tester',
+        phoneNumber: null,
+      })
 
     const onCodeNeeded = vi.fn()
     const onRecoverableError = vi.fn()
-
-    const authPromise = telegramService.startUserAuth('+441234567890', {
+    const authPromise = service.startUserAuth('+441234567890', {
       onCodeNeeded,
       onRecoverableError,
     })
 
-    await vi.waitFor(() => {
-      expect(onCodeNeeded).toHaveBeenCalledTimes(1)
-    })
-
-    expect(telegramService.provideCode('11111')).toBe(true)
+    await vi.waitFor(() => expect(onCodeNeeded).toHaveBeenCalledTimes(1))
+    expect(service.provideCode('11111')).toBe(true)
 
     await vi.waitFor(() => {
       expect(onRecoverableError).toHaveBeenCalledWith(expect.any(Error), 'code')
       expect(onCodeNeeded).toHaveBeenCalledTimes(2)
     })
+    expect(service.provideCode('22222')).toBe(true)
 
-    expect(telegramService.provideCode('22222')).toBe(true)
-
-    const user = await authPromise
-
-    expect(startMock).toHaveBeenCalledTimes(1)
-    expect(getMeMock).toHaveBeenCalledTimes(1)
-    expect(codePrompts).toEqual(['requested', 'requested-again'])
-    expect(user).toEqual({
+    await expect(authPromise).resolves.toEqual({
       id: BigInt(42),
       firstName: 'Auth',
       lastName: 'Tester',
       username: 'auth_tester',
+      phone: undefined,
     })
+    expect(mtcuteMethods.signIn).toHaveBeenNthCalledWith(
+      2,
+      service.client,
+      expect.objectContaining({ phoneCode: '22222', phoneCodeHash: 'code-hash' }),
+    )
+    expect(service.getSessionString()).toBe('mtcute-session')
   })
 })
