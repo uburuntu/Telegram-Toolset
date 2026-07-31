@@ -11,6 +11,7 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "bundle:check": "node scripts/check-bundle-size.mjs",
+    "social:generate": "node scripts/generate-social-preview.mjs",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
     "lint": "biome check src/",
