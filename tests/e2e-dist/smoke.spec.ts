@@ -28,6 +28,15 @@ test.describe('Production build smoke', () => {
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Telegram Power Toolset' })).toBeVisible()
     await expect(page.getByText('Export Deleted Messages')).toBeVisible()
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+      'content',
+      'https://telegram-toolset.rmbk.me/social-preview.png',
+    )
+
+    const socialPreview = await page.request.get('/social-preview.png')
+    expect(socialPreview.ok()).toBe(true)
+    expect(socialPreview.headers()['content-type']).toContain('image/png')
+    expect((await socialPreview.body()).byteLength).toBeGreaterThan(50_000)
 
     // Opening a module pulls in the lazy auth flow in the production bundle.
     await page.getByText('Account Info').click()

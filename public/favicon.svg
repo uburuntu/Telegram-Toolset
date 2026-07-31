@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Telegram Toolset">
+  <rect width="64" height="64" rx="12" fill="#2563eb"/>
+  <path d="M16 20h32M16 32h32M16 44h32" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="25" cy="20" r="6" fill="#fff"/>
+  <circle cx="40" cy="32" r="6" fill="#fff"/>
+  <circle cx="30" cy="44" r="6" fill="#fff"/>
+  <circle cx="25" cy="20" r="2" fill="#2563eb"/>
+  <circle cx="40" cy="32" r="2" fill="#2563eb"/>
+  <circle cx="30" cy="44" r="2" fill="#2563eb"/>
+</svg>
