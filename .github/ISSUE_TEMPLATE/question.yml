@@ -1,0 +1,33 @@
+name: Question
+description: Ask about setup, behavior, or contributing
+title: "question: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste Telegram credentials, tokens, sessions, phone numbers, or private chat content. Security reports belong in a private advisory.
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Include the goal and what you have already tried.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App or commit
+      description: Live site, preview URL, release, branch, or commit SHA.
+  - type: dropdown
+    id: context
+    attributes:
+      label: Context
+      options:
+        - Using the live app
+        - Running locally
+        - Contributing code
+        - Telegram API behavior
+        - Other
+    validations:
+      required: true

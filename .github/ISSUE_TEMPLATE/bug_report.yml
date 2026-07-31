@@ -1,0 +1,87 @@
+name: Bug report
+description: Report reproducible incorrect behavior in Telegram Toolset
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Never include API credentials, session strings, bot tokens, phone numbers, or private chat content.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Account and login
+        - Account Info
+        - Export Deleted Messages
+        - Backups and local data
+        - Resend Messages
+        - Scheduled Messages
+        - Delete My Messages
+        - LLM Context Export
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome / Chromium
+        - Firefox
+        - Safari / WebKit
+        - Mobile Chrome
+        - Mobile Safari
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: account_type
+    attributes:
+      label: Account type
+      options:
+        - User account
+        - Bot token
+        - No account connected
+        - Not applicable
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Use synthetic names and content. State whether this reproduces on the live app or a local checkout.
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Redacted diagnostics
+      description: Add screenshots or console output only after removing all Telegram identifiers and secrets.
+      render: shell
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Data safety
+      options:
+        - label: I removed credentials, tokens, session strings, phone numbers, and private chat content.
+          required: true
+        - label: I did not trigger a destructive action solely to reproduce this report.
+          required: true
