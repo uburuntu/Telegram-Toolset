@@ -227,5 +227,6 @@ describe('DeleteTraceService', () => {
     expect(isRetryableTraceDeleteError(Object.assign(new Error('forbidden'), { code: 403 }))).toBe(
       false,
     )
+    expect(isRetryableTraceDeleteError(new Error('Request was unsuccessful 5 time(s)'))).toBe(false)
   })
 })

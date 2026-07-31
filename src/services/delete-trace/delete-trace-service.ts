@@ -100,6 +100,8 @@ function errorCode(error: unknown): number | undefined {
 export function isRetryableTraceDeleteError(error: Error): boolean {
   if (error.name === 'AbortError') return false
   if (isFloodWaitError(error)) return true
+  // GramJS already retried this request internally; repeating that loop only multiplies load.
+  if (/Request was unsuccessful \d+ time\(s\)/i.test(error.message)) return false
 
   const code = errorCode(error)
   return code === undefined || code >= 500

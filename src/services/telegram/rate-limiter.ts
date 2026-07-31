@@ -29,12 +29,33 @@ export interface FloodWaitError extends Error {
 export function isFloodWaitError(error: unknown): error is FloodWaitError {
   if (error instanceof Error) {
     // GramJS throws errors with errorMessage property
-    const gramError = error as Error & { errorMessage?: string; seconds?: number }
+    const gramError = error as Error & {
+      code?: number
+      errorMessage?: string
+      parameters?: { retry_after?: number }
+      retryAfter?: number
+      seconds?: number
+      status?: number
+      statusCode?: number
+    }
+
+    // Also accept Bot API / HTTP client 429 shapes so callers share one backoff policy.
+    if ([gramError.code, gramError.status, gramError.statusCode].includes(429)) {
+      const retryAfter = gramError.retryAfter ?? gramError.parameters?.retry_after
+      const messageMatch = error.message.match(/retry\s+after\s+(\d+)/i)
+      gramError.seconds =
+        typeof retryAfter === 'number' && retryAfter > 0
+          ? retryAfter
+          : messageMatch?.[1]
+            ? parseInt(messageMatch[1], 10)
+            : 60
+      return true
+    }
 
     // Check for FLOOD_WAIT pattern
-    if (gramError.errorMessage?.startsWith('FLOOD_WAIT_')) {
-      // Extract seconds from error message like "FLOOD_WAIT_420"
-      const match = gramError.errorMessage.match(/FLOOD_WAIT_(\d+)/)
+    if (gramError.errorMessage?.startsWith('FLOOD_')) {
+      // Extract seconds from errors like FLOOD_WAIT_420 and FLOOD_PREMIUM_WAIT_420.
+      const match = gramError.errorMessage.match(/FLOOD(?:_PREMIUM)?_WAIT_(\d+)/)
       if (match?.[1]) {
         ;(error as FloodWaitError).seconds = parseInt(match[1], 10)
         return true
