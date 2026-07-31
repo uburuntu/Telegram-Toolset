@@ -1,10 +1,16 @@
-# Design System & Development Guidelines
+# Telegram Toolset Agent Guide
+
+This is the only `AGENTS.md` in the repository and applies to the whole tree. Read it before making
+changes; use nested guides only if the repository deliberately adds them later.
 
 ## Design Philosophy
 
 Clean, professional, fast. No gimmicks. The interface should feel like a native tool, not a flashy website.
 
-**Respect the user**: No cookie popups, no notifications/badges, no onboarding tours, no update prompts, no newsletter, no AI, no review begging. Request permissions only when the feature is used.
+**Respect the user**: No cookie popups, unsolicited prompts, onboarding tours, newsletters, review
+begging, engagement badges, analytics, or in-app AI. Functional toasts, job status, warnings, and
+account-state badges are appropriate when they report a user-initiated operation. Request permissions
+only when the corresponding feature is used.
 
 ## Product Vision
 
@@ -30,8 +36,49 @@ This repository is no longer treated as a single-purpose deleted-messages utilit
 ## Returning Later
 
 - Read this file first, then `README.md`.
-- Re-establish the baseline with the standard verification commands before changing behavior.
+- Confirm the worktree and branch before changing files. The default branch is `main`; there is no
+  `master` branch. Do not overwrite unrelated local changes.
+- Re-establish the relevant baseline with focused tests before changing behavior.
 - Prioritize live Telegram validation and safe local-data lifecycle follow-through before major rewrites or visual refreshes.
+
+## Working Agreement
+
+- Keep changes scoped to the requested tool and shared contracts it genuinely depends on.
+- For framework, SDK, Telegram API, or CLI behavior, consult current upstream documentation and the
+  installed package types instead of relying on memory. GramJS documentation can lag its generated
+  TL types, so verify request/response fields in the installed `telegram` package as well.
+- Use the typed domains in `services/telegram/gateway/` from feature code. Direct access to the legacy
+  `telegramService` singleton is reserved for auth/session infrastructure and adapter work.
+- Make focused commits as meaningful slices become green. Pull requests receive a temporary Surge
+  preview only after the complete CI gate passes.
+- Never exercise a destructive Telegram action against production or a real account in browser
+  automation. Use injected Telegram mocks for scan/delete/send tests. Live destructive validation is
+  user-operated only, after the UI has shown the exact target and payload.
+- Read-only live validation should minimize Telegram calls, reuse cached data, and avoid retaining
+  sensitive response fields that the UI does not need.
+
+## Verification
+
+Use the smallest useful loop while developing, then run the full applicable gate before handoff.
+
+```bash
+npm run lint
+npm run check:i18n
+npm run type-check
+npm run test:unit
+npm run test:component
+npm run build
+npm run bundle:check
+npm run test:e2e
+npm run test:e2e:dist
+```
+
+- Run focused Vitest/Playwright specs first when iterating.
+- User-facing responsive flows need desktop and mobile coverage. Telegram/browser integration changes
+  also need Chromium, Firefox, and WebKit coverage where the configured projects apply.
+- `test:e2e:dist` requires a current `dist/` from `npm run build` and validates the production bundle.
+- Browser tests must use mock account data and intercepted Telegram requests. A passing mock E2E run
+  does not replace an explicitly scoped, non-destructive live Telegram smoke test.
 
 ## Border Radius
 
@@ -73,8 +120,8 @@ Instant feedback. Animations should be imperceptible, not decorative.
 | Loading spinners | 600ms | linear |
 
 ```css
-/* Standard transition */
-transition: all 100ms ease-out;
+/* Prefer the specific property being animated. */
+transition: color 100ms ease-out;
 
 /* Tailwind */
 transition-all duration-100 ease-out
@@ -143,12 +190,12 @@ Use consistent spacing within component types.
 
 ```html
 <!-- Primary -->
-<button class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-150">
+<button class="px-4 py-2 rounded-md font-medium text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-100">
   Action
 </button>
 
 <!-- Secondary -->
-<button class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-150">
+<button class="px-4 py-2 rounded-md font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-100">
   Cancel
 </button>
 ```
@@ -156,7 +203,7 @@ Use consistent spacing within component types.
 ### Cards
 
 ```html
-<div class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow transition-shadow duration-150">
+<div class="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow transition-shadow duration-100">
   Content
 </div>
 ```
@@ -164,7 +211,7 @@ Use consistent spacing within component types.
 ### Inputs
 
 ```html
-<input class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-150" />
+<input class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100" />
 ```
 
 ### Modals
@@ -213,30 +260,47 @@ Mobile-first approach: default styles for mobile, add complexity at larger break
 
 ## Core Architecture (Web App)
 
-- **App shell**: Vue 3 + Vite + TS, Pinia stores, Vue Router. The current app is landing-first; the production target is a persistent workspace shell with stable module navigation and visible long-running jobs.
+- **App shell**: Vue 3 + Vite + TypeScript, Pinia, and Vue Router. The shell owns the persistent
+  header, multi-account switcher, session-recovery banner, long-running job surface, toast region,
+  and privacy footer. The landing page is the tool registry; authenticated routes are lazy-loaded.
 - **Modules system**: `src/modules/index.ts` is the registry for first-class, expandable tools. New modules must plug into shared auth, permissions, navigation, and QA patterns.
 - **Auth UX**: Multi-account auth/session handling is a shared platform capability, not a one-off flow owned by a single module.
 - **Telegram clients**:
-  - **User**: GramJS via `telegramService` (MTProto) for dialogs/admin log/export/resend. Production direction is a typed Telegram gateway with smaller modules and worker isolation for heavy tasks.
-  - **Bot**: HTTP Bot API for `getMe` validation (no MTProto needed).
-- **Account Info module**: Replaces bot-only view; shows data for both user and bot accounts. For bots, uses `getMe` to display name, username, capabilities (join groups, privacy mode, inline, web app).
+  - **User**: GramJS via the typed Telegram gateway (MTProto) for dialogs, admin log, history,
+    scheduled messages, account details, deletion, and resend. The legacy client remains behind the
+    gateway adapter while it is decomposed.
+  - **Bot**: HTTP Bot API for `getMe` identity/capabilities. Retry only network, 429, and 5xx
+    failures; invalid tokens and other permanent 4xx responses fail immediately.
+- **Account Info module**: Shows data for both user and bot accounts. User accounts include extended profile metadata plus a privacy-minimized security/session summary; authorization hashes, IP addresses, password hints, and recovery-email patterns must not cross the Telegram gateway. For bots, `getMe` supplies identity and current capabilities (groups, privacy mode, inline queries, attachment menu, business connections, and Web App).
+- **Account avatars**: `useAccountProfilePhotos` deduplicates active-user photo downloads and shares
+  object URLs between Account Info and the account switcher. Keep the cache memory-only, revoke URLs
+  when accounts disappear, and do not switch sessions merely to fetch inactive-account photos.
+- **Chat selection**: `components/telegram/ChatSelector.vue` is the shared selector for tool routes.
+  Tool-specific eligibility belongs in `ChatSelectorConfig`; search, category/public/admin/sendable/
+  selected filters, sorting, counts, density, and selection mode remain shared behavior.
 - **Storage**: IndexedDB for backups/media/export caches and encrypted account secrets. Non-sensitive metadata and preferences may stay in localStorage, but API credentials, bot tokens, and user session strings must persist via encrypted IndexedDB + WebCrypto with legacy migration support. Backups and LLM exports should carry ownership metadata, archive on account removal rather than being hard-deleted by default, and surface explicit claim/delete actions when local data needs manual cleanup.
 - **Internationalization**: `vue-i18n` is required for user-facing copy. Current locales include `en`, `ru`, `ar`, `es`, `fa`, `id`, `pt`, `tr`, `uk`, `uz`; production work must preserve escaping safety and completeness standards.
 - **Security/Privacy**: On-device only; no backend, no analytics, no tracking. Sensitive inputs must stay masked, validated, and minimally persisted.
-- **CI/Test**: Vitest (unit/component), Playwright (E2E plus a production-build Chromium smoke over the built `dist`), GitHub Actions with Corepack-pinned, deterministic `npm ci` installs, a rollback-safe (latest-commit-gated) Pages deploy, and desktop/mobile Playwright coverage in CI. The next gap is stronger live-integration and full route-level coverage, not basic CI plumbing.
+- **CI/Test**: Vitest unit/component coverage, Playwright across Chromium/Firefox/WebKit plus mobile
+  Chrome/Safari, a production-build Chromium smoke, bundle budgets, deterministic `npm ci`, PR Surge
+  previews, and a latest-main-gated Pages deploy. Keep route-level mock coverage and focused service
+  contract tests in step with each tool.
 - **Architecture plan**: Follow the productionization dependency order below. Stable principals and session/job coordination precede service and view decomposition.
 
-## Productionization Dependency Order
+## Architecture Dependency Order
 
-Follow these staged dependencies when implementing structural work:
+These are dependency constraints, not a request to rebuild contracts that already exist:
 
-1. Establish stable principals and one session coordinator.
-2. Introduce account-affine jobs with bounded cancellation and explicit uncertain outcomes.
-3. Harden the transactional account/storage repository, durable account-removal quiescing, and
-   local-data lifecycle.
-4. Migrate stable peer references, capability gateways, and mutation-safe retry semantics.
-5. Add bounded worker execution, executable quota policies, and production-artifact checks.
-6. Decompose route workflows after those platform contracts exist.
+1. Preserve stable principals and the single session coordinator before changing account behavior.
+2. Put long-running account-affine mutations behind the job runtime, bounded cancellation, account
+   epoch/session fences, and explicit uncertain outcomes.
+3. Preserve the transactional account/storage repository, account-removal quiescing, ownership
+   lifecycle, quarantine, and commit fences before moving persistence work.
+4. Use stable peer references and gateway capabilities; harden mutation semantics before increasing
+   concurrency or adding retries.
+5. Add worker execution and broader quota enforcement only behind those ownership/session contracts.
+6. Decompose remaining route workflows without bypassing the shared selector, gateway, jobs, i18n,
+   or test surfaces.
 
 At every stage, preserve the modular product surface and keep `Scheduled Messages` and
 `LLM Context Export` fully supported within the shared shell.
@@ -263,7 +327,11 @@ A job is a request-scoped unit of long-running work (export, resend, scheduled s
 - **Account epoch (`stores/accounts.ts`)**: a monotonic per-account counter persisted per account in `localStorage`. `removeAccount()` advances the epoch *before* archival begins and rolls it back if removal aborts. A job captures the epoch at start; a later removal advances it so a late owned-record write fails its commit instead of orphaning data that archival already skipped. Because `localStorage` is synchronously consistent across same-origin tabs, reading the epoch at commit time also fences a stale write whose account was removed in another tab. The tombstone key is never deleted on removal (that advanced value is what keeps fencing late writes); broader cross-tab invalidation of cached account/ownership state is handled separately by the cross-tab invalidation channel.
 - **Commit fence (`CommitOptions.ensureCommittable`)**: threaded into the backup and LLM-export persistence boundaries (`backupManager.createBackup`, `saveChatExportBundle`). It runs synchronously immediately before the durable write and throws an `AbortError` when the owning account was removed mid-run. Views build it from the captured epoch.
 - **Multi-peer outcomes (`MultiPeerResult` / `summarizeMultiPeerResult`)**: destructive jobs across many peers record a per-peer `DeliveryOutcome` (`delivered | failed | skipped | delivery_uncertain | abandoned`). `scheduledService.deleteScheduledMessagesByPeer` reconciles each confirmed peer as it settles, so a later peer's failure never discards earlier confirmed deletions, and the view reports full/partial/failed accurately.
-- **Shell job registry (`stores/jobs.ts`)**: `useJobsStore` is a pure, observable projection of active and recently completed `JobRecord`s so the app shell can surface long-running work. Wiring view-owned tasks into this registry (so route unmounting no longer defines job lifetime) touches mutation flows, so it must go through a live Telegram smoke pass.
+- **Runner + shell registry (`services/jobs/job-runner.ts`, `stores/jobs.ts`)**: `runJob()` owns the
+  controller and in-flight promise; `useJobsStore` is only its observable projection. Registering a
+  record without running through the runner does not make work route-independent. Every migrated
+  mutation needs cancellation, owner fencing, distinct target-aware titles, and a live-safe smoke
+  pass.
 
 ### Telegram Service (`services/telegram/client.ts`)
 
@@ -273,10 +341,14 @@ Central singleton for all Telegram MTProto operations via GramJS:
 - **Authentication**: Phone + code + 2FA password flow; session string storage
 - **Entity cache**: In-memory `Map<bigint, Entity>` to avoid redundant `getEntity()` calls
 - **Key methods**:
-  - `getAdminLog()` - fetch deleted messages from chat admin log
+  - `iterDeletedMessages()` - stream deleted messages from the admin log
+  - `searchOwnMessages()` / `deleteMessages()` / `getExistingMessageIds()` - scan, mutate, and
+    reconcile the Delete My Messages workflow
   - `resolveSenderInfo()` - get sender name/username from cache or API
+  - `getFullMe()` / `getAccountSecurityInfo()` - fetch extended self-profile data and a privacy-minimized security/session summary
   - `canSendToChat()` - permission check before resend
-  - `sendMessage()` / `sendFile()` - send text/media with retry support
+  - `sendMessage()` / `sendFile()` - mutation boundaries whose ambiguous outcomes must not be treated
+    as confirmed delivery
 
 ### Rate Limiter (`services/telegram/rate-limiter.ts`)
 
@@ -284,13 +356,25 @@ Centralized rate limiting and retry logic:
 - **Semaphore**: Controls concurrent operations (e.g., max 3 parallel downloads)
 - **withRetry()**: Generic retry wrapper with exponential backoff
 - **FloodWait handling**: Parses `FloodWaitError` from various formats, waits accordingly
+- **Read classifier**: `isRetryableTelegramReadError()` retries safe reads for flood waits, network
+  failures, and 5xx responses while stopping on permanent RPC failures and exhausted internal loops
 - **Progress utilities**: `formatDuration()`, `calculateETA()` for UI feedback
+
+### Bot API (`services/telegram/bot-api.ts`)
+
+- `getBotInfo()` calls only `getMe`; bot tokens stay masked in UI and encrypted at rest.
+- The wrapper preserves current capability fields such as attachment-menu, business-connect, and main
+  Web App support.
+- Bot API `retry_after` controls 429 backoff. Network and 5xx failures may retry; invalid tokens and
+  other permanent 4xx responses may not.
 
 ### Delete Trace Service (`services/delete-trace/delete-trace-service.ts`)
 
 Finds and removes messages attributed to the active user in explicitly selected chats.
 - **Server-side filtering**: Uses paginated `messages.search` requests with `from_id` set to the active user, so unrelated chat history is never downloaded. Pages and deletion batches are capped at 100 message IDs.
 - **Review before mutation**: Scanning is a separate, cancellable read phase. Partial chat scans are discarded and cannot feed deletion.
+- **Plain-text preview**: The confirmation step lists the text of every matched message. Textless media,
+  stickers, and service messages use bracketed semantic placeholders; no media download is needed.
 - **Retry semantics**: Reads retry transient failures. Message deletion is idempotent by ID, so transient failures and explicit flood waits may retry; permanent 4xx RPC failures stop immediately, and a GramJS-internal exhausted retry loop is not multiplied externally.
 - **Ambiguous outcomes**: After an exhausted transport/server failure, the service reads the batch back once to confirm which IDs still exist. Unreconciled requests are reported as `delivery_uncertain`, never as success.
 - **Identity limit**: Telegram only returns messages attributed to the user principal. Anonymous admin posts and posts sent as a channel are intentionally reported as outside the scan.
@@ -311,6 +395,9 @@ Batch-aware message resending:
 - **Header formatting**: Configurable (sender name, username, date, reply links, hidden links)
 - **Media handling**: Retrieves blobs from IndexedDB, sends via `sendFile()`
 - **Cancellation**: Same `AbortController` pattern as export
+- **Mutation warning**: A timed-out send can still have reached Telegram. Do not broaden generic send
+  retries or report an ambiguous completion as delivered; reconciliation/idempotency must precede
+  stronger retry behavior.
 
 ### Storage Services (`services/storage/`)
 
@@ -323,7 +410,7 @@ Batch-aware message resending:
 
 ## Type System (`types/`)
 
-Key interfaces (all exported from `types/index.ts`):
+Core domain interfaces exported from `types/index.ts`:
 - `DeletedMessage`: Core message representation with sender info, media, timestamps
 - `ExportConfig` / `ResendConfig`: Operation configuration matching Python models
 - `ExportProgress`: Real-time progress tracking (current/total, phase, ETA, errors)
@@ -332,15 +419,22 @@ Key interfaces (all exported from `types/index.ts`):
 - `DeliveryOutcome` / `PeerOutcome` / `MultiPeerResult` + `summarizeMultiPeerResult`: per-peer results for destructive multi-peer jobs
 - `CommitOptions`: commit-fence hook threaded into persistence boundaries
 
-## Module Views
+Telegram adapter response types such as `FullUserInfo`, `AccountStats`, and `AccountSecurityInfo`
+remain colocated with `services/telegram/client.ts` and are exposed to features through gateway
+contracts. Do not move raw GramJS entities into shared domain types.
 
-Lazy-loaded route components in `modules/`:
+## Product Routes
+
+Lazy-loaded tool routes and authenticated workspace routes:
 - **ExportView**: Chat selection → export config → progress with cancel/ETA
 - **ResendView**: Backup/chat selection → full resend config → progress
 - **ScheduledView**: Scheduled message discovery, filtering, and deletion workflows
-- **DeleteTraceView**: Multi-chat, optional-date-range scan and reviewed deletion of the active user's messages
+- **DeleteTraceView / Delete My Messages**: Multi-chat, optional-date-range scan → complete text review
+  → explicit acknowledgement → reviewed deletion of messages attributed to the active user
 - **LlmExportView**: Chat-history export and archive formatting for external assistants/tools
-- **AccountInfoView**: Displays current account details (user or bot)
+- **AccountInfoView**: Extended user profile/security/session facts or current Bot API capabilities
+- **BackupsView**: Account-owned backup management and resend entry points
+- **LocalDataView**: Account-independent inspection, repair, claim, and deletion of retained local data
 
 ## Key Design Decisions
 
@@ -352,6 +446,10 @@ Lazy-loaded route components in `modules/`:
 6. **Two-phase export**: Allows progress feedback and early metadata availability.
 7. **Batched resend**: Reduces API calls by combining short consecutive messages.
 8. **Centralized retry utilities**: `withRetry()` handles cancellable backoff and FloodWait parsing for retry-safe operations. Do not apply generic retries to ambiguous sends.
+9. **Shared selection**: Tool routes configure `ChatSelector`; they do not fork their own dialog
+   filtering UI.
+10. **Reviewed destructive actions**: Separate discovery from mutation, preview exact scope, require an
+    acknowledgement, reconcile uncertain outcomes, and identify background jobs by target.
 
 ## GramJS Browser Integration (Critical)
 
@@ -404,17 +502,15 @@ async useUserAccountSession(data: { sessionString, apiId, apiHash }) {
 }
 ```
 
-### 4. Race Condition: Auth Flow vs Account Watcher
+### 4. Auth Flow vs Session Synchronization
 
-When active-account session synchronization runs during login, it can interfere with the in-progress auth flow. Keep the guard in the session-sync boundary:
+Interactive login temporarily owns the client. `useActiveUserSessionSync()` must return a `hold`
+request while the login modal is open; feature components must not add their own account/session
+watchers that call `connect()`, `disconnect()`, or `useUserAccountSession()`.
 
 ```javascript
-watch([() => accountsStore.activeAccount?.id, showLoginModal], async () => {
-  if (showLoginModal.value) {
-    return
-  }
-  // ... sync session
-})
+if (showLoginModal.value) return { kind: 'hold' }
+return { kind: 'activate', request: accountSessionRequest }
 ```
 
 ### 5. `_rawMessage` is Runtime-Only
@@ -460,6 +556,21 @@ await store.put(toPlainSnapshot(record))
 ```
 
 It deep-unwraps reactivity while preserving clone-safe leaves (bigint, Date, Blob, ArrayBuffer, typed arrays, CryptoKey) and is a no-op on already-plain data. Apply the same snapshot to any future `postMessage`/Worker payload that may carry reactive state (see the "move long-running work off the main thread" direction).
+
+### 9. Profile Photo Object URLs
+
+Profile photos are optional Telegram reads and must not create duplicate downloads or leaked object
+URLs. Use `useAccountProfilePhotos()` rather than calling `downloadMyProfilePhoto()` from multiple
+components. The shared cache:
+
+- loads only the active, ready user session;
+- deduplicates concurrent header/route requests;
+- keeps photos memory-only and keyed by the local account id;
+- fences late completions after account removal; and
+- revokes object URLs when the corresponding local account disappears.
+
+Do not persist profile photo blobs or URLs, and do not activate an inactive account just to populate
+its avatar.
 
 ## vue-i18n Special Characters (Critical)
 
