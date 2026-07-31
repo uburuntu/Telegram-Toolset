@@ -143,6 +143,8 @@
     "logInAgain": "Iniciar sesión de nuevo",
     "sessionExpiredTitle": "{name} necesita iniciar sesión de nuevo",
     "sessionExpiredDescription": "Esta cuenta sigue seleccionada, pero su sesión guardada de Telegram ya no es válida. Las acciones de Telegram no funcionarán hasta que vuelva a iniciar sesión.",
+    "sessionUpgradeTitle": "Vuelve a conectar {name} después de la actualización",
+    "sessionUpgradeDescription": "Tu cuenta y tus datos locales siguen aquí. Inicia sesión una vez para crear una nueva sesión segura de Telegram.",
     "secretUnreadable": "Requiere atención",
     "secretUnreadableHint": "No se pudieron leer los datos de inicio de sesión guardados de esta cuenta. Inicia sesión de nuevo o elimínala."
   },

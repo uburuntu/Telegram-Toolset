@@ -143,6 +143,8 @@
     "logInAgain": "Masuk lagi",
     "sessionExpiredTitle": "{name} perlu masuk lagi",
     "sessionExpiredDescription": "Akun ini masih dipilih, tetapi sesi Telegram yang tersimpan sudah tidak valid. Tindakan Telegram tidak akan berfungsi sampai Anda masuk lagi.",
+    "sessionUpgradeTitle": "Hubungkan kembali {name} setelah peningkatan koneksi",
+    "sessionUpgradeDescription": "Akun dan data lokal Anda tetap ada. Masuk sekali untuk membuat sesi Telegram aman yang baru.",
     "secretUnreadable": "Perlu perhatian",
     "secretUnreadableHint": "Data masuk tersimpan untuk akun ini tidak dapat dibaca. Masuk lagi atau hapus akun ini."
   },

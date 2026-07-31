@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import AccountSwitcher from '@/components/auth/AccountSwitcher.vue'
 import LoginModal from '@/components/auth/LoginModal.vue'
 import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
 import JobSurface from '@/components/layout/JobSurface.vue'
 import PrivacyFooter from '@/components/layout/PrivacyFooter.vue'
+import SessionRecoveryBanner from '@/components/layout/SessionRecoveryBanner.vue'
 import { useActiveUserSessionSync } from '@/composables'
 import { useAccountsStore, useUiStore } from '@/stores'
-
-const { t } = useI18n()
 
 const route = useRoute()
 const accountsStore = useAccountsStore()
@@ -115,31 +113,14 @@ useActiveUserSessionSync(showLoginModal)
     <!-- Persistent long-running job surface (survives route changes) -->
     <JobSurface />
 
-    <!-- Main Content -->
-    <div
+    <SessionRecoveryBanner
       v-if="showSessionRecoveryBanner"
-      class="border-b border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
-    >
-      <div
-        class="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
-      >
-        <div class="min-w-0">
-          <p class="text-sm font-medium text-amber-900 dark:text-amber-100">
-            {{ t('accounts.sessionExpiredTitle', { name: sessionRecoveryLabel }) }}
-          </p>
-          <p class="text-sm text-amber-800 dark:text-amber-200">
-            {{ t('accounts.sessionExpiredDescription') }}
-          </p>
-        </div>
-        <button
-          @click="openReloginModal"
-          class="px-4 py-2 rounded-md font-medium text-sm transition-colors duration-100 bg-amber-600 text-white hover:bg-amber-700 self-start lg:self-auto"
-        >
-          {{ t('accounts.logInAgain') }}
-        </button>
-      </div>
-    </div>
+      :name="sessionRecoveryLabel"
+      :issue="accountsStore.activeAccountSessionIssue"
+      @reconnect="openReloginModal"
+    />
 
+    <!-- Main Content -->
     <main class="flex-1">
       <router-view />
     </main>

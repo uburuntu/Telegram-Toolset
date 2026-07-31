@@ -143,6 +143,8 @@
     "logInAgain": "Tekrar Giriş Yap",
     "sessionExpiredTitle": "{name} için yeniden giriş gerekiyor",
     "sessionExpiredDescription": "Bu hesap hâlâ seçili, ancak kaydedilmiş Telegram oturumu artık geçerli değil. Yeniden giriş yapana kadar Telegram işlemleri çalışmaz.",
+    "sessionUpgradeTitle": "Bağlantı güncellemesinden sonra {name} hesabını yeniden bağlayın",
+    "sessionUpgradeDescription": "Hesabınız ve yerel verileriniz duruyor. Yeni ve güvenli bir Telegram oturumu oluşturmak için bir kez giriş yapın.",
     "secretUnreadable": "Dikkat gerekiyor",
     "secretUnreadableHint": "Bu hesabın kayıtlı oturum açma verileri okunamadı. Tekrar giriş yapın veya hesabı kaldırın."
   },
