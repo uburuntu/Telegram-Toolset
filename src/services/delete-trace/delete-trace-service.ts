@@ -121,6 +121,10 @@ function chunks<T>(items: readonly T[], size: number): T[][] {
   return result
 }
 
+function telegramPeer(chat: ChatInfo): bigint | string {
+  return chat.peerId ?? chat.id
+}
+
 export class DeleteTraceService {
   private readonly gateway: TraceServiceGateway
 
@@ -177,7 +181,7 @@ export class DeleteTraceService {
             throwIfAborted(operationSignal)
             const page = await withRetry(
               () =>
-                this.gateway.trace.searchOwnMessages(chat.id, {
+                this.gateway.trace.searchOwnMessages(telegramPeer(chat), {
                   ...range,
                   offsetId,
                   limit: SEARCH_PAGE_SIZE,
@@ -303,13 +307,16 @@ export class DeleteTraceService {
           try {
             // Repeating deletion by the same IDs has the same final state, so transient and
             // FLOOD_WAIT failures are safe to retry. Permanent RPC rejections stop immediately.
-            await withRetry(() => this.gateway.trace.deleteMessages(scan.chat.id, batch), {
-              maxRetries: DELETE_ATTEMPTS,
-              signal: operationSignal,
-              shouldRetry: isRetryableTraceDeleteError,
-              onFloodWait: (seconds) =>
-                this.reportExplicitFloodWait(seconds, callbacks, operationSignal),
-            })
+            await withRetry(
+              () => this.gateway.trace.deleteMessages(telegramPeer(scan.chat), batch),
+              {
+                maxRetries: DELETE_ATTEMPTS,
+                signal: operationSignal,
+                shouldRetry: isRetryableTraceDeleteError,
+                onFloodWait: (seconds) =>
+                  this.reportExplicitFloodWait(seconds, callbacks, operationSignal),
+              },
+            )
             affected += batch.length
             confirmedMessages += batch.length
           } catch (error) {
@@ -371,7 +378,7 @@ export class DeleteTraceService {
   ): Promise<{ existingIds: number[] } | null> {
     try {
       const existingIds = await withRetry(
-        () => this.gateway.trace.getExistingMessageIds(chat.id, messageIds),
+        () => this.gateway.trace.getExistingMessageIds(telegramPeer(chat), messageIds),
         {
           maxRetries: READ_ATTEMPTS,
           signal,

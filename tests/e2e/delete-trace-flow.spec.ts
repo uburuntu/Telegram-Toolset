@@ -34,6 +34,7 @@ async function injectTelegramTraceMock(page: Page): Promise<void> {
     const chats = [
       {
         id: BigInt(10),
+        peerId: '-10010',
         title: 'Public Archive Chat',
         type: 'supergroup',
         username: 'archive_chat',
@@ -60,8 +61,8 @@ async function injectTelegramTraceMock(page: Page): Promise<void> {
       connectionState: 'connected',
       onFloodWait: () => () => {},
       getDialogs: async () => chats,
-      searchOwnMessages: async (chatId: bigint) => {
-        if (chatId === BigInt(10)) {
+      searchOwnMessages: async (chatId: bigint | string) => {
+        if (chatId === '-10010') {
           return {
             messages: [
               { id: 30, date: new Date('2021-01-10T00:00:00.000Z') },
@@ -131,6 +132,6 @@ test.describe('Delete My Messages flow', () => {
       // @ts-ignore - E2E assertion hook installed above.
       return window.__traceDeleteCalls
     })
-    expect(calls).toEqual([{ chatId: '10', messageIds: [30, 20, 10] }])
+    expect(calls).toEqual([{ chatId: '-10010', messageIds: [30, 20, 10] }])
   })
 })
