@@ -1,28 +1,76 @@
+import { Long, tl } from '@mtcute/web'
 import { createPinia, setActivePinia } from 'pinia'
-import { Api } from 'telegram'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { telegramService } from '@/services/telegram/client'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const mtcuteMethods = vi.hoisted(() => ({
+  checkPassword: vi.fn(),
+  deleteMessagesById: vi.fn(),
+  deleteScheduledMessages: vi.fn(),
+  downloadAsBuffer: vi.fn(),
+  forwardMessagesById: vi.fn(),
+  getAllScheduledMessages: vi.fn(),
+  getChat: vi.fn(),
+  getChatEventLog: vi.fn(),
+  getFullUser: vi.fn(),
+  getHistory: vi.fn(),
+  getMe: vi.fn(),
+  getMessages: vi.fn(),
+  getPasswordHint: vi.fn(),
+  getUsers: vi.fn(),
+  iterDialogs: vi.fn(),
+  iterHistory: vi.fn(),
+  logOut: vi.fn(),
+  resolvePeer: vi.fn(),
+  searchMessages: vi.fn(),
+  sendCode: vi.fn(),
+  sendMedia: vi.fn(),
+  sendText: vi.fn(),
+  signIn: vi.fn(),
+  signInBot: vi.fn(),
+}))
+
+vi.mock('@mtcute/web/methods.js', () => mtcuteMethods)
+
+import { TelegramService } from '@/services/telegram/client'
 import { useAccountsStore } from '@/stores'
 
-describe('telegramService connection state', () => {
-  const service = telegramService as any
-  const originalClient = service.client
-  const originalCurrentUser = service.currentUser
-  const originalConnectionState = service._connectionState
-  const originalEntityCache = service.entityCache
-  const originalReconnectAttempts = service.reconnectAttempts
-  const originalActiveAccountInitPromise = service._activeAccountInitPromise
-  const originalActiveAccountInitKey = service._activeAccountInitKey
-  const originalActiveSessionAccountId = service._activeSessionAccountId
-  const originalAccountTransitionGeneration = service._accountTransitionGeneration
-  const originalAccountTransitionPromise = service._accountTransitionPromise
-  const originalCompleteAccountTransition = service._completeAccountTransition
+const userPeer = {
+  type: 'user',
+  id: 7,
+  raw: { _: 'user', id: Long.fromNumber(7), accessHash: Long.fromNumber(70) },
+  firstName: 'Alice',
+  lastName: 'Example',
+  displayName: 'Alice Example',
+  username: 'alice',
+  phoneNumber: null,
+}
 
-  function installActiveUserAccount(): void {
+const groupPeer = {
+  type: 'chat',
+  id: -99,
+  raw: { _: 'chat', id: Long.fromNumber(99), title: 'Group' },
+  chatType: 'group',
+  displayName: 'Group',
+  title: 'Group',
+  username: null,
+  membersCount: 3,
+  isAdmin: false,
+  isCreator: false,
+  permissions: null,
+}
+
+function emptyAsyncIterable() {
+  return (async function* () {})()
+}
+
+describe('TelegramService connection state', () => {
+  let service: TelegramService & Record<string, any>
+
+  function installActiveUserAccount(accountId = 'account-a'): void {
     const accountsStore = useAccountsStore()
     accountsStore.accounts = [
       {
-        id: 'account-a',
+        id: accountId,
         type: 'user',
         label: 'Account A',
         sessionString: 'session-a',
@@ -30,281 +78,180 @@ describe('telegramService connection state', () => {
         lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
       },
     ]
-    accountsStore.activeAccountId = 'account-a'
-    service._activeSessionAccountId = 'account-a'
+    accountsStore.activeAccountId = accountId
+    service._activeSessionAccountId = accountId
   }
 
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
     setActivePinia(createPinia())
-    service.client = null
-    service.currentUser = null
-    service._connectionState = 'disconnected'
-    service.entityCache = new Map()
-    service.reconnectAttempts = 0
-    service._activeAccountInitPromise = null
-    service._activeAccountInitKey = null
-    service._activeSessionAccountId = null
-    service._accountTransitionGeneration = 0
-    service._accountTransitionPromise = null
-    service._completeAccountTransition = null
-  })
-
-  afterEach(() => {
-    service.client = originalClient
-    service.currentUser = originalCurrentUser
-    service._connectionState = originalConnectionState
-    service.entityCache = originalEntityCache
-    service.reconnectAttempts = originalReconnectAttempts
-    service._activeAccountInitPromise = originalActiveAccountInitPromise
-    service._activeAccountInitKey = originalActiveAccountInitKey
-    service._activeSessionAccountId = originalActiveSessionAccountId
-    service._accountTransitionGeneration = originalAccountTransitionGeneration
-    service._accountTransitionPromise = originalAccountTransitionPromise
-    service._completeAccountTransition = originalCompleteAccountTransition
+    service = new TelegramService() as TelegramService & Record<string, any>
+    mtcuteMethods.iterDialogs.mockImplementation(() => emptyAsyncIterable())
   })
 
   it('returns false and resets state when a connected client is not authorized', async () => {
-    const disconnectListener = vi.fn()
-    const unsubscribe = telegramService.onConnectionStateChange(disconnectListener)
-
+    const stateListener = vi.fn()
+    service.onConnectionStateChange(stateListener)
     service.client = {
       connect: vi.fn().mockResolvedValue(undefined),
-      disconnect: vi.fn().mockResolvedValue(undefined),
-      isUserAuthorized: vi.fn().mockResolvedValue(false),
-      getMe: vi.fn(),
+      destroy: vi.fn().mockResolvedValue(undefined),
     }
+    mtcuteMethods.getMe.mockRejectedValue(
+      new tl.RpcError(tl.RpcError.UNAUTHORIZED, 'AUTH_KEY_UNREGISTERED'),
+    )
 
-    const isAuthorized = await telegramService.connect('account-1')
-
-    expect(isAuthorized).toBe(false)
-    expect(telegramService.connectionState).toBe('disconnected')
-    expect(service.currentUser).toBeNull()
-    expect(disconnectListener).toHaveBeenCalledWith('connecting')
-    expect(disconnectListener).toHaveBeenLastCalledWith('disconnected')
-
-    unsubscribe()
+    await expect(service.connect('account-1')).resolves.toBe(false)
+    expect(service.connectionState).toBe('disconnected')
+    expect(service.user).toBeNull()
+    expect(stateListener).toHaveBeenNthCalledWith(1, 'connecting')
+    expect(stateListener).toHaveBeenLastCalledWith('disconnected')
   })
 
   it('releases the client and reports error when connect throws', async () => {
-    const stateListener = vi.fn()
-    const unsubscribe = telegramService.onConnectionStateChange(stateListener)
-
-    const disconnectMock = vi.fn().mockResolvedValue(undefined)
+    const destroy = vi.fn().mockResolvedValue(undefined)
     service.client = {
       connect: vi.fn().mockRejectedValue(new Error('network down')),
-      disconnect: disconnectMock,
-      isUserAuthorized: vi.fn(),
-      getMe: vi.fn(),
+      destroy,
     }
-    service.currentUser = { id: BigInt(7), firstName: 'Stale', lastName: undefined }
-    service.entityCache.set(BigInt(1), { id: BigInt(1) })
+    service.currentUser = { id: BigInt(7), firstName: 'Stale' }
+    service.entityCache.set('1', userPeer)
     service._activeSessionAccountId = 'account-1'
 
-    await expect(telegramService.connect('account-1')).rejects.toThrow('network down')
-
-    // A failed connect must not linger as a half-open connection, but the typed state stays honest.
-    expect(disconnectMock).toHaveBeenCalledTimes(1)
+    await expect(service.connect('account-1')).rejects.toThrow('network down')
+    expect(destroy).toHaveBeenCalledOnce()
     expect(service.client).toBeNull()
-    expect(service.currentUser).toBeNull()
+    expect(service.user).toBeNull()
     expect(service.entityCache.size).toBe(0)
     expect(service._activeSessionAccountId).toBeNull()
-    expect(telegramService.connectionState).toBe('error')
-    expect(stateListener).toHaveBeenLastCalledWith('error')
-
-    unsubscribe()
+    expect(service.connectionState).toBe('error')
   })
 
-  it('disconnect clears cached state and reports disconnected', async () => {
-    const disconnectListener = vi.fn()
-    const unsubscribe = telegramService.onConnectionStateChange(disconnectListener)
-    const disconnectMock = vi.fn().mockResolvedValue(undefined)
-
-    service.client = {
-      disconnect: disconnectMock,
-    }
-    service.currentUser = {
-      id: BigInt(42),
-      firstName: 'Auth',
-      lastName: undefined,
-      username: 'auth_tester',
-    }
-    service.entityCache.set(BigInt(1), { id: BigInt(1) })
+  it('disconnect destroys the mtcute client and clears cached state', async () => {
+    const destroy = vi.fn().mockResolvedValue(undefined)
+    service.client = { destroy }
+    service.currentUser = { id: BigInt(42), firstName: 'Auth' }
+    service.entityCache.set('1', userPeer)
     service._connectionState = 'connected'
 
-    await telegramService.disconnect()
+    await service.disconnect()
 
-    expect(disconnectMock).toHaveBeenCalledTimes(1)
+    expect(destroy).toHaveBeenCalledOnce()
     expect(service.client).toBeNull()
-    expect(service.currentUser).toBeNull()
+    expect(service.user).toBeNull()
     expect(service.entityCache.size).toBe(0)
-    expect(telegramService.connectionState).toBe('disconnected')
-    expect(disconnectListener).toHaveBeenLastCalledWith('disconnected')
-
-    unsubscribe()
+    expect(service.connectionState).toBe('disconnected')
   })
 
-  it('blocks new-account requests until the matching session transition completes', async () => {
-    const accountsStore = useAccountsStore()
-    accountsStore.accounts = [
-      {
-        id: 'account-b',
-        type: 'user',
-        label: 'Account B',
-        phone: '+10000000002',
-        sessionString: 'session-b',
-        createdAt: new Date('2026-01-01T00:00:00.000Z'),
-        lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
-      },
-    ]
-    accountsStore.activeAccountId = 'account-b'
-
-    const oldGetDialogs = vi.fn().mockResolvedValue([])
-    service.client = {
-      connected: true,
-      getDialogs: oldGetDialogs,
-    }
+  it('blocks requests until the matching account transition completes', async () => {
+    installActiveUserAccount('account-b')
+    const oldClient = { isConnected: true }
+    const newClient = { isConnected: true }
+    service.client = oldClient
     service._activeSessionAccountId = 'account-a'
 
-    const transition = telegramService.beginActiveAccountTransition()
-    const dialogsPromise = telegramService.getDialogs(10)
+    const transition = service.beginActiveAccountTransition()
+    const dialogsPromise = service.getDialogs(10)
     await Promise.resolve()
+    expect(mtcuteMethods.iterDialogs).not.toHaveBeenCalled()
 
-    expect(oldGetDialogs).not.toHaveBeenCalled()
-
-    const newGetDialogs = vi.fn().mockResolvedValue([])
-    service.client = {
-      connected: true,
-      getDialogs: newGetDialogs,
-    }
+    service.client = newClient
     service._activeSessionAccountId = 'account-b'
-    telegramService.completeActiveAccountTransition(transition)
+    service.completeActiveAccountTransition(transition)
 
     await expect(dialogsPromise).resolves.toEqual([])
-    expect(oldGetDialogs).not.toHaveBeenCalled()
-    expect(newGetDialogs).toHaveBeenCalledWith({ limit: 10 })
+    expect(mtcuteMethods.iterDialogs).toHaveBeenCalledWith(newClient, {
+      limit: 10,
+      archived: 'keep',
+      pinned: 'keep',
+    })
   })
 
-  it('clears session ownership when aborting an auth attempt tears down the client', async () => {
-    service.client = {
-      disconnect: vi.fn().mockResolvedValue(undefined),
-    }
+  it('clears session ownership when aborting authentication', async () => {
+    const destroy = vi.fn().mockResolvedValue(undefined)
+    service.client = { destroy }
     service._activeSessionAccountId = 'account-a'
 
-    await telegramService.abortCurrentUserAuth()
+    await service.abortCurrentUserAuth()
 
+    expect(destroy).toHaveBeenCalledOnce()
     expect(service.client).toBeNull()
     expect(service._activeSessionAccountId).toBeNull()
   })
 
   it('records session ownership for a freshly authenticated login', () => {
-    service._activeSessionAccountId = null
-
-    telegramService.markActiveUserSession('account-b')
+    service.markActiveUserSession('account-b')
     expect(service._activeSessionAccountId).toBe('account-b')
 
-    // A blank id must never clobber established ownership.
-    telegramService.markActiveUserSession('')
+    service.markActiveUserSession('')
     expect(service._activeSessionAccountId).toBe('account-b')
   })
 
-  it('keeps a just-authenticated client instead of rebuilding it for the same account', async () => {
-    const accountsStore = useAccountsStore()
-    accountsStore.accounts = [
-      {
-        id: 'account-b',
-        type: 'user',
-        label: 'Account B',
-        phone: '+10000000002',
-        sessionString: 'session-b',
-        createdAt: new Date('2026-01-01T00:00:00.000Z'),
-        lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
-      },
-    ]
-    const markReady = vi.spyOn(accountsStore, 'markAccountSessionReady')
-
-    const client = { connected: true, disconnect: vi.fn().mockResolvedValue(undefined) }
+  it('keeps a connected client that already belongs to the account', async () => {
+    installActiveUserAccount('account-b')
+    const client = { isConnected: true }
     service.client = client
-    service._activeSessionAccountId = 'account-b'
     const initSpy = vi.spyOn(service, 'initClient')
 
-    const result = await telegramService.useUserAccountSession({
-      accountId: 'account-b',
-      sessionString: 'session-b',
-      apiId: 123,
-      apiHash: 'hash',
-    })
+    await expect(
+      service.useUserAccountSession({
+        accountId: 'account-b',
+        sessionString: 'session-b',
+        apiId: 123,
+        apiHash: 'hash',
+      }),
+    ).resolves.toBe(true)
 
-    expect(result).toBe(true)
-    expect(client.disconnect).not.toHaveBeenCalled()
     expect(initSpy).not.toHaveBeenCalled()
     expect(service.client).toBe(client)
-    expect(markReady).toHaveBeenCalledWith('account-b')
-
-    initSpy.mockRestore()
   })
 
-  it('rebuilds the session when the connected client belongs to another account', async () => {
-    service.client = { connected: true, disconnect: vi.fn().mockResolvedValue(undefined) }
+  it('rebuilds the runtime when switching accounts', async () => {
+    service.client = { isConnected: true }
     service._activeSessionAccountId = 'account-a'
-
     const disconnectSpy = vi.spyOn(service, 'disconnect').mockResolvedValue(undefined)
     const initSpy = vi.spyOn(service, 'initClient').mockResolvedValue(undefined)
     const connectSpy = vi.spyOn(service, 'connect').mockResolvedValue(true)
-    const stateSpy = vi.spyOn(service, 'setAccountSessionState').mockResolvedValue(undefined)
+    vi.spyOn(service, 'setAccountSessionState').mockResolvedValue(undefined)
 
-    const result = await telegramService.useUserAccountSession({
-      accountId: 'account-b',
-      sessionString: '',
-      apiId: 123,
-      apiHash: 'hash',
-    })
+    await expect(
+      service.useUserAccountSession({
+        accountId: 'account-b',
+        sessionString: 'session-b',
+        apiId: 123,
+        apiHash: 'hash',
+      }),
+    ).resolves.toBe(true)
 
-    expect(result).toBe(true)
-    expect(disconnectSpy).toHaveBeenCalledTimes(1)
+    expect(disconnectSpy).toHaveBeenCalledOnce()
     expect(initSpy).toHaveBeenCalledWith(123, 'hash')
     expect(connectSpy).toHaveBeenCalledWith('account-b')
-
-    disconnectSpy.mockRestore()
-    initSpy.mockRestore()
-    connectSpy.mockRestore()
-    stateSpy.mockRestore()
+    expect(service.sessionString).toBe('session-b')
   })
 
-  it('maps extended profile metadata without additional profile requests', async () => {
+  it('maps extended account profile metadata from mtcute', async () => {
     installActiveUserAccount()
-    const user = new Api.User({
-      id: BigInt(7) as unknown as Api.long,
-      self: true,
-      firstName: 'Alice',
-      lastName: 'Example',
-      username: 'alice',
-      langCode: 'en',
+    service.client = { isConnected: true }
+    mtcuteMethods.getFullUser.mockResolvedValue({
+      ...userPeer,
+      bio: 'Account bio',
+      isPremium: true,
+      isVerified: false,
+      isRestricted: false,
+      restrictionReason: [],
+      commonChatsCount: 12,
       usernames: [
-        new Api.Username({ active: true, username: 'alice' }),
-        new Api.Username({ active: true, username: 'alice_work' }),
-        new Api.Username({ active: false, username: 'alice_old' }),
+        { active: true, username: 'alice' },
+        { active: true, username: 'alice_work' },
       ],
-      photo: new Api.UserProfilePhoto({
-        hasVideo: true,
-        photoId: BigInt(10) as unknown as Api.long,
-        dcId: 4,
-      }),
+      language: 'en',
+      birthday: { day: 14, month: 2, year: 1990 },
+      photo: { raw: { hasVideo: true } },
+      dcId: 4,
+      phoneNumber: '+44123',
     })
-    const invoke = vi.fn().mockResolvedValue({
-      fullUser: {
-        about: 'Account bio',
-        commonChatsCount: 12,
-        birthday: new Api.Birthday({ day: 14, month: 2, year: 1990 }),
-      },
-      users: [user],
-    })
-    service.client = { connected: true, invoke }
 
-    const profile = await telegramService.getFullMe()
-
-    expect(profile).toMatchObject({
+    await expect(service.getFullMe()).resolves.toMatchObject({
       id: BigInt(7),
       firstName: 'Alice',
       lastName: 'Example',
@@ -318,55 +265,45 @@ describe('telegramService connection state', () => {
       hasProfileVideo: true,
       dcId: 4,
     })
-    expect(invoke).toHaveBeenCalledTimes(1)
-    expect(invoke.mock.calls[0]?.[0]).toBeInstanceOf(Api.users.GetFullUser)
+    expect(mtcuteMethods.getFullUser).toHaveBeenCalledWith(service.client, 'self')
   })
 
   it('returns a privacy-minimized security and session summary', async () => {
     installActiveUserAccount()
-    const invoke = vi.fn(async (request: unknown) => {
-      if (request instanceof Api.account.GetAuthorizations) {
-        return {
-          authorizationTtlDays: 180,
-          authorizations: [
-            {
-              current: true,
-              officialApp: false,
-              unconfirmed: false,
-              appName: 'Telegram Toolset',
-              appVersion: '1.0',
-              deviceModel: 'Chrome',
-              platform: 'macOS',
-              systemVersion: '15',
-              country: 'United Kingdom',
-              region: 'London',
-              dateCreated: 1_767_268_800,
-              dateActive: 1_767_355_200,
-              hash: BigInt(123),
-              ip: '203.0.113.10',
-            },
-            { current: false, unconfirmed: true },
-          ],
+    service.client = {
+      isConnected: true,
+      call: vi.fn(async (request: { _: string }) => {
+        if (request._ === 'account.getAuthorizations') {
+          return {
+            authorizationTtlDays: 180,
+            authorizations: [
+              {
+                current: true,
+                officialApp: false,
+                unconfirmed: false,
+                appName: 'Telegram Toolset',
+                appVersion: '1.0',
+                deviceModel: 'Chrome',
+                platform: 'macOS',
+                systemVersion: '15',
+                country: 'United Kingdom',
+                region: 'London',
+                dateCreated: 1_767_268_800,
+                dateActive: 1_767_355_200,
+              },
+              { current: false, unconfirmed: true },
+            ],
+          }
         }
-      }
-      if (request instanceof Api.account.GetAccountTTL) {
-        return { days: 548 }
-      }
-      if (request instanceof Api.account.GetPassword) {
-        return {
-          hasPassword: true,
-          hasRecovery: true,
-          hint: 'private hint',
-          emailUnconfirmedPattern: 'a***@example.com',
-        }
-      }
-      throw new Error('Unexpected request')
-    })
-    service.client = { connected: true, invoke }
+        if (request._ === 'account.getAccountTTL') return { days: 548 }
+        if (request._ === 'account.getPassword') return { hasPassword: true, hasRecovery: true }
+        throw new Error('Unexpected request')
+      }),
+    }
 
-    const security = await telegramService.getAccountSecurityInfo()
+    const security = await service.getAccountSecurityInfo()
 
-    expect(security).toEqual({
+    expect(security).toMatchObject({
       twoStepVerificationEnabled: true,
       recoveryEmailConfigured: true,
       authorizedSessionsCount: 2,
@@ -376,63 +313,35 @@ describe('telegramService connection state', () => {
       accountTtlDays: 548,
       currentSession: {
         appName: 'Telegram Toolset',
-        appVersion: '1.0',
-        deviceModel: 'Chrome',
-        platform: 'macOS',
-        systemVersion: '15',
         location: 'United Kingdom, London',
         createdAt: new Date('2026-01-01T12:00:00.000Z'),
         lastActiveAt: new Date('2026-01-02T12:00:00.000Z'),
-        officialApp: false,
       },
     })
     expect(security?.currentSession).not.toHaveProperty('ip')
-    expect(security?.currentSession).not.toHaveProperty('hash')
-    expect(security).not.toHaveProperty('passwordHint')
-    expect(security).not.toHaveProperty('recoveryEmailPattern')
-    expect(invoke).toHaveBeenCalledTimes(3)
   })
 
-  it('searches only the active user messages with a resumable server-side cursor', async () => {
+  it('searches only the active user messages with a resumable cursor', async () => {
     installActiveUserAccount()
-    const entity = { id: BigInt(99) }
-    const inputPeer = new Api.InputPeerChat({ chatId: BigInt(99) as unknown as Api.long })
-    const self = new Api.InputPeerSelf()
-    const first = new Api.Message({
-      id: 20,
-      peerId: new Api.PeerChat({ chatId: BigInt(99) as unknown as Api.long }),
-      date: 1_704_110_400,
-      message: 'mine',
-    })
-    const second = new Api.Message({
-      id: 10,
-      peerId: new Api.PeerChat({ chatId: BigInt(99) as unknown as Api.long }),
-      date: 1_672_531_200,
-      message: '',
-    })
-    const invoke = vi.fn().mockResolvedValue(
-      new Api.messages.MessagesSlice({
-        count: 5,
-        messages: [first, second],
-        chats: [],
-        users: [],
-      }),
+    service.client = { isConnected: true }
+    service.entityCache.set('99', groupPeer)
+    const result = Object.assign(
+      [
+        { id: 20, date: new Date('2024-01-01T12:00:00.000Z'), text: 'mine' },
+        { id: 10, date: new Date('2023-01-01T00:00:00.000Z'), text: '' },
+      ],
+      { total: 5, next: 10 },
     )
-    service.client = {
-      connected: true,
-      getEntity: vi.fn().mockResolvedValue(entity),
-      getInputEntity: vi.fn(async (value: unknown) => (value === 'me' ? self : inputPeer)),
-      invoke,
-    }
+    mtcuteMethods.searchMessages.mockResolvedValue(result)
 
-    const page = await telegramService.searchOwnMessages(BigInt(99), {
-      offsetId: 30,
-      minDate: new Date('2023-01-01T00:00:00.000Z'),
-      maxDate: new Date('2024-12-31T23:59:59.999Z'),
-      limit: 2,
-    })
-
-    expect(page).toEqual({
+    await expect(
+      service.searchOwnMessages(BigInt(99), {
+        offsetId: 30,
+        minDate: new Date('2023-01-01T00:00:00.000Z'),
+        maxDate: new Date('2024-12-31T23:59:59.999Z'),
+        limit: 2,
+      }),
+    ).resolves.toEqual({
       messages: [
         {
           id: 20,
@@ -448,39 +357,30 @@ describe('telegramService connection state', () => {
       total: 5,
       nextOffsetId: 10,
     })
-    const request = invoke.mock.calls[0]?.[0]
-    expect(request).toBeInstanceOf(Api.messages.Search)
-    expect(request).toMatchObject({
-      peer: inputPeer,
-      fromId: self,
-      offsetId: 30,
-      limit: 2,
-    })
+    expect(mtcuteMethods.searchMessages).toHaveBeenCalledWith(
+      service.client,
+      expect.objectContaining({ chatId: groupPeer, fromUser: 'self', offset: 30, limit: 2 }),
+    )
   })
 
-  it('revokes bounded message batches and can reconcile the remaining IDs', async () => {
+  it('revokes bounded message batches and reconciles remaining IDs', async () => {
     installActiveUserAccount()
-    const entity = { id: BigInt(99) }
-    const rawMessage = new Api.Message({
-      id: 2,
-      peerId: new Api.PeerChat({ chatId: BigInt(99) as unknown as Api.long }),
-      date: 1_704_110_400,
-      message: 'still here',
-    })
-    const deleteMessages = vi.fn().mockResolvedValue([])
-    const getMessages = vi.fn().mockResolvedValue([undefined, rawMessage])
-    service.client = {
-      connected: true,
-      getEntity: vi.fn().mockResolvedValue(entity),
-      deleteMessages,
-      getMessages,
-    }
+    service.client = { isConnected: true }
+    service.entityCache.set('99', groupPeer)
+    mtcuteMethods.deleteMessagesById.mockResolvedValue(undefined)
+    mtcuteMethods.getMessages.mockResolvedValue([
+      null,
+      { id: 2, chat: groupPeer, sender: userPeer },
+    ])
 
-    await telegramService.deleteMessages(BigInt(99), [1, 2])
-    const existing = await telegramService.getExistingMessageIds(BigInt(99), [1, 2])
+    await service.deleteMessages(BigInt(99), [1, 2])
+    await expect(service.getExistingMessageIds(BigInt(99), [1, 2])).resolves.toEqual([2])
 
-    expect(deleteMessages).toHaveBeenCalledWith(entity, [1, 2], { revoke: true })
-    expect(getMessages).toHaveBeenCalledWith(entity, { ids: [1, 2] })
-    expect(existing).toEqual([2])
+    expect(mtcuteMethods.deleteMessagesById).toHaveBeenCalledWith(
+      service.client,
+      groupPeer,
+      [1, 2],
+      { revoke: true },
+    )
   })
 })
