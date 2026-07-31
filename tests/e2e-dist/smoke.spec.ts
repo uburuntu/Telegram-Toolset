@@ -32,19 +32,32 @@ test.describe('Production build smoke', () => {
       'content',
       'https://telegram-toolset.rmbk.me/social-preview.png',
     )
+    await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.png')
+
+    const imageDimensions = (source: string) =>
+      page.evaluate(async (url) => {
+        const image = new Image()
+        image.src = url
+        await image.decode()
+        return { width: image.naturalWidth, height: image.naturalHeight }
+      }, source)
+
+    const favicon = await page.request.get('/favicon.png')
+    expect(favicon.ok()).toBe(true)
+    expect(favicon.headers()['content-type']).toContain('image/png')
+    expect(await imageDimensions('/favicon.png')).toEqual({ width: 256, height: 256 })
+
+    const logo = await page.request.get('/logo.png')
+    expect(logo.ok()).toBe(true)
+    expect(logo.headers()['content-type']).toContain('image/png')
+    expect(await imageDimensions('/logo.png')).toEqual({ width: 512, height: 512 })
 
     const socialPreview = await page.request.get('/social-preview.png')
     expect(socialPreview.ok()).toBe(true)
     expect(socialPreview.headers()['content-type']).toContain('image/png')
     expect((await socialPreview.body()).byteLength).toBeGreaterThan(10_000)
 
-    const socialPreviewDimensions = await page.evaluate(async () => {
-      const image = new Image()
-      image.src = '/social-preview.png'
-      await image.decode()
-      return { width: image.naturalWidth, height: image.naturalHeight }
-    })
-    expect(socialPreviewDimensions).toEqual({ width: 1280, height: 640 })
+    expect(await imageDimensions('/social-preview.png')).toEqual({ width: 1280, height: 640 })
 
     // Opening a module pulls in the lazy auth flow in the production bundle.
     await page.getByText('Account Info').click()
