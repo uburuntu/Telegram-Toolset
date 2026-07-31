@@ -44,7 +44,7 @@
     "noChats": "Tidak ada chat yang tersedia",
     "noResults": "Tidak ada chat yang cocok dengan filter ini",
     "reset": "Atur ulang",
-    "members": "{count} anggota",
+    "members": "Anggota: {count}",
     "publicBadge": "Publik",
     "categories": {
       "direct": "Pesan langsung",

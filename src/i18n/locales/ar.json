@@ -44,7 +44,7 @@
     "noChats": "لا توجد دردشات متاحة",
     "noResults": "لا توجد دردشات تطابق عوامل التصفية هذه",
     "reset": "إعادة تعيين",
-    "members": "{count} عضو",
+    "members": "الأعضاء: {count}",
     "publicBadge": "عام",
     "categories": {
       "direct": "رسائل مباشرة",

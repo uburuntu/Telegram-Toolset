@@ -109,4 +109,25 @@ describe('ChatSelector', () => {
     await wrapper.findAll('button').find((button) => button.text().includes('Public Group'))!.trigger('click')
     expect(wrapper.emitted('select')?.[0]).toEqual([chats[2]])
   })
+
+  it('resets to tool defaults and never applies hidden user filters', async () => {
+    const wrapper = mountSelector({
+      config: {
+        defaultCategories: ['groups'],
+        filters: { publicOnly: false },
+      },
+    })
+
+    expect(wrapper.text()).toContain('Private Group')
+    expect(wrapper.text()).not.toContain('Alice')
+    expect(wrapper.text()).not.toContain('Reset')
+
+    await wrapper.get('input[value="channels"]').setValue(true)
+    expect(wrapper.text()).toContain('Read-only News')
+    await wrapper.get('button').trigger('click')
+
+    expect(wrapper.text()).toContain('Private Group')
+    expect(wrapper.text()).not.toContain('Read-only News')
+    expect(wrapper.text()).not.toContain('Public chats only')
+  })
 })

@@ -44,7 +44,7 @@
     "noChats": "Mavjud chatlar yo'q",
     "noResults": "Bu filtrlarga mos chatlar yo'q",
     "reset": "Qayta o'rnatish",
-    "members": "{count} ta a'zo",
+    "members": "A'zolar: {count}",
     "publicBadge": "Ommaviy",
     "categories": {
       "direct": "Shaxsiy xabarlar",
