@@ -19,7 +19,7 @@ export type TelegramPeerRef = bigint | string
 declare const telegramEntityHandleBrand: unique symbol
 declare const telegramMessageHandleBrand: unique symbol
 
-// Opaque handles keep GramJS-specific objects behind the gateway boundary.
+// Opaque handles keep mtcute runtime objects behind the gateway boundary.
 export type TelegramEntityHandle = {
   readonly [telegramEntityHandleBrand]: true
 }
@@ -53,7 +53,7 @@ export interface TelegramSenderInfo {
 
 export interface TelegramSendFileOptions {
   caption?: string
-  parseMode?: 'html' | 'md'
+  parseMode?: 'html'
   forceDocument?: boolean
   filename?: string
 }
@@ -116,7 +116,7 @@ export interface TelegramMediaGateway {
 
 export interface TelegramSendGateway {
   canSendToChat(chatId: bigint): Promise<boolean>
-  sendMessage(chatId: bigint, text: string, parseMode?: 'html' | 'md'): Promise<void>
+  sendMessage(chatId: bigint, text: string, parseMode?: 'html'): Promise<void>
   sendFile(chatId: bigint, file: Blob | File, options?: TelegramSendFileOptions): Promise<void>
   forwardMessage(fromChatId: bigint, toChatId: bigint, messageId: number): Promise<void>
 }

@@ -29,14 +29,11 @@
     "check:i18n": "node scripts/check-i18n.js"
   },
   "dependencies": {
-    "@mtcute/convert": "0.31.0",
     "@mtcute/html-parser": "0.31.0",
-    "@mtcute/markdown-parser": "0.31.0",
     "@mtcute/web": "0.31.0",
     "idb": "8.0.3",
     "jszip": "3.10.1",
     "pinia": "3.0.4",
-    "telegram": "2.26.22",
     "uuid": "13.0.1",
     "vue": "3.5.26",
     "vue-i18n": "11.2.7",

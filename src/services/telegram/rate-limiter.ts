@@ -24,14 +24,14 @@ export interface FloodWaitError extends Error {
 }
 
 /**
- * Check if an error is a FloodWait error from GramJS
+ * Check if an error is an MTProto or Bot API flood-wait response.
  */
 export function isFloodWaitError(error: unknown): error is FloodWaitError {
   if (error instanceof Error) {
-    // GramJS throws errors with errorMessage property
-    const gramError = error as Error & {
+    const telegramError = error as Error & {
       code?: number
       errorMessage?: string
+      text?: string
       parameters?: { retry_after?: number }
       retryAfter?: number
       seconds?: number
@@ -40,10 +40,10 @@ export function isFloodWaitError(error: unknown): error is FloodWaitError {
     }
 
     // Also accept Bot API / HTTP client 429 shapes so callers share one backoff policy.
-    if ([gramError.code, gramError.status, gramError.statusCode].includes(429)) {
-      const retryAfter = gramError.retryAfter ?? gramError.parameters?.retry_after
+    if ([telegramError.code, telegramError.status, telegramError.statusCode].includes(429)) {
+      const retryAfter = telegramError.retryAfter ?? telegramError.parameters?.retry_after
       const messageMatch = error.message.match(/retry\s+after\s+(\d+)/i)
-      gramError.seconds =
+      telegramError.seconds =
         typeof retryAfter === 'number' && retryAfter > 0
           ? retryAfter
           : messageMatch?.[1]
@@ -52,18 +52,16 @@ export function isFloodWaitError(error: unknown): error is FloodWaitError {
       return true
     }
 
-    // Check for FLOOD_WAIT pattern
-    if (gramError.errorMessage?.startsWith('FLOOD_')) {
-      // Extract seconds from errors like FLOOD_WAIT_420 and FLOOD_PREMIUM_WAIT_420.
-      const match = gramError.errorMessage.match(/FLOOD(?:_PREMIUM)?_WAIT_(\d+)/)
+    const rpcText = telegramError.text ?? telegramError.errorMessage ?? error.message
+    if (telegramError.code === 420 || rpcText.includes('FLOOD')) {
+      const match = rpcText.match(/(?:FLOOD(?:_PREMIUM)?|SLOWMODE)_WAIT_(\d+)/)
       if (match?.[1]) {
         ;(error as FloodWaitError).seconds = parseInt(match[1], 10)
         return true
       }
     }
 
-    // Some GramJS versions include seconds directly
-    if (typeof gramError.seconds === 'number' && gramError.seconds > 0) {
+    if (typeof telegramError.seconds === 'number' && telegramError.seconds > 0) {
       return true
     }
 
@@ -85,8 +83,7 @@ export function isFloodWaitError(error: unknown): error is FloodWaitError {
 
 /**
  * Retry classifier for read-only Telegram operations. Flood waits, network failures, and server
- * errors are safe to repeat; permanent RPC failures and an already-exhausted GramJS retry loop are
- * not.
+ * errors are safe to repeat; permanent RPC failures are not.
  */
 export function isRetryableTelegramReadError(error: Error): boolean {
   if (error.name === 'AbortError') {
@@ -95,10 +92,6 @@ export function isRetryableTelegramReadError(error: Error): boolean {
   if (isFloodWaitError(error)) {
     return true
   }
-  if (/Request was unsuccessful \d+ time\(s\)/i.test(error.message)) {
-    return false
-  }
-
   const code = (error as Error & { code?: unknown }).code
   return typeof code !== 'number' || code >= 500
 }

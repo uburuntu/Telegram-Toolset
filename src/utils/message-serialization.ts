@@ -1,7 +1,7 @@
 /**
  * Utilities for safe message serialization at persistence boundaries.
  *
- * `DeletedMessage._rawMessage` is a runtime-only GramJS object that should NOT be stored
+ * `DeletedMessage._rawMessage` is a runtime-only Telegram object that should NOT be stored
  * in IndexedDB or included in ZIP exports (it's non-serializable / non-portable).
  */
 

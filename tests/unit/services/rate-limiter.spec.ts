@@ -139,13 +139,23 @@ describe('rate-limiter', () => {
       expect(error.seconds).toBe(17)
     })
 
-    it('detects premium flood waits from GramJS', () => {
+    it('detects premium MTProto flood waits', () => {
       const error = Object.assign(new Error('Premium flood wait'), {
         errorMessage: 'FLOOD_PREMIUM_WAIT_90',
       }) as FloodWaitError
 
       expect(isFloodWaitError(error)).toBe(true)
       expect(error.seconds).toBe(90)
+    })
+
+    it('detects mtcute RPC flood errors', () => {
+      const error = Object.assign(new Error('FLOOD_WAIT_12'), {
+        code: 420,
+        text: 'FLOOD_WAIT_12',
+      }) as FloodWaitError
+
+      expect(isFloodWaitError(error)).toBe(true)
+      expect(error.seconds).toBe(12)
     })
 
     it('should detect flood in message content', () => {
@@ -175,13 +185,10 @@ describe('rate-limiter', () => {
       expect(isRetryableTelegramReadError(serverError)).toBe(true)
     })
 
-    it('does not retry permanent RPC failures or exhausted internal retries', () => {
+    it('does not retry permanent RPC failures or aborted operations', () => {
       const forbidden = Object.assign(new Error('Forbidden'), { code: 403 })
 
       expect(isRetryableTelegramReadError(forbidden)).toBe(false)
-      expect(
-        isRetryableTelegramReadError(new Error('Request was unsuccessful 5 time(s)')),
-      ).toBe(false)
       expect(
         isRetryableTelegramReadError(new DOMException('Operation cancelled', 'AbortError')),
       ).toBe(false)

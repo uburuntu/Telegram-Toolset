@@ -229,6 +229,26 @@ describe('TelegramService connection state', () => {
     expect(service.sessionString).toBe('session-b')
   })
 
+  it('marks an account for login when its saved session is not mtcute-compatible', async () => {
+    installActiveUserAccount('account-b')
+    service._activeSessionAccountId = null
+    vi.spyOn(service, 'disconnect').mockResolvedValue(undefined)
+    vi.spyOn(service, 'initClient').mockRejectedValue(new Error('Invalid session string'))
+    const stateSpy = vi.spyOn(service, 'setAccountSessionState').mockResolvedValue(undefined)
+
+    await expect(
+      service.useUserAccountSession({
+        accountId: 'account-b',
+        sessionString: 'old-format-session',
+        apiId: 123,
+        apiHash: 'hash',
+      }),
+    ).resolves.toBe(false)
+
+    expect(stateSpy).toHaveBeenCalledWith('needs_login', 'account-b')
+    expect(service.sessionString).toBe('')
+  })
+
   it('maps extended account profile metadata from mtcute', async () => {
     installActiveUserAccount()
     service.client = { isConnected: true }

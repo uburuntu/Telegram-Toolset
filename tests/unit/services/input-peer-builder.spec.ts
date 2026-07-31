@@ -1,37 +1,41 @@
-import { Api } from 'telegram'
 import { describe, expect, it } from 'vitest'
-import type { PeerRef } from '@/types'
 import { buildInputPeer } from '@/services/telegram/input-peer-builder'
 
 describe('buildInputPeer', () => {
-  it('builds an InputPeerUser from a user PeerRef with an access hash', () => {
-    const ref: PeerRef = { kind: 'user', rawId: '123', accessHash: '456' }
-    const peer = buildInputPeer(ref)
-    expect(peer).toBeInstanceOf(Api.InputPeerUser)
-    const user = peer as Api.InputPeerUser
-    expect(user.userId).toBe(BigInt('123'))
-    expect(user.accessHash).toBe(BigInt('456'))
+  it('builds an mtcute input user from a user reference', () => {
+    const peer = buildInputPeer({ kind: 'user', rawId: '123', accessHash: '456' })
+
+    expect(peer?._).toBe('inputPeerUser')
+    if (peer?._ !== 'inputPeerUser') throw new Error('Expected inputPeerUser')
+    expect(peer.userId.toString()).toBe('123')
+    expect(peer.accessHash.toString()).toBe('456')
   })
 
-  it('builds an InputPeerChannel for both channels and supergroups', () => {
+  it('builds input channels for channels and supergroups', () => {
     const channel = buildInputPeer({ kind: 'channel', rawId: '111', accessHash: '222' })
     const supergroup = buildInputPeer({ kind: 'supergroup', rawId: '333', accessHash: '444' })
-    expect(channel).toBeInstanceOf(Api.InputPeerChannel)
-    expect(supergroup).toBeInstanceOf(Api.InputPeerChannel)
-    expect((channel as Api.InputPeerChannel).channelId).toBe(BigInt('111'))
-    expect((channel as Api.InputPeerChannel).accessHash).toBe(BigInt('222'))
-    expect((supergroup as Api.InputPeerChannel).channelId).toBe(BigInt('333'))
+
+    expect(channel?._).toBe('inputPeerChannel')
+    expect(supergroup?._).toBe('inputPeerChannel')
+    if (channel?._ !== 'inputPeerChannel' || supergroup?._ !== 'inputPeerChannel') {
+      throw new Error('Expected inputPeerChannel')
+    }
+    expect(channel.channelId.toString()).toBe('111')
+    expect(channel.accessHash.toString()).toBe('222')
+    expect(supergroup.channelId.toString()).toBe('333')
   })
 
-  it('builds an InputPeerChat for a basic group without an access hash', () => {
+  it('builds a basic group without an access hash', () => {
     const peer = buildInputPeer({ kind: 'group', rawId: '789' })
-    expect(peer).toBeInstanceOf(Api.InputPeerChat)
-    expect((peer as Api.InputPeerChat).chatId).toBe(BigInt('789'))
+
+    expect(peer?._).toBe('inputPeerChat')
+    if (peer?._ !== 'inputPeerChat') throw new Error('Expected inputPeerChat')
+    expect(peer.chatId.toString()).toBe('789')
   })
 
-  it('returns null when a required access hash is missing', () => {
+  it('rejects missing and zero access hashes where Telegram requires one', () => {
     expect(buildInputPeer({ kind: 'user', rawId: '1' })).toBeNull()
     expect(buildInputPeer({ kind: 'channel', rawId: '1' })).toBeNull()
-    expect(buildInputPeer({ kind: 'supergroup', rawId: '1' })).toBeNull()
+    expect(buildInputPeer({ kind: 'supergroup', rawId: '1', accessHash: '0' })).toBeNull()
   })
 })

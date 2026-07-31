@@ -1,5 +1,5 @@
 /**
- * Application-wide {@link TelegramSessionCoordinator} bound to the real GramJS-backed services.
+ * Application-wide {@link TelegramSessionCoordinator} bound to the real mtcute-backed services.
  *
  * Kept separate from the coordinator class so the class stays pure and unit-testable without pulling
  * in the Telegram singleton or the resend service.

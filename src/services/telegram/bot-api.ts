@@ -2,7 +2,7 @@
  * Telegram Bot HTTP API wrapper
  *
  * Uses the simple HTTP API (not MTProto) for bot operations.
- * This is simpler and doesn't require GramJS for basic bot operations.
+ * This is simpler and doesn't require an MTProto session for basic bot operations.
  */
 
 import { withRetry } from './rate-limiter'

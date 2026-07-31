@@ -793,7 +793,7 @@ async function handleCodeSubmit(): Promise<void> {
   pendingSubmissionStep.value = 'code'
 
   // Provide the code to the waiting auth flow. Completion is observed separately so the UI
-  // can stay responsive while GramJS waits for either the next prompt or final success.
+  // can stay responsive while mtcute waits for either the next prompt or final success.
   if (!telegramService.provideCode(code.value)) {
     pendingSubmissionStep.value = null
     error.value = t('auth.errors.loginFlowExpired')

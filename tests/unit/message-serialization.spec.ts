@@ -17,7 +17,7 @@ describe('stripRawMessage', () => {
       chatId: BigInt('123456789'),
       date: new Date('2024-01-15'),
       hasMedia: false,
-      _rawMessage: { some: 'gramjs object' },
+      _rawMessage: { some: 'runtime object' },
     }
 
     const result = stripRawMessage(msg)
@@ -169,4 +169,3 @@ describe('safeJsonStringify', () => {
     expect(result.array).toEqual([1, '2', 'three'])
   })
 })
-

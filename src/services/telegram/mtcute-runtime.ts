@@ -1,4 +1,3 @@
-import { convertFromGramjsSession } from '@mtcute/convert'
 import {
   BaseTelegramClient,
   type BaseTelegramClientOptions,
@@ -9,7 +8,7 @@ import {
 const MAX_FLOOD_WAIT_MS = 60_000
 const MAX_FLOOD_RETRIES = 3
 
-export type SavedSessionFormat = 'empty' | 'mtcute' | 'gramjs'
+export type SavedSessionFormat = 'empty' | 'mtcute'
 
 export interface MtcuteRuntimeCallbacks {
   onFloodWait?: (seconds: number, method: string) => void
@@ -74,16 +73,6 @@ export async function importSavedSession(
   sessionString: string,
 ): Promise<SavedSessionFormat> {
   if (!sessionString) return 'empty'
-
-  try {
-    await client.importSession(sessionString, true)
-    return 'mtcute'
-  } catch (mtcuteError) {
-    try {
-      await client.importSession(convertFromGramjsSession(sessionString), true)
-      return 'gramjs'
-    } catch {
-      throw mtcuteError
-    }
-  }
+  await client.importSession(sessionString, true)
+  return 'mtcute'
 }

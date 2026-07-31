@@ -112,7 +112,7 @@ export interface DeletedMessage {
   replyToMsgId?: number
   replyToTopId?: number
   quoteText?: string
-  /** Raw GramJS message object for media download - not serialized */
+  /** Runtime-only Telegram message handle for media download - not serialized */
   _rawMessage?: unknown
 }
 
@@ -134,7 +134,7 @@ export interface ScheduledMessage {
   mediaSize?: number
   mediaMimeType?: string
   replyToMsgId?: number
-  /** Raw GramJS message object for media download - not serialized */
+  /** Runtime-only Telegram message handle for media download - not serialized */
   _rawMessage?: unknown
 }
 

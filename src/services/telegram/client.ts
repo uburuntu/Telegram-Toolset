@@ -1,5 +1,4 @@
 import { thtml } from '@mtcute/html-parser'
-import { md } from '@mtcute/markdown-parser'
 import {
   type BaseTelegramClient,
   type FileDownloadLocation,
@@ -54,7 +53,9 @@ import type {
   UserInfo,
 } from '@/types'
 import { isPeerRef, peerRefToMarkedId } from '@/utils/telegram-peers'
+import { buildInputPeer } from './input-peer-builder'
 import { createMtcuteClient, importSavedSession } from './mtcute-runtime'
+import { peerRawId, peerToPeerRef } from './peer-adapter'
 import { isRetryableTelegramReadError, sleep, withRetry } from './rate-limiter'
 
 const RECONNECT_DELAY_MS = 2_000
@@ -101,48 +102,6 @@ function toUserInfo(user: User): UserInfo {
     lastName: user.lastName || undefined,
     username: user.username || undefined,
     phone: user.phoneNumber || undefined,
-  }
-}
-
-function peerRawId(peer: Peer): string {
-  if (peer.type === 'user') return String(peer.id)
-  return peer.raw.id.toString()
-}
-
-function peerKind(peer: Peer): PeerRef['kind'] {
-  if (peer.type === 'user') return 'user'
-  if (peer.chatType === 'channel') return 'channel'
-  if (peer.chatType === 'group') return 'group'
-  return 'supergroup'
-}
-
-function peerToRef(peer: Peer): PeerRef {
-  const accessHash =
-    'accessHash' in peer.raw && peer.raw.accessHash ? peer.raw.accessHash.toString() : undefined
-
-  return {
-    kind: peerKind(peer),
-    rawId: peerRawId(peer),
-    ...(accessHash ? { accessHash } : {}),
-  }
-}
-
-function buildInputPeer(ref: PeerRef): tl.TypeInputPeer | null {
-  if (ref.kind === 'group') {
-    return { _: 'inputPeerChat', chatId: Long.fromString(ref.rawId) }
-  }
-  if (!ref.accessHash) return null
-  if (ref.kind === 'user') {
-    return {
-      _: 'inputPeerUser',
-      userId: Long.fromString(ref.rawId),
-      accessHash: Long.fromString(ref.accessHash),
-    }
-  }
-  return {
-    _: 'inputPeerChannel',
-    channelId: Long.fromString(ref.rawId),
-    accessHash: Long.fromString(ref.accessHash),
   }
 }
 
@@ -424,7 +383,14 @@ export class TelegramService {
 
         await this.disconnect()
         this.sessionString = data.sessionString
-        await this.initClient(data.apiId, data.apiHash)
+        try {
+          await this.initClient(data.apiId, data.apiHash)
+        } catch {
+          this.sessionString = ''
+          await this.disconnect()
+          await this.setAccountSessionState('needs_login', data.accountId)
+          return false
+        }
         const authorized = await this.connect(data.accountId)
         if (authorized) {
           await this.setAccountSessionState('ready', data.accountId)
@@ -549,14 +515,16 @@ export class TelegramService {
 
     try {
       const sentCode = await sendCode(client, { phone })
-      let authenticatedUser: User | null = 'phoneCodeHash' in sentCode ? null : sentCode
+      const phoneCodeHash = 'phoneCodeHash' in sentCode ? sentCode.phoneCodeHash : null
+      let authenticatedUser: User | null = phoneCodeHash ? null : (sentCode as User)
 
       while (!authenticatedUser) {
+        if (!phoneCodeHash) throw new Error('Telegram did not return an authentication code hash')
         const code = await this.requestCode(attemptId)
         try {
           authenticatedUser = await signIn(client, {
             phone,
-            phoneCodeHash: sentCode.phoneCodeHash,
+            phoneCodeHash,
             phoneCode: code,
           })
         } catch (error) {
@@ -774,7 +742,7 @@ export class TelegramService {
       chats.push({
         id: BigInt(peerRawId(peer)),
         peerId: String(peer.id),
-        peerRef: peerToRef(peer),
+        peerRef: peerToPeerRef(peer),
         title: peer.displayName,
         type,
         username: peer.username || undefined,
@@ -1084,13 +1052,12 @@ export class TelegramService {
     return peer.permissions?.canSendMessages ?? true
   }
 
-  private formatText(text: string, parseMode?: 'html' | 'md') {
+  private formatText(text: string, parseMode?: 'html') {
     if (parseMode === 'html') return thtml(text)
-    if (parseMode === 'md') return md(text)
     return text
   }
 
-  async sendMessage(chatId: bigint, text: string, parseMode?: 'html' | 'md'): Promise<void> {
+  async sendMessage(chatId: bigint, text: string, parseMode?: 'html'): Promise<void> {
     const client = await this.getConnectedClient()
     const peer = await this.resolvePeerInput(client, chatId)
     await sendText(client, peer, this.formatText(text, parseMode), { silent: true })
@@ -1101,7 +1068,7 @@ export class TelegramService {
     file: Blob | File,
     options: {
       caption?: string
-      parseMode?: 'html' | 'md'
+      parseMode?: 'html'
       forceDocument?: boolean
       filename?: string
     } = {},

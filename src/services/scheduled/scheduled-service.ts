@@ -62,7 +62,7 @@ class ScheduledService {
     const abortController = this.startLoading()
     const signal = abortController.signal
 
-    // Subscribe to global flood wait events from GramJS (it handles flood wait internally)
+    // Subscribe to client-level flood waits so the UI can show the active cooldown.
     const unsubscribeFloodWait = createFloodWaitSubscription(
       telegramGateway.auth,
       callbacks,
@@ -102,7 +102,7 @@ class ScheduledService {
     const abortController = this.startLoading()
     const signal = abortController.signal
 
-    // Subscribe to global flood wait events from GramJS (it handles flood wait internally)
+    // Subscribe to client-level flood waits so the UI can show the active cooldown.
     const unsubscribeFloodWait = createFloodWaitSubscription(
       telegramGateway.auth,
       callbacks,
@@ -145,7 +145,7 @@ class ScheduledService {
         callbacks.onProgress?.({ ...progress })
 
         try {
-          // Note: GramJS handles flood wait internally, so we use the global listener
+          // mtcute handles bounded waits internally, so use the global listener for countdowns.
           // instead of withRetry's onFloodWait. withRetry is still useful for other errors.
           const messages = await withRetry(
             () => telegramGateway.scheduled.getScheduledMessages(chat.id),

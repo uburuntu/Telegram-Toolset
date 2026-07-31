@@ -107,7 +107,7 @@ function errorCode(error: unknown): number | undefined {
 export function isRetryableTraceDeleteError(error: Error): boolean {
   if (error.name === 'AbortError') return false
   if (isFloodWaitError(error)) return true
-  // GramJS already retried this request internally; repeating that loop only multiplies load.
+  // Do not multiply a client-level retry loop when an operation already exhausted its attempts.
   if (/Request was unsuccessful \d+ time\(s\)/i.test(error.message)) return false
 
   const code = errorCode(error)
