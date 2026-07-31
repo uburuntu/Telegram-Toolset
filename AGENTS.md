@@ -52,9 +52,9 @@ This repository is no longer treated as a single-purpose deleted-messages utilit
 
 - Keep changes scoped to the requested tool and shared contracts it genuinely depends on.
 - For framework, SDK, Telegram API, or CLI behavior, consult current upstream documentation and the
-  installed package types instead of relying on memory. GramJS documentation can lag its generated
-  TL types, so verify request/response fields in the installed `telegram` package as well.
-- Use the typed domains in `services/telegram/gateway/` from feature code. Direct access to the legacy
+  installed package types instead of relying on memory. For mtcute, verify functional exports in
+  `@mtcute/web/methods.js` and raw request/response fields in its generated TL types.
+- Use the typed domains in `services/telegram/gateway/` from feature code. Direct access to the
   `telegramService` singleton is reserved for auth/session infrastructure and adapter work.
 - Make focused commits as meaningful slices become green. Pull requests receive a temporary Surge
   preview only after the complete CI gate passes.
@@ -273,9 +273,8 @@ Mobile-first approach: default styles for mobile, add complexity at larger break
 - **Modules system**: `src/modules/index.ts` is the registry for first-class, expandable tools. New modules must plug into shared auth, permissions, navigation, and QA patterns.
 - **Auth UX**: Multi-account auth/session handling is a shared platform capability, not a one-off flow owned by a single module.
 - **Telegram clients**:
-  - **User**: GramJS via the typed Telegram gateway (MTProto) for dialogs, admin log, history,
-    scheduled messages, account details, deletion, and resend. The legacy client remains behind the
-    gateway adapter while it is decomposed.
+  - **User**: mtcute's browser runtime via the typed Telegram gateway (MTProto) for dialogs, admin
+    log, history, scheduled messages, account details, deletion, and resend.
   - **Bot**: HTTP Bot API for `getMe` identity/capabilities. Retry only network, 429, and 5xx
     failures; invalid tokens and other permanent 4xx responses fail immediately.
 - **Account Info module**: Shows data for both user and bot accounts. User accounts include extended profile metadata plus a privacy-minimized security/session summary; authorization hashes, IP addresses, password hints, and recovery-email patterns must not cross the Telegram gateway. For bots, `getMe` supplies identity and current capabilities (groups, privacy mode, inline queries, attachment menu, business connections, and Web App).
@@ -319,7 +318,8 @@ At every stage, preserve the modular product surface and keep `Scheduled Message
 The single owner of user-session lifecycle transitions. It is framework-agnostic and backend-injected so it is unit-testable with deferred promises.
 - **Serialized command queue**: `activate()`, `deactivate()`, `hold()` run one-at-a-time through one queue.
 - **Monotonic generation**: every request is stamped; async completions only publish a typed `SessionSnapshot` when still the latest request, so "last request wins" and "no stale activation after a later deactivation" are structural.
-- **Typed snapshot**: `idle | active | needs_login | error`; stores/UIs consume this instead of inferring state from the GramJS client.
+- **Typed snapshot**: `idle | active | needs_login | error`; stores/UIs consume this instead of
+  inferring state from the mtcute client.
 - **Bounded pre-swap cancellation**: before a swap it cancels account-affine mutations but waits only to a deadline; a never-settling mutation cannot block a later activation, and the generation fence prevents late completions from publishing state or starting work.
 - **Instance/backends**: `session-coordinator-instance.ts` binds the coordinator to `telegramService` + `resendService`; `useActiveUserSessionSync` computes the desired session and delegates all serialization to it. Richer per-job `abandoned` / `delivery_uncertain` fencing belongs to the job runtime.
 
@@ -342,11 +342,11 @@ A job is a request-scoped unit of long-running work (export, resend, scheduled s
 
 ### Telegram Service (`services/telegram/client.ts`)
 
-Central singleton for all Telegram MTProto operations via GramJS:
+Central singleton for all Telegram MTProto operations via mtcute:
 - **Connection lifecycle**: `connect()`, `disconnect()`, session persistence coordinated through the account store and secure vault
 - **State integrity**: unauthorized `connect()` and `disconnect()` paths have direct unit coverage for honest connection-state transitions
 - **Authentication**: Phone + code + 2FA password flow; session string storage
-- **Entity cache**: In-memory `Map<bigint, Entity>` to avoid redundant `getEntity()` calls
+- **Peer cache**: In-memory peer map avoids redundant resolution and preserves raw-to-marked IDs
 - **Key methods**:
   - `iterDeletedMessages()` - stream deleted messages from the admin log
   - `searchOwnMessages()` / `deleteMessages()` / `getExistingMessageIds()` - scan, mutate, and
@@ -364,7 +364,7 @@ Centralized rate limiting and retry logic:
 - **withRetry()**: Generic retry wrapper with exponential backoff
 - **FloodWait handling**: Parses `FloodWaitError` from various formats, waits accordingly
 - **Read classifier**: `isRetryableTelegramReadError()` retries safe reads for flood waits, network
-  failures, and 5xx responses while stopping on permanent RPC failures and exhausted internal loops
+  failures, and 5xx responses while stopping on permanent RPC failures
 - **Progress utilities**: `formatDuration()`, `calculateETA()` for UI feedback
 
 ### Bot API (`services/telegram/bot-api.ts`)
@@ -382,7 +382,8 @@ Finds and removes messages attributed to the active user in explicitly selected 
 - **Review before mutation**: Scanning is a separate, cancellable read phase. Partial chat scans are discarded and cannot feed deletion.
 - **Plain-text preview**: The confirmation step lists the text of every matched message. Textless media,
   stickers, and service messages use bracketed semantic placeholders; no media download is needed.
-- **Retry semantics**: Reads retry transient failures. Message deletion is idempotent by ID, so transient failures and explicit flood waits may retry; permanent 4xx RPC failures stop immediately, and a GramJS-internal exhausted retry loop is not multiplied externally.
+- **Retry semantics**: Reads retry transient failures. Message deletion is idempotent by ID, so
+  transient failures and explicit flood waits may retry; permanent 4xx RPC failures stop immediately.
 - **Ambiguous outcomes**: After an exhausted transport/server failure, the service reads the batch back once to confirm which IDs still exist. Unreconciled requests are reported as `delivery_uncertain`, never as success.
 - **Identity limit**: Telegram only returns messages attributed to the user principal. Anonymous admin posts and posts sent as a channel are intentionally reported as outside the scan.
 
@@ -391,7 +392,8 @@ Finds and removes messages attributed to the active user in explicitly selected 
 Two-phase export: metadata first, then media:
 1. **Phase 1**: Iterate admin log, build `DeletedMessage[]`, resolve sender info
 2. **Phase 2**: Parallel media downloads using Semaphore (default: 4 concurrent)
-- **Cancellation**: Cooperative `AbortController` checks between stages; some in-flight GramJS calls cannot be interrupted until they settle
+- **Cancellation**: Cooperative `AbortController` checks between stages; some high-level in-flight
+  calls cannot be interrupted until they settle
 - **Progress callbacks**: `onProgress(ExportProgress)`, `onFloodWait(seconds)`, `onError(error, messageId)`, `onFloodWaitCountdown(remainingSeconds)`
 - **Error resilience**: Read/download retries continue past individual media failures; mutation retry semantics still require dedicated hardening
 
@@ -428,7 +430,7 @@ Core domain interfaces exported from `types/index.ts`:
 
 Telegram adapter response types such as `FullUserInfo`, `AccountStats`, and `AccountSecurityInfo`
 remain colocated with `services/telegram/client.ts` and are exposed to features through gateway
-contracts. Do not move raw GramJS entities into shared domain types.
+contracts. Do not move raw mtcute peers or messages into shared domain types.
 
 ## Product Routes
 
@@ -446,7 +448,7 @@ Lazy-loaded tool routes and authenticated workspace routes:
 ## Key Design Decisions
 
 1. **Client-side only**: No backend; non-sensitive UI state may live in localStorage, while account secrets and larger data sets live in IndexedDB. Privacy-first.
-2. **GramJS for users, Bot API for bots**: MTProto complexity only where needed.
+2. **mtcute for users, Bot API for bots**: MTProto complexity only where needed.
 3. **Entity caching**: Avoids N+1 queries when resolving sender info for many messages.
 4. **Semaphore concurrency**: Prevents overwhelming Telegram API during media downloads.
 5. **AbortController cancellation**: Standard pattern for interruptible long operations.
@@ -458,56 +460,37 @@ Lazy-loaded tool routes and authenticated workspace routes:
 10. **Reviewed destructive actions**: Separate discovery from mutation, preview exact scope, require an
     acknowledgement, reconcile uncertain outcomes, and identify background jobs by target.
 
-## GramJS Browser Integration (Critical)
+## mtcute Browser Integration (Critical)
 
-GramJS is designed for Node.js but works in browsers with proper shimming. These lessons are hard-won:
+### 1. Browser Runtime and Imports
 
-### 1. DO NOT call `connect()` before `client.start()`
+- Use `BaseTelegramClient` from `@mtcute/web` with `MemoryStorage`. The encrypted account vault is
+  the durable session owner; mtcute's IndexedDB storage must not create a second plaintext copy.
+- Import high-level functions from `@mtcute/web/methods.js`. The package's top-level type surface may
+  suggest these exports exist, while the runtime values are only present on the methods entry point.
+- Keep `@mtcute/wasm` in Vite's `optimizeDeps.exclude`; mtcute loads the browser WASM artifacts
+  itself. Do not add Node polyfills or compatibility shims to the browser build.
+- Set `disableUpdates: true` until a tool has a concrete need for the updates loop.
 
-```javascript
-// ❌ WRONG - causes TIMEOUT errors
-await telegramService.initClient(apiId, apiHash)
-await telegramService.connect()  // <-- This breaks things
-await telegramService.startUserAuth(phone)
+### 2. Network and Retry Policy
 
-// ✅ CORRECT - client.start() handles connection internally
-await telegramService.initClient(apiId, apiHash)
-await telegramService.startUserAuth(phone)  // This calls client.start() which connects
-```
+`mtcute-runtime.ts` is the single place for transport policy:
 
-`client.start()` internally calls `connect()`. Double-connecting puts the client in a bad state causing authentication timeouts.
+- media pools are bounded (`upload: 2`, `download: 3`, `downloadSmall: 2`);
+- automatic FloodWait handling is bounded by both time and attempt count and emits UI countdowns;
+- automatic internal-server-error retries are disabled because an accepted mutation can have an
+  ambiguous response;
+- higher layers may retry classified reads and idempotent deletion-by-ID, but must not generically
+  retry sends or report an uncertain send as delivered.
 
-### 2. Required Browser Shims (in `src/shims/`)
-
-GramJS imports Node.js modules that don't exist in browsers. Vite aliases redirect them:
-
-| Node Module | Shim File | Purpose |
-|------------|-----------|---------|
-| `util` | `src/shims/util.ts` | `util.inspect.custom` symbol for GramJS debugging |
-| `os` | `src/shims/os.ts` | `os.type()`, `os.release()` for device info in MTProto |
-| `events` | `src/shims/events.ts` | Browser `EventEmitter` compatibility for GramJS dependencies |
-| `crypto` | `src/shims/telegram/CryptoFile.ts` | Custom browser-compatible subset used by GramJS |
-| `telegram/extensions/PromisedNetSockets` | `src/shims/telegram/PromisedNetSockets.ts` | Throws error - WebSocket is used instead |
-
-These are configured in `vite.config.ts` via `resolve.alias` and `optimizeDeps.esbuildOptions.plugins`.
+Use full-buffer media downloads with a stall timeout and bounded surrounding concurrency. If moving
+to streaming downloads, verify worker/iterator cleanup against the pinned mtcute version first.
 
 ### 3. Session Isolation for Multi-Account
 
-Each account must have its own session string. **Never** use a single global `telegram_session` localStorage key:
-
-```javascript
-// ❌ WRONG - session leakage between accounts
-constructor() {
-  this.session = new StringSession(localStorage.getItem('telegram_session') || '')
-}
-
-// ✅ CORRECT - session comes from the active account's SavedAccount.sessionString
-async useUserAccountSession(data: { sessionString, apiId, apiHash }) {
-  this.session = new StringSession(data.sessionString || '')
-  await this.initClient(data.apiId, data.apiHash)
-  // ...
-}
-```
+Each account owns one mtcute session string in the encrypted vault. Never use a global session key
+or let mtcute persist sessions independently. An unreadable/old-format session must transition the
+account to `needs_login`; it must never fall through to another account's live client.
 
 ### 4. Auth Flow vs Session Synchronization
 
@@ -522,7 +505,8 @@ return { kind: 'activate', request: accountSessionRequest }
 
 ### 5. `_rawMessage` is Runtime-Only
 
-`DeletedMessage._rawMessage` holds a raw GramJS object for media downloads. It's **non-serializable** (has circular refs, functions, BigInt). Strip it at persistence boundaries:
+`DeletedMessage._rawMessage` holds an mtcute `Message` for media downloads. It is non-serializable;
+strip it at every persistence and archive boundary:
 
 ```javascript
 // In indexed-db.ts saveMessages()
