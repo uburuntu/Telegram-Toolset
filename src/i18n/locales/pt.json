@@ -26,6 +26,44 @@
     "goHome": "Ir para o Início",
     "tryAgain": "Tentar Novamente"
   },
+  "chatSelector": {
+    "title": "Selecionar chats",
+    "search": "Buscar chats",
+    "searchPlaceholder": "Buscar por nome ou usuário...",
+    "chatTypes": "Tipos de chat",
+    "moreFilters": "Mais filtros",
+    "publicOnly": "Apenas chats públicos",
+    "adminOnly": "Apenas chats em que sou administrador",
+    "sendableOnly": "Chats em que posso enviar mensagens",
+    "selectedOnly": "Apenas selecionados",
+    "sortBy": "Ordenar",
+    "selectVisible": "Selecionar visíveis ({count})",
+    "resultCount": "{shown} de {total} chats",
+    "selectedCount": "{count} selecionados",
+    "loading": "Carregando chats...",
+    "noChats": "Nenhum chat disponível",
+    "noResults": "Nenhum chat corresponde a estes filtros",
+    "reset": "Redefinir",
+    "members": "{count} membros",
+    "publicBadge": "Público",
+    "categories": {
+      "direct": "Mensagens diretas",
+      "groups": "Grupos",
+      "channels": "Canais"
+    },
+    "types": {
+      "user": "Mensagem direta",
+      "group": "Grupo",
+      "supergroup": "Supergrupo",
+      "channel": "Canal"
+    },
+    "sorts": {
+      "recent": "Atividade recente",
+      "name": "Nome",
+      "type": "Tipo de chat",
+      "members": "Número de membros"
+    }
+  },
   "landing": {
     "title": "Kit Avançado de Ferramentas do Telegram",
     "subtitle": "Recursos avançados para Telegram não disponíveis nos aplicativos oficiais. 100% no dispositivo, código aberto e focado na privacidade.",

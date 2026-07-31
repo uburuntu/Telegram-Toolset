@@ -26,6 +26,44 @@
     "goHome": "Ir al inicio",
     "tryAgain": "Intentar de nuevo"
   },
+  "chatSelector": {
+    "title": "Seleccionar chats",
+    "search": "Buscar chats",
+    "searchPlaceholder": "Buscar por nombre o usuario...",
+    "chatTypes": "Tipos de chat",
+    "moreFilters": "Más filtros",
+    "publicOnly": "Solo chats públicos",
+    "adminOnly": "Solo chats donde soy administrador",
+    "sendableOnly": "Chats donde puedo escribir",
+    "selectedOnly": "Solo seleccionados",
+    "sortBy": "Ordenar",
+    "selectVisible": "Seleccionar visibles ({count})",
+    "resultCount": "{shown} de {total} chats",
+    "selectedCount": "{count} seleccionados",
+    "loading": "Cargando chats...",
+    "noChats": "No hay chats disponibles",
+    "noResults": "Ningún chat coincide con estos filtros",
+    "reset": "Restablecer",
+    "members": "{count} miembros",
+    "publicBadge": "Público",
+    "categories": {
+      "direct": "Mensajes directos",
+      "groups": "Grupos",
+      "channels": "Canales"
+    },
+    "types": {
+      "user": "Mensaje directo",
+      "group": "Grupo",
+      "supergroup": "Supergrupo",
+      "channel": "Canal"
+    },
+    "sorts": {
+      "recent": "Actividad reciente",
+      "name": "Nombre",
+      "type": "Tipo de chat",
+      "members": "Número de miembros"
+    }
+  },
   "landing": {
     "title": "Telegram Power Toolset",
     "subtitle": "Funciones avanzadas para Telegram no disponibles en aplicaciones oficiales. 100% en el dispositivo, código abierto y enfocado en la privacidad.",
