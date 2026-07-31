@@ -26,6 +26,44 @@
     "accounts": "accounts",
     "rateLimited": "Rate limited. Waiting {seconds}s..."
   },
+  "chatSelector": {
+    "title": "Select chats",
+    "search": "Search chats",
+    "searchPlaceholder": "Search by name or username...",
+    "chatTypes": "Chat types",
+    "moreFilters": "More filters",
+    "publicOnly": "Public chats only",
+    "adminOnly": "Admin chats only",
+    "sendableOnly": "Chats I can send to",
+    "selectedOnly": "Selected only",
+    "sortBy": "Sort",
+    "selectVisible": "Select visible ({count})",
+    "resultCount": "{shown} of {total} chats",
+    "selectedCount": "{count} selected",
+    "loading": "Loading chats...",
+    "noChats": "No chats available",
+    "noResults": "No chats match these filters",
+    "reset": "Reset",
+    "members": "{count} members",
+    "publicBadge": "Public",
+    "categories": {
+      "direct": "Direct messages",
+      "groups": "Groups",
+      "channels": "Channels"
+    },
+    "types": {
+      "user": "Direct message",
+      "group": "Group",
+      "supergroup": "Supergroup",
+      "channel": "Channel"
+    },
+    "sorts": {
+      "recent": "Recent activity",
+      "name": "Name",
+      "type": "Chat type",
+      "members": "Member count"
+    }
+  },
   "landing": {
     "title": "Telegram Power Toolset",
     "subtitle": "Advanced features for Telegram that aren't available in official apps. 100% on-device, open source, and privacy-focused.",
