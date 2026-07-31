@@ -56,7 +56,7 @@ afterEach(() => {
 
 describe('DeleteTraceService', () => {
   it('scans resumable sender-filtered pages without double-counting cursor overlap', async () => {
-    const target = chat(10, 'Public chat')
+    const target = { ...chat(10, 'Public chat'), peerId: '-10010' }
     const { service, trace, unsubscribe } = createService({
       searchOwnMessages: vi
         .fn()
@@ -98,12 +98,12 @@ describe('DeleteTraceService', () => {
     })
     expect(trace.searchOwnMessages).toHaveBeenNthCalledWith(
       1,
-      target.id,
+      target.peerId,
       expect.objectContaining({ offsetId: 0, limit: 100 }),
     )
     expect(trace.searchOwnMessages).toHaveBeenNthCalledWith(
       2,
-      target.id,
+      target.peerId,
       expect.objectContaining({ offsetId: 20, limit: 100 }),
     )
     expect(onProgress).toHaveBeenLastCalledWith(
