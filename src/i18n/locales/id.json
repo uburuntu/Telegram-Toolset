@@ -26,6 +26,44 @@
     "goHome": "Ke beranda",
     "tryAgain": "Coba lagi"
   },
+  "chatSelector": {
+    "title": "Pilih chat",
+    "search": "Cari chat",
+    "searchPlaceholder": "Cari berdasarkan nama atau nama pengguna...",
+    "chatTypes": "Jenis chat",
+    "moreFilters": "Filter lainnya",
+    "publicOnly": "Hanya chat publik",
+    "adminOnly": "Hanya chat yang saya kelola",
+    "sendableOnly": "Chat yang dapat saya kirimi pesan",
+    "selectedOnly": "Hanya yang dipilih",
+    "sortBy": "Urutkan",
+    "selectVisible": "Pilih yang terlihat ({count})",
+    "resultCount": "{shown} dari {total} chat",
+    "selectedCount": "{count} dipilih",
+    "loading": "Memuat chat...",
+    "noChats": "Tidak ada chat yang tersedia",
+    "noResults": "Tidak ada chat yang cocok dengan filter ini",
+    "reset": "Atur ulang",
+    "members": "{count} anggota",
+    "publicBadge": "Publik",
+    "categories": {
+      "direct": "Pesan langsung",
+      "groups": "Grup",
+      "channels": "Kanal"
+    },
+    "types": {
+      "user": "Pesan langsung",
+      "group": "Grup",
+      "supergroup": "Supergrup",
+      "channel": "Kanal"
+    },
+    "sorts": {
+      "recent": "Aktivitas terbaru",
+      "name": "Nama",
+      "type": "Jenis chat",
+      "members": "Jumlah anggota"
+    }
+  },
   "landing": {
     "title": "Telegram Power Toolset",
     "subtitle": "Fitur canggih untuk Telegram yang tidak tersedia di aplikasi resmi. 100% di perangkat, sumber terbuka, dan fokus pada privasi.",

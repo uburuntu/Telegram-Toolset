@@ -26,6 +26,44 @@
     "goHome": "Bosh sahifaga o'tish",
     "tryAgain": "Qayta urinib ko'ring"
   },
+  "chatSelector": {
+    "title": "Chatlarni tanlang",
+    "search": "Chatlarni qidirish",
+    "searchPlaceholder": "Nom yoki foydalanuvchi nomi bo'yicha qidiring...",
+    "chatTypes": "Chat turlari",
+    "moreFilters": "Qo'shimcha filtrlar",
+    "publicOnly": "Faqat ommaviy chatlar",
+    "adminOnly": "Faqat men administrator bo'lgan chatlar",
+    "sendableOnly": "Men xabar yubora oladigan chatlar",
+    "selectedOnly": "Faqat tanlanganlar",
+    "sortBy": "Saralash",
+    "selectVisible": "Ko'rinadiganlarni tanlash ({count})",
+    "resultCount": "{shown} / {total} ta chat",
+    "selectedCount": "{count} ta tanlandi",
+    "loading": "Chatlar yuklanmoqda...",
+    "noChats": "Mavjud chatlar yo'q",
+    "noResults": "Bu filtrlarga mos chatlar yo'q",
+    "reset": "Qayta o'rnatish",
+    "members": "{count} ta a'zo",
+    "publicBadge": "Ommaviy",
+    "categories": {
+      "direct": "Shaxsiy xabarlar",
+      "groups": "Guruhlar",
+      "channels": "Kanallar"
+    },
+    "types": {
+      "user": "Shaxsiy chat",
+      "group": "Guruh",
+      "supergroup": "Superguruh",
+      "channel": "Kanal"
+    },
+    "sorts": {
+      "recent": "So'nggi faollik",
+      "name": "Nomi",
+      "type": "Chat turi",
+      "members": "A'zolar soni"
+    }
+  },
   "landing": {
     "title": "Telegram uchun kuchli vositalar to'plami",
     "subtitle": "Rasmiy ilovalarda mavjud bo'lmagan Telegram uchun ilg'or xususiyatlar. 100% qurilmada, ochiq kodli va maxfiylikka qaratilgan.",

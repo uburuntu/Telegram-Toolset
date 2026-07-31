@@ -26,6 +26,44 @@
     "goHome": "رفتن به صفحه اصلی",
     "tryAgain": "تلاش مجدد"
   },
+  "chatSelector": {
+    "title": "انتخاب گفتگوها",
+    "search": "جستجوی گفتگوها",
+    "searchPlaceholder": "جستجو با نام یا نام کاربری...",
+    "chatTypes": "انواع گفتگو",
+    "moreFilters": "فیلترهای بیشتر",
+    "publicOnly": "فقط گفتگوهای عمومی",
+    "adminOnly": "فقط گفتگوهایی که مدیر آن‌ها هستم",
+    "sendableOnly": "گفتگوهایی که می‌توانم در آن‌ها پیام بفرستم",
+    "selectedOnly": "فقط انتخاب‌شده‌ها",
+    "sortBy": "مرتب‌سازی",
+    "selectVisible": "انتخاب موارد نمایان ({count})",
+    "resultCount": "{shown} از {total} گفتگو",
+    "selectedCount": "{count} انتخاب‌شده",
+    "loading": "در حال بارگذاری گفتگوها...",
+    "noChats": "گفتگویی در دسترس نیست",
+    "noResults": "گفتگویی با این فیلترها مطابقت ندارد",
+    "reset": "بازنشانی",
+    "members": "{count} عضو",
+    "publicBadge": "عمومی",
+    "categories": {
+      "direct": "پیام‌های مستقیم",
+      "groups": "گروه‌ها",
+      "channels": "کانال‌ها"
+    },
+    "types": {
+      "user": "گفتگوی مستقیم",
+      "group": "گروه",
+      "supergroup": "ابرگروه",
+      "channel": "کانال"
+    },
+    "sorts": {
+      "recent": "فعالیت اخیر",
+      "name": "نام",
+      "type": "نوع گفتگو",
+      "members": "تعداد اعضا"
+    }
+  },
   "landing": {
     "title": "Telegram Power Toolset",
     "subtitle": "ویژگی‌های پیشرفته برای تلگرام که در برنامه‌های رسمی موجود نیست. ۱۰۰٪ روی دستگاه، متن‌باز و متمرکز بر حریم خصوصی.",

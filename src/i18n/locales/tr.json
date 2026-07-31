@@ -26,6 +26,44 @@
     "goHome": "Ana Sayfaya Dön",
     "tryAgain": "Tekrar Dene"
   },
+  "chatSelector": {
+    "title": "Sohbetleri seç",
+    "search": "Sohbetlerde ara",
+    "searchPlaceholder": "Ada veya kullanıcı adına göre ara...",
+    "chatTypes": "Sohbet türleri",
+    "moreFilters": "Daha fazla filtre",
+    "publicOnly": "Yalnızca herkese açık sohbetler",
+    "adminOnly": "Yalnızca yöneticisi olduğum sohbetler",
+    "sendableOnly": "Mesaj gönderebildiğim sohbetler",
+    "selectedOnly": "Yalnızca seçilenler",
+    "sortBy": "Sırala",
+    "selectVisible": "Görünenleri seç ({count})",
+    "resultCount": "{total} sohbetten {shown} tanesi",
+    "selectedCount": "{count} seçildi",
+    "loading": "Sohbetler yükleniyor...",
+    "noChats": "Kullanılabilir sohbet yok",
+    "noResults": "Bu filtrelerle eşleşen sohbet yok",
+    "reset": "Sıfırla",
+    "members": "{count} üye",
+    "publicBadge": "Herkese açık",
+    "categories": {
+      "direct": "Doğrudan mesajlar",
+      "groups": "Gruplar",
+      "channels": "Kanallar"
+    },
+    "types": {
+      "user": "Doğrudan mesaj",
+      "group": "Grup",
+      "supergroup": "Süper grup",
+      "channel": "Kanal"
+    },
+    "sorts": {
+      "recent": "Son etkinlik",
+      "name": "Ad",
+      "type": "Sohbet türü",
+      "members": "Üye sayısı"
+    }
+  },
   "landing": {
     "title": "Telegram Gelişmiş Araç Seti",
     "subtitle": "Resmi uygulamalarda bulunmayan Telegram için gelişmiş özellikler. %100 cihaz üzerinde, açık kaynaklı ve gizlilik odaklı.",

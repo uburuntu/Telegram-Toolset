@@ -26,6 +26,44 @@
     "goHome": "العودة للرئيسية",
     "tryAgain": "إعادة المحاولة"
   },
+  "chatSelector": {
+    "title": "اختيار الدردشات",
+    "search": "البحث في الدردشات",
+    "searchPlaceholder": "البحث بالاسم أو اسم المستخدم...",
+    "chatTypes": "أنواع الدردشات",
+    "moreFilters": "المزيد من عوامل التصفية",
+    "publicOnly": "الدردشات العامة فقط",
+    "adminOnly": "الدردشات التي أديرها فقط",
+    "sendableOnly": "الدردشات التي يمكنني الإرسال إليها",
+    "selectedOnly": "المحددة فقط",
+    "sortBy": "ترتيب",
+    "selectVisible": "تحديد الظاهر ({count})",
+    "resultCount": "{shown} من أصل {total} دردشة",
+    "selectedCount": "تم تحديد {count}",
+    "loading": "جارٍ تحميل الدردشات...",
+    "noChats": "لا توجد دردشات متاحة",
+    "noResults": "لا توجد دردشات تطابق عوامل التصفية هذه",
+    "reset": "إعادة تعيين",
+    "members": "{count} عضو",
+    "publicBadge": "عام",
+    "categories": {
+      "direct": "رسائل مباشرة",
+      "groups": "مجموعات",
+      "channels": "قنوات"
+    },
+    "types": {
+      "user": "محادثة مباشرة",
+      "group": "مجموعة",
+      "supergroup": "مجموعة فائقة",
+      "channel": "قناة"
+    },
+    "sorts": {
+      "recent": "النشاط الأخير",
+      "name": "الاسم",
+      "type": "نوع الدردشة",
+      "members": "عدد الأعضاء"
+    }
+  },
   "landing": {
     "title": "Telegram Power Toolset",
     "subtitle": "ميزات متقدمة لتيليجرام غير متوفرة في التطبيقات الرسمية. 100% على الجهاز، مفتوح المصدر، ويركز على الخصوصية.",
