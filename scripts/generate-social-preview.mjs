@@ -7,11 +7,11 @@ import { chromium } from '@playwright/test'
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const rootDirectory = resolve(scriptDirectory, '..')
-const faviconPath = resolve(rootDirectory, 'public/favicon.svg')
+const logoPath = resolve(rootDirectory, 'public/logo.png')
 const outputPath = resolve(rootDirectory, 'public/social-preview.png')
 
-const favicon = await readFile(faviconPath, 'utf8')
-const faviconDataUrl = `data:image/svg+xml;base64,${Buffer.from(favicon).toString('base64')}`
+const logo = await readFile(logoPath)
+const logoDataUrl = `data:image/png;base64,${logo.toString('base64')}`
 
 const html = String.raw`<!doctype html>
 <html lang="en">
@@ -103,7 +103,7 @@ const html = String.raw`<!doctype html>
           <span>Runs in your browser</span>
         </div>
       </section>
-      <div class="mark"><img src="${faviconDataUrl}" alt="" /></div>
+      <div class="mark"><img src="${logoDataUrl}" alt="" /></div>
       <div class="url">telegram-toolset.rmbk.me</div>
     </main>
   </body>

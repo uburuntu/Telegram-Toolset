@@ -110,6 +110,10 @@ passes.
 
 ## Public Assets
 
+The primary brand mark is `public/logo.png`; the small monochrome variant is
+`public/favicon.png`. Keep both square, transparent PNGs and verify the favicon at its actual small
+display size.
+
 The README and website share the generated 1280×640 social image at `public/social-preview.png`.
 Change its deterministic HTML/CSS source in `scripts/generate-social-preview.mjs`, then regenerate it:
 
