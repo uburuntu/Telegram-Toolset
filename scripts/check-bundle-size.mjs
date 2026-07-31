@@ -17,7 +17,8 @@ const budgets = {
     gzipBytes: 400_000,
   },
   totalJs: {
-    rawBytes: 1_750_000,
+    // mtcute's generated TL schema compresses heavily; keep the network-facing gzip cap unchanged.
+    rawBytes: 1_775_000,
     gzipBytes: 525_000,
   },
   totalCss: {

@@ -293,7 +293,7 @@ export async function deleteBackup(id: string): Promise<void> {
 // Message operations
 export async function saveMessage(backupId: string, message: DeletedMessage): Promise<void> {
   const db = await getDB()
-  // Strip runtime-only `_rawMessage` before persisting (non-serializable GramJS object).
+  // Strip runtime-only `_rawMessage` before persisting (non-serializable client object).
   const sanitized = stripRawMessage(message)
   await db.put('messages', toPlainSnapshot({ ...sanitized, backupId }))
 }

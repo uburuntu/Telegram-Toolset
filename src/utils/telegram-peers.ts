@@ -135,7 +135,7 @@ export function peerRefToMarkedId(ref: PeerRef): string {
   return buildMarkedPeerId(peerKindToMarkedKind(ref.kind), ref.rawId)
 }
 
-/** The unsigned raw id of a {@link PeerRef} as a `bigint` (for GramJS calls that still take one). */
+/** The unsigned raw id of a {@link PeerRef} as a `bigint` for storage and domain boundaries. */
 export function peerRefRawBigInt(ref: PeerRef): bigint {
   return BigInt(ref.rawId)
 }

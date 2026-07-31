@@ -1,8 +1,8 @@
 import { telegramService } from '../client'
-import { createTelegramGateway } from './legacy-service-adapter'
+import { createTelegramGateway } from './service-adapter'
 
 export * from './contracts'
-export type { LegacyTelegramServiceAdapterTarget } from './legacy-service-adapter'
+export type { TelegramServiceAdapterTarget } from './service-adapter'
 export { createTelegramGateway }
 
 const gateway = createTelegramGateway(telegramService)

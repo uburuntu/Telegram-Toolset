@@ -1,7 +1,7 @@
 /**
  * Pure helpers for the stable Telegram identity model (`TelegramPrincipal`).
  *
- * These functions never touch the network, storage, or the GramJS client. They exist so that the
+ * These functions never touch the network, storage, or the Telegram client. They exist so that the
  * account store, auth flow, and storage repositories share one canonical, testable definition of
  * "is this the same Telegram identity?".
  */

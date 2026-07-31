@@ -36,7 +36,7 @@ import type {
   TelegramUserAuthOptions,
 } from './contracts'
 
-export interface LegacyTelegramServiceAdapterTarget {
+export interface TelegramServiceAdapterTarget {
   readonly isConnected: boolean
   readonly user: UserInfo | null
   readonly connectionState: ConnectionState
@@ -73,7 +73,7 @@ export interface LegacyTelegramServiceAdapterTarget {
   downloadMessageMedia(message: DeletedMessage): Promise<Blob | null>
   getChatMessagesByIds(chatId: TelegramPeerRef, messageIds: number[]): Promise<Map<number, unknown>>
   canSendToChat(chatId: bigint): Promise<boolean>
-  sendMessage(chatId: bigint, text: string, parseMode?: 'html' | 'md'): Promise<void>
+  sendMessage(chatId: bigint, text: string, parseMode?: 'html'): Promise<void>
   sendFile(chatId: bigint, file: Blob | File, options?: TelegramSendFileOptions): Promise<void>
   forwardMessage(fromChatId: bigint, toChatId: bigint, messageId: number): Promise<void>
   getScheduledMessages(chatId: bigint): Promise<ScheduledMessage[]>
@@ -92,9 +92,7 @@ export interface LegacyTelegramServiceAdapterTarget {
   getAccountSecurityInfo(): Promise<AccountSecurityInfo | null>
 }
 
-export function createTelegramGateway(
-  service: LegacyTelegramServiceAdapterTarget,
-): TelegramGateway {
+export function createTelegramGateway(service: TelegramServiceAdapterTarget): TelegramGateway {
   const auth: TelegramAuthSessionGateway = {
     get isConnected() {
       return service.isConnected

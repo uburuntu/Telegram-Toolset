@@ -624,7 +624,7 @@ class ResendService {
   private async sendFileWithRetry(
     chatId: bigint,
     file: Blob,
-    options: { caption?: string; parseMode?: 'html' | 'md'; filename?: string },
+    options: { caption?: string; parseMode?: 'html'; filename?: string },
     callbacks: ResendCallbacks,
     signal: AbortSignal,
   ): Promise<void> {

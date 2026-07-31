@@ -16,8 +16,8 @@ import type {
 import type { TelegramMessageHandle } from '@/services/telegram/gateway/contracts'
 import {
   createTelegramGateway,
-  type LegacyTelegramServiceAdapterTarget,
-} from '@/services/telegram/gateway/legacy-service-adapter'
+  type TelegramServiceAdapterTarget,
+} from '@/services/telegram/gateway/service-adapter'
 
 const userInfo: UserInfo = {
   id: BigInt(1),
@@ -137,8 +137,8 @@ function chatMessageStream(messages: ChatMessage[] = [chatMessage]) {
 }
 
 function createLegacyServiceMock(
-  overrides: Partial<LegacyTelegramServiceAdapterTarget> = {},
-): LegacyTelegramServiceAdapterTarget {
+  overrides: Partial<TelegramServiceAdapterTarget> = {},
+): TelegramServiceAdapterTarget {
   return {
     isConnected: false,
     user: null,

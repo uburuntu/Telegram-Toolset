@@ -1,36 +1,32 @@
-/**
- * Build a GramJS `Api.InputPeer*` directly from a canonical {@link PeerRef}.
- *
- * This is the payoff of storing an access hash: given a complete PeerRef, an input peer can be
- * constructed with no `getEntity` round-trip, so a chat can be re-opened after a cold start when its
- * id is not in the session's entity cache. Returns `null` when a required access hash is missing, so
- * the caller falls back to id-based resolution instead of sending a malformed peer.
- */
-
-import { Api } from 'telegram'
+import { Long, type tl } from '@mtcute/web'
 import type { PeerRef } from '@/types'
-import { peerRefToInputPeerParams } from './peer-resolver'
 
-export function buildInputPeer(ref: PeerRef): Api.TypeInputPeer | null {
-  const params = peerRefToInputPeerParams(ref)
-  if (!params) {
-    return null
+function parsePeerId(value: string): number {
+  const id = Number(value)
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error(`Invalid Telegram peer ID: ${value}`)
+  }
+  return id
+}
+
+/** Build an mtcute input peer from a complete, storable peer reference. */
+export function buildInputPeer(ref: PeerRef): tl.TypeInputPeer | null {
+  if (ref.kind === 'group') {
+    return { _: 'inputPeerChat', chatId: parsePeerId(ref.rawId) }
+  }
+  if (!ref.accessHash || ref.accessHash === '0') return null
+
+  if (ref.kind === 'user') {
+    return {
+      _: 'inputPeerUser',
+      userId: parsePeerId(ref.rawId),
+      accessHash: Long.fromString(ref.accessHash),
+    }
   }
 
-  switch (params.kind) {
-    case 'user':
-      return new Api.InputPeerUser({
-        userId: BigInt(params.userId) as unknown as Api.long,
-        accessHash: BigInt(params.accessHash) as unknown as Api.long,
-      })
-    case 'chat':
-      return new Api.InputPeerChat({
-        chatId: BigInt(params.chatId) as unknown as Api.long,
-      })
-    case 'channel':
-      return new Api.InputPeerChannel({
-        channelId: BigInt(params.channelId) as unknown as Api.long,
-        accessHash: BigInt(params.accessHash) as unknown as Api.long,
-      })
+  return {
+    _: 'inputPeerChannel',
+    channelId: parsePeerId(ref.rawId),
+    accessHash: Long.fromString(ref.accessHash),
   }
 }

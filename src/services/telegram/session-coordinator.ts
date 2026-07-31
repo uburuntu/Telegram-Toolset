@@ -47,7 +47,7 @@ export type DesiredSession =
   | { kind: 'teardown' }
   | { kind: 'activate'; request: ActivateRequest }
 
-/** Low-level session operations. Wraps the GramJS singleton in production; faked in tests. */
+/** Low-level session operations. Wraps the mtcute singleton in production; faked in tests. */
 export interface SessionBackend {
   /**
    * Install a synchronous barrier so gateway calls block until the in-flight transition completes.
