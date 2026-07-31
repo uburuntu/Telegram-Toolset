@@ -2,6 +2,8 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloodWaitIndicator from '@/components/common/FloodWaitIndicator.vue'
+import ChatSelector from '@/components/telegram/ChatSelector.vue'
+import type { ChatSelectorConfig } from '@/components/telegram/chat-selector'
 import { useFloodWait } from '@/composables'
 import {
   type ChatWithScheduledMessages,
@@ -19,6 +21,16 @@ import {
   type ScheduledMessageSelection,
 } from '@/utils/scheduled-message-selection'
 
+const SCHEDULED_CHAT_SELECTOR_CONFIG: ChatSelectorConfig = {
+  filters: { selectedOnly: false },
+  display: {
+    selectedCount: false,
+    selectVisible: false,
+    maxHeight: 'lg',
+  },
+  sortOptions: ['recent', 'name', 'type', 'members'],
+}
+
 const { t } = useI18n()
 const accountsStore = useAccountsStore()
 const uiStore = useUiStore()
@@ -29,7 +41,6 @@ const step = ref<'select-mode' | 'select-chat' | 'configure-all' | 'loading' | '
 )
 const mode = ref<'single' | 'all'>('single')
 const chats = ref<ChatInfo[]>([])
-const searchQuery = ref('')
 const selectedChat = ref<ChatInfo | null>(null)
 const isLoading = ref(false)
 const error = ref('')
@@ -51,11 +62,6 @@ let chatsRequestId = 0
 let scheduledRequestId = 0
 
 // Computed
-const filteredChats = computed(() => {
-  const query = searchQuery.value.toLowerCase()
-  return chats.value.filter((chat) => chat.title.toLowerCase().includes(query))
-})
-
 const totalScheduledMessages = computed(() => {
   return scheduledData.value.reduce((sum, item) => sum + item.messages.length, 0)
 })
@@ -94,7 +100,6 @@ watch(
     step.value = 'select-mode'
     chats.value = []
     selectedChat.value = null
-    searchQuery.value = ''
     scheduledData.value = []
     selectedMessages.value.clear()
     isLoading.value = false
@@ -469,61 +474,19 @@ function formatScheduledDate(date: Date): string {
         </p>
       </header>
 
-      <div class="mb-4">
-        <label for="scheduled-chat-search" class="sr-only">
-          {{ t('export.searchChats') }}
-        </label>
-        <input
-          id="scheduled-chat-search"
-          v-model="searchQuery"
-          type="search"
-          :placeholder="t('export.searchChats')"
-          :aria-label="t('export.searchChats')"
-          class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
-        />
-      </div>
-
-      <div v-if="isLoading" class="text-center py-12">
-        <div
-          class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"
-        ></div>
-        <p class="text-gray-600 dark:text-gray-400">{{ t('export.loadingChats') }}</p>
-      </div>
-
-      <div v-else-if="error" class="text-center py-12 text-red-600" role="alert" aria-live="assertive">
-        {{ error }}
-      </div>
-
-      <div v-else class="space-y-2">
-        <button
-          v-for="chat in filteredChats"
-          :key="chat.id.toString()"
-          @click="selectChat(chat)"
-          class="flex items-center gap-3 w-full p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-100 text-left"
-        >
-          <div
-            class="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-xl"
-          >
-            {{
-              chat.type === 'channel'
-                ? '📢'
-                : chat.type === 'supergroup'
-                  ? '👥'
-                  : chat.type === 'group'
-                    ? '💬'
-                    : '👤'
-            }}
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-gray-900 dark:text-white truncate">
-              {{ chat.title }}
-            </div>
-            <div class="text-xs text-gray-500">
-              {{ chat.type }}
-            </div>
-          </div>
-        </button>
-      </div>
+      <ChatSelector
+        input-id="scheduled-chat-search"
+        :chats="chats"
+        :is-loading="isLoading"
+        :error="error"
+        :config="SCHEDULED_CHAT_SELECTOR_CONFIG"
+        :labels="{
+          searchPlaceholder: t('export.searchChats'),
+          loading: t('export.loadingChats'),
+        }"
+        @select="selectChat"
+        @retry="loadChats"
+      />
     </template>
 
     <!-- Configure All Chats Scan -->

@@ -2,6 +2,8 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloodWaitIndicator from '@/components/common/FloodWaitIndicator.vue'
+import ChatSelector from '@/components/telegram/ChatSelector.vue'
+import type { ChatSelectorConfig } from '@/components/telegram/chat-selector'
 import { useFloodWait } from '@/composables'
 import {
   deleteTraceService,
@@ -26,7 +28,16 @@ import {
 import { parseDateInputBoundary } from '@/utils/date-input'
 import { toUserFriendlyError } from '@/utils/error-messages'
 import { formatDateWithLocale, formatNumberWithLocale } from '@/utils/locale-format'
-import ChatMultiSelector from './components/ChatMultiSelector.vue'
+
+const DELETE_MESSAGES_CHAT_SELECTOR_CONFIG: ChatSelectorConfig = {
+  mode: 'multiple',
+  filters: { sendableOnly: false },
+  display: {
+    maxHeight: 'lg',
+    density: 'comfortable',
+  },
+  sortOptions: ['recent', 'name', 'type', 'members'],
+}
 
 type Step = 'select' | 'configure' | 'scanning' | 'review' | 'deleting' | 'complete'
 
@@ -394,10 +405,19 @@ function outcomeClass(status: DeliveryOutcome): string {
     </div>
 
     <template v-if="step === 'select'">
-      <ChatMultiSelector
+      <ChatSelector
+        input-id="delete-trace-chat-search"
         :chats="chats"
         :selected-ids="selectedChatIds"
         :is-loading="isLoadingChats"
+        :config="DELETE_MESSAGES_CHAT_SELECTOR_CONFIG"
+        :labels="{
+          title: t('deleteTrace.selectChats'),
+          searchPlaceholder: t('deleteTrace.searchChats'),
+          loading: t('deleteTrace.loadingChats'),
+          emptyTitle: t('deleteTrace.noChats'),
+          noResults: t('deleteTrace.noSearchResults'),
+        }"
         @toggle="toggleChat"
         @set-visible="setVisibleChats"
       />

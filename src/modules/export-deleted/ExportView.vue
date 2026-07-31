@@ -2,6 +2,8 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import ChatSelector from '@/components/telegram/ChatSelector.vue'
+import type { ChatSelectorConfig } from '@/components/telegram/chat-selector'
 import { exportService } from '@/services/export/export-service'
 import { zipGenerator } from '@/services/export/zip-generator'
 import { backupManager } from '@/services/storage/backup-manager'
@@ -12,7 +14,22 @@ import { useAccountsStore, useBackupsStore, useUiStore } from '@/stores'
 import type { BackupWithMessages, ChatInfo, ExportConfig, ExportProgress } from '@/types'
 import { formatDateInputValue, parseDateInputBoundary } from '@/utils/date-input'
 import { toUserFriendlyError } from '@/utils/error-messages'
-import { formatDateWithLocale } from '@/utils/locale-format'
+
+const EXPORT_CHAT_SELECTOR_CONFIG: ChatSelectorConfig = {
+  allowedTypes: ['supergroup', 'channel'],
+  requiredCapabilities: ['canExport'],
+  filters: {
+    adminOnly: false,
+    sendableOnly: false,
+    selectedOnly: false,
+  },
+  display: {
+    selectedCount: false,
+    selectVisible: false,
+    maxHeight: 'lg',
+  },
+  sortOptions: ['recent', 'name', 'members'],
+}
 
 const { t } = useI18n()
 const router = useRouter()
@@ -23,7 +40,6 @@ const uiStore = useUiStore()
 // State
 const step = ref<'select-chat' | 'configure' | 'confirm' | 'exporting' | 'complete'>('select-chat')
 const chats = ref<ChatInfo[]>([])
-const searchQuery = ref('')
 const selectedChat = ref<ChatInfo | null>(null)
 const exportMode = ref<'all' | 'media_only' | 'text_only'>('all')
 const downloadZipAfter = ref(false)
@@ -101,15 +117,6 @@ let chatsRequestId = 0
 let exportRequestId = 0
 
 // Computed
-const filteredChats = computed(() => {
-  const query = searchQuery.value.toLowerCase()
-  return chats.value
-    .filter((chat) => chat.canExport)
-    .filter((chat) => chat.title.toLowerCase().includes(query))
-})
-
-const exportableChatsCount = computed(() => chats.value.filter((c) => c.canExport).length)
-
 const progressPercentage = computed(() => {
   if (!currentProgress.value || currentProgress.value.totalMessages === 0) return 0
   return Math.round(
@@ -172,7 +179,6 @@ watch(
     floodWaitSeconds.value = 0
     floodWaitRemaining.value = 0
     lastExportResult.value = null
-    searchQuery.value = ''
     error.value = ''
     isLoading.value = false
 
@@ -433,14 +439,6 @@ async function downloadAsZip() {
     isDownloadingZip.value = false
   }
 }
-
-function formatDate(date?: Date): string {
-  if (!date) return ''
-  return formatDateWithLocale(date, {
-    month: 'short',
-    day: 'numeric',
-  })
-}
 </script>
 
 <template>
@@ -456,67 +454,21 @@ function formatDate(date?: Date): string {
         </p>
       </header>
 
-      <div class="mb-4">
-        <label for="export-chat-search" class="sr-only">
-          {{ t('export.searchChats') }}
-        </label>
-        <input
-          id="export-chat-search"
-          v-model="searchQuery"
-          type="search"
-          :placeholder="t('export.searchChats')"
-          :aria-label="t('export.searchChats')"
-          class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-100"
-        />
-      </div>
-
-      <div v-if="isLoading" class="text-center py-12">
-        <div
-          class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"
-        ></div>
-        <p class="text-gray-600 dark:text-gray-400">{{ t('export.loadingChats') }}</p>
-      </div>
-
-      <div v-else-if="error" class="text-center py-12 text-red-600" role="alert" aria-live="assertive">
-        {{ error }}
-      </div>
-
-      <div v-else-if="exportableChatsCount === 0" class="text-center py-12">
-        <div class="text-3xl mb-3">🔒</div>
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-          {{ t('export.noExportableChats') }}
-        </h2>
-        <p class="text-sm text-gray-600 dark:text-gray-400">
-          {{ t('export.needAdmin') }}
-        </p>
-      </div>
-
-      <div v-else class="space-y-2">
-        <button
-          v-for="chat in filteredChats"
-          :key="chat.id.toString()"
-          @click="selectChat(chat)"
-          class="flex items-center gap-3 w-full p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-100 text-left"
-        >
-          <div
-            class="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-xl"
-          >
-            {{ chat.type === 'channel' ? '📢' : chat.type === 'supergroup' ? '👥' : '💬' }}
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-gray-900 dark:text-white truncate">
-              {{ chat.title }}
-            </div>
-            <div class="text-xs text-gray-500">
-              {{ chat.type }} • {{ formatDate(chat.lastMessageDate) }}
-            </div>
-          </div>
-          <span
-            class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-            >{{ t('common.admin') }}</span
-          >
-        </button>
-      </div>
+      <ChatSelector
+        input-id="export-chat-search"
+        :chats="chats"
+        :is-loading="isLoading"
+        :error="error"
+        :config="EXPORT_CHAT_SELECTOR_CONFIG"
+        :labels="{
+          searchPlaceholder: t('export.searchChats'),
+          loading: t('export.loadingChats'),
+          emptyTitle: t('export.noExportableChats'),
+          emptyDescription: t('export.needAdmin'),
+        }"
+        @select="selectChat"
+        @retry="loadChats"
+      />
     </template>
 
     <!-- Step 2: Configure Export -->
