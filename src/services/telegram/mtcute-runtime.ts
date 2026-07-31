@@ -25,6 +25,14 @@ export function createMtcuteClientOptions(
   callbacks: MtcuteRuntimeCallbacks = {},
 ): BaseTelegramClientOptions {
   const language = getClientLanguage()
+  const observeLongFloodWaits = networkMiddlewares.onRpcError((context, error) => {
+    const match = error.errorMessage.match(
+      /(?:FLOOD(?:_PREMIUM)?|SLOWMODE|FLOOD_TEST_PHONE)_WAIT_(\d+)/,
+    )
+    if (match?.[1]) {
+      callbacks.onFloodWait?.(Number(match[1]), context.request._)
+    }
+  })
 
   return {
     apiId,
@@ -44,18 +52,21 @@ export function createMtcuteClientOptions(
         return 2
       },
       inactivityTimeout: 30_000,
-      middlewares: networkMiddlewares.basic({
-        floodWaiter: {
-          maxWait: MAX_FLOOD_WAIT_MS,
-          maxRetries: MAX_FLOOD_RETRIES,
-          onBeforeWait: (context, seconds) => {
-            callbacks.onFloodWait?.(seconds, context.request._)
+      middlewares: [
+        observeLongFloodWaits,
+        ...networkMiddlewares.basic({
+          floodWaiter: {
+            maxWait: MAX_FLOOD_WAIT_MS,
+            maxRetries: MAX_FLOOD_RETRIES,
+            onBeforeWait: (context, seconds) => {
+              callbacks.onFloodWait?.(seconds, context.request._)
+            },
           },
-        },
-        // A 500 response may arrive after a mutation was accepted. Retrying it blindly can
-        // duplicate sends, so higher layers retry only operations they know are safe to repeat.
-        internalErrors: { maxRetries: 0 },
-      }),
+          // A 500 response may arrive after a mutation was accepted. Retrying it blindly can
+          // duplicate sends, so higher layers retry only operations they know are safe to repeat.
+          internalErrors: { maxRetries: 0 },
+        }),
+      ],
     },
   }
 }
