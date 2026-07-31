@@ -11,7 +11,7 @@ export const modules: ToolModule[] = [
   {
     id: 'account-info',
     name: 'Account Info',
-    description: 'View your account profile, settings, and capabilities',
+    description: 'Inspect profile, security, sessions, and bot capabilities',
     icon: 'user',
     accountType: 'any',
     route: {

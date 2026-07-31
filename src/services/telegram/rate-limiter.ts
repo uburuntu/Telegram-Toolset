@@ -84,6 +84,26 @@ export function isFloodWaitError(error: unknown): error is FloodWaitError {
 }
 
 /**
+ * Retry classifier for read-only Telegram operations. Flood waits, network failures, and server
+ * errors are safe to repeat; permanent RPC failures and an already-exhausted GramJS retry loop are
+ * not.
+ */
+export function isRetryableTelegramReadError(error: Error): boolean {
+  if (error.name === 'AbortError') {
+    return false
+  }
+  if (isFloodWaitError(error)) {
+    return true
+  }
+  if (/Request was unsuccessful \d+ time\(s\)/i.test(error.message)) {
+    return false
+  }
+
+  const code = (error as Error & { code?: unknown }).code
+  return typeof code !== 'number' || code >= 500
+}
+
+/**
  * Sleep for specified milliseconds with abort support
  */
 export function sleep(ms: number, signal?: AbortSignal): Promise<void> {

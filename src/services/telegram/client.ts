@@ -25,7 +25,7 @@ import type {
 import { FloodWaitLogger } from './flood-wait-logger'
 import { entityToPeerRef } from './peer-adapter'
 import { resolveInputPeer } from './peer-input-resolver'
-import { withRetry } from './rate-limiter'
+import { isRetryableTelegramReadError, withRetry } from './rate-limiter'
 
 // Reconnection settings
 const RECONNECT_DELAY_MS = 2000
@@ -2057,9 +2057,13 @@ class TelegramService {
 
     try {
       // Download profile photo using GramJS helper
-      const buffer = await client.downloadProfilePhoto('me', {
-        isBig: true, // Get the high-resolution version
-      })
+      const buffer = await withRetry(
+        () =>
+          client.downloadProfilePhoto('me', {
+            isBig: true, // Get the high-resolution version
+          }),
+        { shouldRetry: isRetryableTelegramReadError },
+      )
 
       if (!buffer || buffer.length === 0) {
         return null
@@ -2122,9 +2126,15 @@ class TelegramService {
 
     try {
       const [authorizations, accountTtl, password] = await Promise.all([
-        withRetry(() => client.invoke(new Api.account.GetAuthorizations())),
-        withRetry(() => client.invoke(new Api.account.GetAccountTTL())),
-        withRetry(() => client.invoke(new Api.account.GetPassword())),
+        withRetry(() => client.invoke(new Api.account.GetAuthorizations()), {
+          shouldRetry: isRetryableTelegramReadError,
+        }),
+        withRetry(() => client.invoke(new Api.account.GetAccountTTL()), {
+          shouldRetry: isRetryableTelegramReadError,
+        }),
+        withRetry(() => client.invoke(new Api.account.GetPassword()), {
+          shouldRetry: isRetryableTelegramReadError,
+        }),
       ])
       const current = authorizations.authorizations.find((authorization) => authorization.current)
 

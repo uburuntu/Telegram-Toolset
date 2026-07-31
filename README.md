@@ -11,7 +11,7 @@ The app runs entirely on-device. There is no backend, no tracking, and no server
 
 | Module | Description | Account Type |
 |--------|-------------|--------------|
-| **Account Info** | View account details, capabilities, and session state | Any |
+| **Account Info** | Inspect profile metadata, user security/session policies, and bot capabilities | Any |
 | **Export Deleted Messages** | Export deleted messages from chats where the user has the required rights | User |
 | **Backups** | Manage saved exports, archived local backups, and recovery lifecycle actions | User |
 | **Resend Messages** | Re-send exported content with formatting and batching controls | User |

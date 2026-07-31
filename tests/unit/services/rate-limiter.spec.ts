@@ -3,6 +3,7 @@ import {
   Semaphore,
   withRetry,
   isFloodWaitError,
+  isRetryableTelegramReadError,
   sleep,
   startFloodWaitCountdown,
   formatDuration,
@@ -159,6 +160,31 @@ describe('rate-limiter', () => {
 
       expect(isFloodWaitError(error)).toBe(true)
       expect(error.seconds).toBe(60)
+    })
+  })
+
+  describe('isRetryableTelegramReadError', () => {
+    it('retries flood waits, network errors, and server failures', () => {
+      const floodWait = Object.assign(new Error('Flood wait'), {
+        errorMessage: 'FLOOD_WAIT_2',
+      })
+      const serverError = Object.assign(new Error('Server error'), { code: 500 })
+
+      expect(isRetryableTelegramReadError(floodWait)).toBe(true)
+      expect(isRetryableTelegramReadError(new Error('Network error'))).toBe(true)
+      expect(isRetryableTelegramReadError(serverError)).toBe(true)
+    })
+
+    it('does not retry permanent RPC failures or exhausted internal retries', () => {
+      const forbidden = Object.assign(new Error('Forbidden'), { code: 403 })
+
+      expect(isRetryableTelegramReadError(forbidden)).toBe(false)
+      expect(
+        isRetryableTelegramReadError(new Error('Request was unsuccessful 5 time(s)')),
+      ).toBe(false)
+      expect(
+        isRetryableTelegramReadError(new DOMException('Operation cancelled', 'AbortError')),
+      ).toBe(false)
     })
   })
 
