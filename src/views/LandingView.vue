@@ -39,6 +39,7 @@ function getModuleName(moduleId: string): string {
     'export-deleted': 'modules.exportDeleted.name',
     resend: 'modules.resend.name',
     scheduled: 'modules.scheduled.name',
+    'delete-trace': 'modules.deleteTrace.name',
     'llm-export': 'modules.llmExport.name',
   }
   return t(keyMap[moduleId] || moduleId)
@@ -50,6 +51,7 @@ function getModuleDescription(moduleId: string): string {
     'export-deleted': 'modules.exportDeleted.description',
     resend: 'modules.resend.description',
     scheduled: 'modules.scheduled.description',
+    'delete-trace': 'modules.deleteTrace.description',
     'llm-export': 'modules.llmExport.description',
   }
   return t(keyMap[moduleId] || moduleId)
@@ -176,6 +178,7 @@ const sortedModules = computed(() => {
             <span v-if="module.icon === 'download'">📥</span>
             <span v-else-if="module.icon === 'send'">📤</span>
             <span v-else-if="module.icon === 'clock'">⏰</span>
+            <span v-else-if="module.icon === 'eraser'">🧹</span>
             <span v-else-if="module.icon === 'user'">👤</span>
             <span v-else-if="module.icon === 'bot'">🤖</span>
             <span v-else-if="module.icon === 'sparkles'">✨</span>

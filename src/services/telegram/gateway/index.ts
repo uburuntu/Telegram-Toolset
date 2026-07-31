@@ -15,5 +15,6 @@ export const telegramEntityGateway = gateway.entities
 export const telegramMediaGateway = gateway.media
 export const telegramSendGateway = gateway.send
 export const telegramScheduledGateway = gateway.scheduled
+export const telegramTraceGateway = gateway.trace
 export const telegramAccountGateway = gateway.account
 export const telegramHistoryGateway = gateway.history

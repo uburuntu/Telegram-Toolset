@@ -64,6 +64,19 @@ export const modules: ToolModule[] = [
     },
   },
   {
+    id: 'delete-trace',
+    name: 'Delete My Messages',
+    description: 'Find and remove messages you sent in selected chats',
+    icon: 'eraser',
+    accountType: 'user',
+    route: {
+      path: '/delete-trace',
+      name: 'delete-trace',
+      component: () => import('./delete-trace/DeleteTraceView.vue'),
+      meta: { requiresAuth: true, accountType: 'user' },
+    },
+  },
+  {
     id: 'llm-export',
     name: 'LLM Context Export',
     description: 'Export chat history formatted for AI assistants like Claude',
