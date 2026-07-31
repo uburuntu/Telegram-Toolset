@@ -44,7 +44,7 @@
     "noChats": "گفتگویی در دسترس نیست",
     "noResults": "گفتگویی با این فیلترها مطابقت ندارد",
     "reset": "بازنشانی",
-    "members": "{count} عضو",
+    "members": "اعضا: {count}",
     "publicBadge": "عمومی",
     "categories": {
       "direct": "پیام‌های مستقیم",

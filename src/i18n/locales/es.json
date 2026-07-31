@@ -44,7 +44,7 @@
     "noChats": "No hay chats disponibles",
     "noResults": "Ningún chat coincide con estos filtros",
     "reset": "Restablecer",
-    "members": "{count} miembros",
+    "members": "Miembros: {count}",
     "publicBadge": "Público",
     "categories": {
       "direct": "Mensajes directos",

@@ -82,29 +82,32 @@ const availableCategories = computed(() => {
     allowedTypes.some((type) => getChatCategory({ type }) === category),
   )
 })
+const defaultCategories = computed(() =>
+  (props.config.defaultCategories ?? availableCategories.value).filter((category) =>
+    availableCategories.value.includes(category),
+  ),
+)
+const sortOptions = computed(() => props.config.sortOptions ?? CHAT_SORTS)
+const defaultSort = computed(() => {
+  const requested = props.config.defaultSort ?? 'recent'
+  return sortOptions.value.includes(requested) ? requested : (sortOptions.value[0] ?? 'recent')
+})
 const categoryConfigurationKey = computed(
-  () =>
-    `${availableCategories.value.join(',')}|${(props.config.defaultCategories ?? []).join(',')}`,
+  () => `${availableCategories.value.join(',')}|${defaultCategories.value.join(',')}`,
 )
 
 watch(
   categoryConfigurationKey,
   () => {
-    const defaults = props.config.defaultCategories ?? availableCategories.value
-    activeCategories.value = defaults.filter((category) =>
-      availableCategories.value.includes(category),
-    )
+    activeCategories.value = [...defaultCategories.value]
   },
   { immediate: true },
 )
 
 watch(
-  () => [props.config.defaultSort, ...(props.config.sortOptions ?? CHAT_SORTS)].join(','),
+  () => [defaultSort.value, ...sortOptions.value].join(','),
   () => {
-    const options = props.config.sortOptions ?? CHAT_SORTS
-    sort.value = options.includes(props.config.defaultSort ?? 'recent')
-      ? (props.config.defaultSort ?? 'recent')
-      : (options[0] ?? 'recent')
+    sort.value = defaultSort.value
   },
   { immediate: true },
 )
@@ -115,12 +118,14 @@ const filteredChats = computed(() =>
   filterAndSortChats(
     props.chats,
     {
-      search: searchQuery.value,
-      categories: activeCategories.value,
-      publicOnly: publicOnly.value,
-      adminOnly: adminOnly.value,
-      sendableOnly: sendableOnly.value,
-      selectedOnly: selectedOnly.value,
+      search: displayOptions.value.search ? searchQuery.value : '',
+      categories: filterOptions.value.categories
+        ? activeCategories.value
+        : availableCategories.value,
+      publicOnly: filterOptions.value.publicOnly && publicOnly.value,
+      adminOnly: filterOptions.value.adminOnly && adminOnly.value,
+      sendableOnly: filterOptions.value.sendableOnly && sendableOnly.value,
+      selectedOnly: filterOptions.value.selectedOnly && selectedOnly.value,
       selectedIds: selectedIdSet.value,
       sort: sort.value,
       locale: locale.value,
@@ -143,17 +148,21 @@ const selectionLimitReached = computed(
     props.config.maxSelections !== undefined &&
     selectedIdSet.value.size >= props.config.maxSelections,
 )
+const categoriesAreDefault = computed(
+  () =>
+    activeCategories.value.length === defaultCategories.value.length &&
+    activeCategories.value.every((category) => defaultCategories.value.includes(category)),
+)
 const hasUserFilters = computed(
   () =>
-    searchQuery.value.length > 0 ||
-    activeCategories.value.length !== availableCategories.value.length ||
-    publicOnly.value ||
-    adminOnly.value ||
-    sendableOnly.value ||
-    selectedOnly.value ||
-    sort.value !== (props.config.defaultSort ?? 'recent'),
+    (displayOptions.value.search && searchQuery.value.length > 0) ||
+    (filterOptions.value.categories && !categoriesAreDefault.value) ||
+    (filterOptions.value.publicOnly && publicOnly.value) ||
+    (filterOptions.value.adminOnly && adminOnly.value) ||
+    (filterOptions.value.sendableOnly && sendableOnly.value) ||
+    (filterOptions.value.selectedOnly && selectedOnly.value) ||
+    (displayOptions.value.sort && sort.value !== defaultSort.value),
 )
-const sortOptions = computed(() => props.config.sortOptions ?? CHAT_SORTS)
 const hasSecondaryFilters = computed(
   () =>
     filterOptions.value.publicOnly ||
@@ -176,12 +185,12 @@ const rowPaddingClass = computed(() => (displayOptions.value.density === 'compac
 
 function resetFilters(): void {
   searchQuery.value = ''
-  activeCategories.value = [...availableCategories.value]
+  activeCategories.value = [...defaultCategories.value]
   publicOnly.value = false
   adminOnly.value = false
   sendableOnly.value = false
   selectedOnly.value = false
-  sort.value = props.config.defaultSort ?? 'recent'
+  sort.value = defaultSort.value
 }
 
 function selectVisible(selected: boolean): void {

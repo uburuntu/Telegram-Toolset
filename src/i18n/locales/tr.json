@@ -44,7 +44,7 @@
     "noChats": "Kullanılabilir sohbet yok",
     "noResults": "Bu filtrelerle eşleşen sohbet yok",
     "reset": "Sıfırla",
-    "members": "{count} üye",
+    "members": "Üyeler: {count}",
     "publicBadge": "Herkese açık",
     "categories": {
       "direct": "Doğrudan mesajlar",
