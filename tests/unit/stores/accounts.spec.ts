@@ -294,12 +294,16 @@ describe('accounts store', () => {
     expect(store.activeAccount?.id).toBe(account.id)
     expect(store.activeAccountNeedsLogin).toBe(false)
 
-    store.markAccountNeedsLogin(account.id)
+    store.markAccountNeedsLogin(account.id, 'incompatible')
     expect(store.getAccountSessionState(account.id)).toBe('needs_login')
+    expect(store.getAccountSessionIssue(account.id)).toBe('incompatible')
+    expect(store.activeAccountSessionIssue).toBe('incompatible')
     expect(store.activeAccountNeedsLogin).toBe(true)
 
     store.markAccountSessionReady(account.id)
     expect(store.getAccountSessionState(account.id)).toBe('ready')
+    expect(store.getAccountSessionIssue(account.id)).toBeUndefined()
+    expect(store.activeAccountSessionIssue).toBeUndefined()
     expect(store.activeAccountNeedsLogin).toBe(false)
   })
 

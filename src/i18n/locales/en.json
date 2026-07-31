@@ -108,6 +108,8 @@
     "logInAgain": "Log In Again",
     "sessionExpiredTitle": "{name} needs to log in again",
     "sessionExpiredDescription": "This account is still selected, but its saved Telegram session is no longer valid. Telegram actions will not work until you sign in again.",
+    "sessionUpgradeTitle": "Reconnect {name} after the connection upgrade",
+    "sessionUpgradeDescription": "Your account and local data are still here. Sign in once to create a new secure Telegram session.",
     "removeAccount": "Remove account",
     "credentialsFound": "API credentials found",
     "credentialsFoundHint": "You have API credentials saved from a previous login. The same credentials can be used for multiple Telegram accounts.",

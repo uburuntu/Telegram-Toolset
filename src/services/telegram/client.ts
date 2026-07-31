@@ -37,6 +37,7 @@ import {
   signIn,
   signInBot,
 } from '@mtcute/web/methods.js'
+import type { AccountSessionIssue } from '@/stores/accounts'
 import type {
   AdminLogIterOptions,
   ChatHistoryOptions,
@@ -238,6 +239,13 @@ export class TelegramService {
     client.onConnectionState.add((state) => {
       if (state === 'offline' && this._connectionState === 'connected') {
         this.setConnectionState('reconnecting')
+      } else if (
+        state === 'connected' &&
+        this.currentUser !== null &&
+        this._activeSessionAccountId !== null
+      ) {
+        this.reconnectAttempts = 0
+        this.setConnectionState('connected')
       }
     })
 
@@ -388,7 +396,7 @@ export class TelegramService {
         } catch {
           this.sessionString = ''
           await this.disconnect()
-          await this.setAccountSessionState('needs_login', data.accountId)
+          await this.setAccountSessionState('needs_login', data.accountId, 'incompatible')
           return false
         }
         const authorized = await this.connect(data.accountId)
@@ -624,6 +632,7 @@ export class TelegramService {
   private async setAccountSessionState(
     state: 'ready' | 'needs_login',
     accountId?: string,
+    issue: AccountSessionIssue = 'expired',
   ): Promise<void> {
     try {
       const { useAccountsStore } = await import('@/stores/accounts')
@@ -633,7 +642,7 @@ export class TelegramService {
       if (!target || target.type !== 'user') return
 
       if (state === 'ready') accountsStore.markAccountSessionReady(target.id)
-      else accountsStore.markAccountNeedsLogin(target.id)
+      else accountsStore.markAccountNeedsLogin(target.id, issue)
     } catch (error) {
       console.warn('[TelegramService] Failed to update account session state:', error)
     }

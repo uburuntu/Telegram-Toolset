@@ -46,6 +46,7 @@ type StoredAccountRecord = Omit<
 }
 
 export type AccountSessionState = 'unknown' | 'ready' | 'needs_login'
+export type AccountSessionIssue = 'expired' | 'incompatible'
 
 function parseStoredAccounts(): StoredAccountRecord[] {
   const raw = localStorage.getItem(ACCOUNTS_STORAGE_KEY)
@@ -242,6 +243,7 @@ export const useAccountsStore = defineStore('accounts', () => {
   const activeAccountId = ref<string | null>(null)
   const apiCredentials = ref<ApiCredentials | null>(null)
   const sessionStateByAccountId = ref<Record<string, AccountSessionState>>({})
+  const sessionIssueByAccountId = ref<Partial<Record<string, AccountSessionIssue>>>({})
   const storageLoaded = ref(false)
   // Ids of accounts whose encrypted secret failed to load/decrypt at startup. The account stays
   // visible from its plaintext metadata so a single corrupt record cannot hide the others; the user
@@ -318,17 +320,31 @@ export const useAccountsStore = defineStore('accounts', () => {
   })
 
   const activeAccountNeedsLogin = computed(() => activeAccountSessionState.value === 'needs_login')
+  const activeAccountSessionIssue = computed(() => {
+    const account = activeAccount.value
+    if (!account || account.type !== 'user') {
+      return undefined
+    }
+
+    return sessionIssueByAccountId.value[account.id]
+  })
 
   function syncSessionStateMap(): void {
     const nextSessionState: Record<string, AccountSessionState> = {}
+    const nextSessionIssue: Partial<Record<string, AccountSessionIssue>> = {}
 
     for (const account of accounts.value) {
       if (account.type === 'user') {
         nextSessionState[account.id] = sessionStateByAccountId.value[account.id] ?? 'unknown'
+        const issue = sessionIssueByAccountId.value[account.id]
+        if (issue) {
+          nextSessionIssue[account.id] = issue
+        }
       }
     }
 
     sessionStateByAccountId.value = nextSessionState
+    sessionIssueByAccountId.value = nextSessionIssue
   }
 
   function persistMetadataToLocalStorage(): void {
@@ -596,7 +612,7 @@ export const useAccountsStore = defineStore('accounts', () => {
 
     accounts.value.push(newAccount)
     if (newAccount.type === 'user') {
-      sessionStateByAccountId.value[newAccount.id] = 'ready'
+      markAccountSessionReady(newAccount.id)
     }
 
     const journalId = await beginAccountJournal({
@@ -621,6 +637,7 @@ export const useAccountsStore = defineStore('accounts', () => {
         (existingAccount) => existingAccount.id !== newAccount.id,
       )
       delete sessionStateByAccountId.value[newAccount.id]
+      delete sessionIssueByAccountId.value[newAccount.id]
       // Undo any orphaned secret the partial add may have written, then drop the journal so startup
       // reconciliation does not resurrect a mutation the caller just saw fail.
       await deleteSecureAccountSecret(newAccount.id).catch(() => {})
@@ -694,9 +711,11 @@ export const useAccountsStore = defineStore('accounts', () => {
     const previousAccounts = [...accounts.value]
     const previousActiveAccountId = activeAccountId.value
     const previousSessionState = { ...sessionStateByAccountId.value }
+    const previousSessionIssue = { ...sessionIssueByAccountId.value }
 
     accounts.value = accounts.value.filter((account) => account.id !== id)
     delete sessionStateByAccountId.value[id]
+    delete sessionIssueByAccountId.value[id]
 
     if (activeAccountId.value === id) {
       activeAccountId.value = accounts.value[0]?.id ?? null
@@ -729,6 +748,7 @@ export const useAccountsStore = defineStore('accounts', () => {
         accounts.value = previousAccounts
         activeAccountId.value = previousActiveAccountId
         sessionStateByAccountId.value = previousSessionState
+        sessionIssueByAccountId.value = previousSessionIssue
         restoreAccountEpoch(id, previousEpoch)
         await completeAccountJournal(journalId)
         throw error
@@ -799,14 +819,23 @@ export const useAccountsStore = defineStore('accounts', () => {
 
   function markAccountSessionReady(accountId: string): void {
     sessionStateByAccountId.value[accountId] = 'ready'
+    delete sessionIssueByAccountId.value[accountId]
   }
 
-  function markAccountNeedsLogin(accountId: string): void {
+  function getAccountSessionIssue(
+    accountId: string | null | undefined,
+  ): AccountSessionIssue | undefined {
+    return accountId ? sessionIssueByAccountId.value[accountId] : undefined
+  }
+
+  function markAccountNeedsLogin(accountId: string, issue: AccountSessionIssue = 'expired'): void {
     sessionStateByAccountId.value[accountId] = 'needs_login'
+    sessionIssueByAccountId.value[accountId] = issue
   }
 
   function clearAccountSessionState(accountId: string): void {
     delete sessionStateByAccountId.value[accountId]
+    delete sessionIssueByAccountId.value[accountId]
   }
 
   function hasCompatibleAccount(requiredType: 'user' | 'bot' | 'any'): boolean {
@@ -830,6 +859,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     activeAccountId,
     apiCredentials,
     sessionStateByAccountId,
+    sessionIssueByAccountId,
     storageLoaded,
     activeAccount,
     userAccounts,
@@ -841,6 +871,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     isActiveAccountBot,
     activeAccountSessionState,
     activeAccountNeedsLogin,
+    activeAccountSessionIssue,
     corruptedAccountIds,
     hasCorruptedAccounts,
     isAccountCorrupted,
@@ -860,6 +891,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     findAccountByPrincipal,
     findUserAccountByPrincipal,
     getAccountSessionState,
+    getAccountSessionIssue,
     markAccountSessionReady,
     markAccountNeedsLogin,
     clearAccountSessionState,

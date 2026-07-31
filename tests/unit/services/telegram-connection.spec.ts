@@ -245,7 +245,7 @@ describe('TelegramService connection state', () => {
       }),
     ).resolves.toBe(false)
 
-    expect(stateSpy).toHaveBeenCalledWith('needs_login', 'account-b')
+    expect(stateSpy).toHaveBeenCalledWith('needs_login', 'account-b', 'incompatible')
     expect(service.sessionString).toBe('')
   })
 
