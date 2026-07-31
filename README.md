@@ -16,9 +16,10 @@ The app runs entirely on-device. There is no backend, no tracking, and no server
 | **Backups** | Manage saved exports, archived local backups, and recovery lifecycle actions | User |
 | **Resend Messages** | Re-send exported content with formatting and batching controls | User |
 | **Scheduled Messages** | View and manage scheduled messages across chats | User |
+| **Delete My Messages** | Find and permanently remove messages sent by the current user in selected chats | User |
 | **LLM Context Export** | Export chat history in assistant-friendly formats for external tools | User |
 
-`Account Info`, `Export Deleted Messages`, `Resend Messages`, `Scheduled Messages`, and `LLM Context Export` are surfaced from the module registry in `src/modules/index.ts`. `Backups` is part of the supported product surface, exposed as its own authenticated route/workspace rather than as a landing-page module card.
+`Account Info`, `Export Deleted Messages`, `Resend Messages`, `Scheduled Messages`, `Delete My Messages`, and `LLM Context Export` are surfaced from the module registry in `src/modules/index.ts`. `Backups` is part of the supported product surface, exposed as its own authenticated route/workspace rather than as a landing-page module card.
 
 ## Product Direction
 
