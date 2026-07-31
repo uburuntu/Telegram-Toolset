@@ -801,6 +801,14 @@
     "contentUnavailable": "Contenido no disponible",
     "contentUnavailableHint": "El navegador eliminó los datos de esta copia. Solo queda el resumen: elimínala y vuelve a exportar desde Telegram."
   },
+  "connectionStatus": {
+    "connecting": "Conectando {name} a Telegram…",
+    "reconnecting": "La conexión se interrumpió. Reconectando {name}…",
+    "rateLimited": "Telegram está limitando las solicitudes. Se continuará en {seconds} s.",
+    "error": "No se pudo conectar {name}. Tu trabajo y tus datos locales no han cambiado.",
+    "retry": "Reconectar",
+    "retrying": "Reconectando…"
+  },
   "jobs": {
     "heading": "Tareas en segundo plano",
     "clearCompleted": "Borrar completadas",

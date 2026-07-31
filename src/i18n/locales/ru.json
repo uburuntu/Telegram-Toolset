@@ -807,6 +807,14 @@
     "contentUnavailable": "Содержимое недоступно",
     "contentUnavailableHint": "Данные этой копии удалены браузером. Осталась только сводка — удалите её и экспортируйте снова из Telegram."
   },
+  "connectionStatus": {
+    "connecting": "Подключаем {name} к Telegram…",
+    "reconnecting": "Соединение прервано. Подключаем {name} снова…",
+    "rateLimited": "Telegram ограничил частоту запросов. Продолжим через {seconds} с.",
+    "error": "Не удалось подключить {name}. Задачи и локальные данные не изменены.",
+    "retry": "Подключить снова",
+    "retrying": "Подключаем…"
+  },
   "jobs": {
     "heading": "Фоновые задачи",
     "clearCompleted": "Очистить завершённые",

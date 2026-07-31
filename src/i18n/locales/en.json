@@ -801,6 +801,14 @@
     "contentUnavailable": "Content unavailable",
     "contentUnavailableHint": "This export's data was removed by the browser. Only the summary remains — delete it and download it again from Telegram."
   },
+  "connectionStatus": {
+    "connecting": "Connecting {name} to Telegram…",
+    "reconnecting": "Connection interrupted. Reconnecting {name}…",
+    "rateLimited": "Telegram is limiting requests. Continuing in {seconds}s.",
+    "error": "Could not connect {name}. Your work and local data are unchanged.",
+    "retry": "Reconnect",
+    "retrying": "Reconnecting…"
+  },
   "jobs": {
     "heading": "Background tasks",
     "clearCompleted": "Clear completed",

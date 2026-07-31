@@ -801,6 +801,14 @@
     "contentUnavailable": "İçerik kullanılamıyor",
     "contentUnavailableHint": "Bu yedeğin verileri tarayıcı tarafından kaldırıldı. Yalnızca özet kaldı — silin ve Telegram'dan yeniden dışa aktarın."
   },
+  "connectionStatus": {
+    "connecting": "{name} Telegram'a bağlanıyor…",
+    "reconnecting": "Bağlantı kesildi. {name} yeniden bağlanıyor…",
+    "rateLimited": "Telegram istekleri sınırlıyor. {seconds} sn sonra devam edilecek.",
+    "error": "{name} bağlanamadı. Çalışmanız ve yerel verileriniz değişmedi.",
+    "retry": "Yeniden bağlan",
+    "retrying": "Yeniden bağlanıyor…"
+  },
   "jobs": {
     "heading": "Arka plan görevleri",
     "clearCompleted": "Tamamlananları temizle",

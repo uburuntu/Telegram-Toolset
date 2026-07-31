@@ -801,6 +801,14 @@
     "contentUnavailable": "Conteúdo indisponível",
     "contentUnavailableHint": "O navegador removeu os dados deste backup. Resta apenas o resumo — exclua-o e exporte novamente do Telegram."
   },
+  "connectionStatus": {
+    "connecting": "Conectando {name} ao Telegram…",
+    "reconnecting": "A conexão foi interrompida. Reconectando {name}…",
+    "rateLimited": "O Telegram está limitando as solicitações. Continuando em {seconds} s.",
+    "error": "Não foi possível conectar {name}. Seu trabalho e seus dados locais não foram alterados.",
+    "retry": "Reconectar",
+    "retrying": "Reconectando…"
+  },
   "jobs": {
     "heading": "Tarefas em segundo plano",
     "clearCompleted": "Limpar concluídas",
