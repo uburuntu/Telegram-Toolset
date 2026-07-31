@@ -642,6 +642,8 @@
     "deleteAction": "حذف {count} پیام",
     "sessionNotReady": "نشست فعال Telegram آماده نیست. حساب را دوباره متصل کنید و مجدداً تلاش کنید.",
     "jobDeleteTitle": "حذف پیام‌های من",
+    "jobDeleteTitleSingle": "حذف پیام‌های من · {chat}",
+    "jobDeleteTitleMultiple": "حذف پیام‌های من · {chat} + {count} مورد دیگر",
     "deleting": "در حال حذف پیام‌ها",
     "cancelling": "پیش از لغو، درخواست فعلی در حال پایان است",
     "preparingDeletion": "در حال آماده‌سازی حذف...",

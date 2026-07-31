@@ -642,6 +642,8 @@
     "deleteAction": "{count} ta xabarni o'chirish",
     "sessionNotReady": "Faol Telegram seansi tayyor emas. Hisobni qayta ulang va yana urinib ko'ring.",
     "jobDeleteTitle": "Xabarlarimni o'chirish",
+    "jobDeleteTitleSingle": "Xabarlarimni o'chirish · {chat}",
+    "jobDeleteTitleMultiple": "Xabarlarimni o'chirish · {chat} + yana {count} ta",
     "deleting": "Xabarlar o'chirilmoqda",
     "cancelling": "Bekor qilishdan oldin joriy so'rov tugatilmoqda",
     "preparingDeletion": "O'chirish tayyorlanmoqda...",

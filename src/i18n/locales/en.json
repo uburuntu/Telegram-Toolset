@@ -642,6 +642,8 @@
     "deleteAction": "Delete {count} messages",
     "sessionNotReady": "The active Telegram session is not ready. Reconnect the account and try again.",
     "jobDeleteTitle": "Delete my messages",
+    "jobDeleteTitleSingle": "Delete my messages · {chat}",
+    "jobDeleteTitleMultiple": "Delete my messages · {chat} + {count} more",
     "deleting": "Deleting messages",
     "cancelling": "Finishing the current request before cancelling",
     "preparingDeletion": "Preparing deletion...",
