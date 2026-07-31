@@ -134,4 +134,26 @@ test.describe('Delete My Messages flow', () => {
     })
     expect(calls).toEqual([{ chatId: '-10010', messageIds: [30, 20, 10] }])
   })
+
+  test('filters chat types and bulk-selects only visible chats', async ({ page }) => {
+    await setupMockedAccount(page)
+    await injectTelegramTraceMock(page)
+    await page.goto('/delete-trace')
+
+    await expect(page.getByText('Public Archive Chat')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('Project Group')).toBeVisible()
+
+    await page.getByLabel('Public chats only').check()
+    await expect(page.getByText('Public Archive Chat')).toBeVisible()
+    await expect(page.getByText('Project Group')).toBeHidden()
+    await expect(page.getByText('1 of 2 chats')).toBeVisible()
+
+    await page.getByLabel('Select visible (1)').check()
+    await expect(page.getByRole('button', { name: 'Next' })).toBeEnabled()
+    await expect(page.getByText('1 selected')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Reset' }).click()
+    await expect(page.getByText('Project Group')).toBeVisible()
+    await expect(page.getByText('1 selected')).toBeVisible()
+  })
 })
