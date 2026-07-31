@@ -121,6 +121,23 @@ describe('DeleteTraceView', () => {
         {
           chat: chats[0]!,
           messageIds: [30, 20, 10],
+          messages: [
+            {
+              id: 30,
+              date: new Date('2021-01-01T00:00:00.000Z'),
+              preview: { kind: 'text' as const, text: 'A message that will be deleted' },
+            },
+            {
+              id: 20,
+              date: new Date('2020-06-01T00:00:00.000Z'),
+              preview: { kind: 'non_text' as const },
+            },
+            {
+              id: 10,
+              date: new Date('2020-01-01T00:00:00.000Z'),
+              preview: { kind: 'text' as const, text: '<b>Rendered as text</b>' },
+            },
+          ],
           oldestDate: new Date('2020-01-01T00:00:00.000Z'),
           newestDate: new Date('2021-01-01T00:00:00.000Z'),
         },
@@ -188,6 +205,11 @@ describe('DeleteTraceView', () => {
       expect.any(AbortSignal),
     )
     expect(wrapper.text()).toContain('Found 3 messages across 1 chats.')
+    expect(wrapper.text()).toContain('Message preview')
+    expect(wrapper.text()).toContain('A message that will be deleted')
+    expect(wrapper.text()).toContain('[Media or sticker]')
+    expect(wrapper.text()).toContain('<b>Rendered as text</b>')
+    expect(wrapper.find('b').exists()).toBe(false)
 
     const confirmation = wrapper.find('input[type="checkbox"]')
     await confirmation.setValue(true)

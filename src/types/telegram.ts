@@ -47,10 +47,14 @@ export interface UserInfo {
   phone?: string
 }
 
-/** Minimal message metadata returned while locating the active user's own chat history. */
+export type OwnMessagePreview = { kind: 'text'; text: string } | { kind: 'non_text' }
+
+/** Preview-safe message metadata returned while locating the active user's own chat history. */
 export interface OwnMessageRef {
   id: number
   date: Date
+  /** Exact Telegram text/caption, or an explicit non-text marker for localized UI rendering. */
+  preview: OwnMessagePreview
 }
 
 /** Cursor and server-side filters for one page of the active user's messages in a chat. */

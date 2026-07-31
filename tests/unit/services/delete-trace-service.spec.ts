@@ -42,7 +42,7 @@ function createService(overrides: Partial<TelegramTraceGateway> = {}) {
 }
 
 function scan(chatInfo: ChatInfo, messageIds: number[]): TraceChatScan {
-  return { chat: chatInfo, messageIds }
+  return { chat: chatInfo, messageIds, messages: [] }
 }
 
 async function advanceRetryTimers<T>(promise: Promise<T>): Promise<T> {
@@ -62,16 +62,32 @@ describe('DeleteTraceService', () => {
         .fn()
         .mockResolvedValueOnce({
           messages: [
-            { id: 30, date: new Date('2024-03-01T00:00:00.000Z') },
-            { id: 20, date: new Date('2023-03-01T00:00:00.000Z') },
+            {
+              id: 30,
+              date: new Date('2024-03-01T00:00:00.000Z'),
+              preview: { kind: 'text', text: 'Newest message' },
+            },
+            {
+              id: 20,
+              date: new Date('2023-03-01T00:00:00.000Z'),
+              preview: { kind: 'non_text' },
+            },
           ],
           total: 3,
           nextOffsetId: 20,
         })
         .mockResolvedValueOnce({
           messages: [
-            { id: 20, date: new Date('2023-03-01T00:00:00.000Z') },
-            { id: 10, date: new Date('2022-03-01T00:00:00.000Z') },
+            {
+              id: 20,
+              date: new Date('2023-03-01T00:00:00.000Z'),
+              preview: { kind: 'non_text' },
+            },
+            {
+              id: 10,
+              date: new Date('2022-03-01T00:00:00.000Z'),
+              preview: { kind: 'text', text: 'Oldest message' },
+            },
           ],
           total: 3,
         }),
@@ -89,6 +105,23 @@ describe('DeleteTraceService', () => {
         {
           chat: target,
           messageIds: [30, 20, 10],
+          messages: [
+            {
+              id: 30,
+              date: new Date('2024-03-01T00:00:00.000Z'),
+              preview: { kind: 'text', text: 'Newest message' },
+            },
+            {
+              id: 20,
+              date: new Date('2023-03-01T00:00:00.000Z'),
+              preview: { kind: 'non_text' },
+            },
+            {
+              id: 10,
+              date: new Date('2022-03-01T00:00:00.000Z'),
+              preview: { kind: 'text', text: 'Oldest message' },
+            },
+          ],
           oldestDate: new Date('2022-03-01T00:00:00.000Z'),
           newestDate: new Date('2024-03-01T00:00:00.000Z'),
         },
@@ -118,7 +151,13 @@ describe('DeleteTraceService', () => {
     const searchOwnMessages = vi
       .fn()
       .mockResolvedValueOnce({
-        messages: [{ id: 30, date: new Date('2024-01-01T00:00:00.000Z') }],
+        messages: [
+          {
+            id: 30,
+            date: new Date('2024-01-01T00:00:00.000Z'),
+            preview: { kind: 'text', text: 'Discard me' },
+          },
+        ],
         total: 2,
         nextOffsetId: 30,
       })
@@ -130,7 +169,7 @@ describe('DeleteTraceService', () => {
     const result = await advanceRetryTimers(promise)
 
     expect(result).toEqual({
-      chats: [{ chat: target, messageIds: [], error: 'network down' }],
+      chats: [{ chat: target, messageIds: [], messages: [], error: 'network down' }],
       totalMessages: 0,
       failedChats: 1,
     })

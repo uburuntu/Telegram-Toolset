@@ -9,7 +9,13 @@ import {
   startFloodWaitCountdown,
   withRetry,
 } from '@/services/telegram/rate-limiter'
-import type { ChatInfo, DeliveryOutcome, MultiPeerResult, PeerOutcome } from '@/types'
+import type {
+  ChatInfo,
+  DeliveryOutcome,
+  MultiPeerResult,
+  OwnMessageRef,
+  PeerOutcome,
+} from '@/types'
 
 const SEARCH_PAGE_SIZE = 100
 const DELETE_BATCH_SIZE = 100
@@ -24,6 +30,7 @@ export interface TraceDateRange {
 export interface TraceChatScan {
   chat: ChatInfo
   messageIds: number[]
+  messages: OwnMessageRef[]
   oldestDate?: Date
   newestDate?: Date
   error?: string
@@ -169,7 +176,7 @@ export class DeleteTraceService {
       for (let chatIndex = 0; chatIndex < chats.length; chatIndex++) {
         throwIfAborted(operationSignal)
         const chat = chats[chatIndex]!
-        const messageIds = new Set<number>()
+        const messagesById = new Map<number, OwnMessageRef>()
         let oldestDate: Date | undefined
         let newestDate: Date | undefined
         let offsetId = 0
@@ -195,19 +202,19 @@ export class DeleteTraceService {
             )
 
             for (const message of page.messages) {
-              if (messageIds.has(message.id)) continue
-              messageIds.add(message.id)
+              if (messagesById.has(message.id)) continue
+              messagesById.set(message.id, message)
               foundMessages++
               if (!oldestDate || message.date < oldestDate) oldestDate = message.date
               if (!newestDate || message.date > newestDate) newestDate = message.date
             }
 
-            report(chatIndex, chat.title, messageIds.size, page.total)
+            report(chatIndex, chat.title, messagesById.size, page.total)
 
             if (
               page.nextOffsetId === undefined ||
               page.nextOffsetId === offsetId ||
-              (page.total > 0 && messageIds.size >= page.total)
+              (page.total > 0 && messagesById.size >= page.total)
             ) {
               break
             }
@@ -216,7 +223,8 @@ export class DeleteTraceService {
 
           results.push({
             chat,
-            messageIds: [...messageIds],
+            messageIds: [...messagesById.keys()],
+            messages: [...messagesById.values()],
             oldestDate,
             newestDate,
           })
@@ -226,9 +234,9 @@ export class DeleteTraceService {
           }
 
           // A partial scan is not safe to delete from: discard it and make the failed chat explicit.
-          foundMessages -= messageIds.size
+          foundMessages -= messagesById.size
           const normalized = error instanceof Error ? error : new Error(String(error))
-          results.push({ chat, messageIds: [], error: normalized.message })
+          results.push({ chat, messageIds: [], messages: [], error: normalized.message })
           callbacks.onError?.(normalized, chat)
         }
 

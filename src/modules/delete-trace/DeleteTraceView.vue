@@ -28,6 +28,7 @@ import {
 import { parseDateInputBoundary } from '@/utils/date-input'
 import { toUserFriendlyError } from '@/utils/error-messages'
 import { formatDateWithLocale, formatNumberWithLocale } from '@/utils/locale-format'
+import MessageTextPreview from './components/MessageTextPreview.vue'
 
 const DELETE_MESSAGES_CHAT_SELECTOR_CONFIG: ChatSelectorConfig = {
   mode: 'multiple',
@@ -600,6 +601,8 @@ function outcomeClass(status: DeliveryOutcome): string {
             </div>
           </li>
         </ul>
+
+        <MessageTextPreview :scans="successfulScans" />
 
         <div
           class="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg"

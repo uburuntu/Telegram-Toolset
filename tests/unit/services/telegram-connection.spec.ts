@@ -287,7 +287,7 @@ describe('telegramService connection state', () => {
       id: 10,
       peerId: new Api.PeerChat({ chatId: BigInt(99) as unknown as Api.long }),
       date: 1_672_531_200,
-      message: 'older',
+      message: '',
     })
     const invoke = vi.fn().mockResolvedValue(
       new Api.messages.MessagesSlice({
@@ -313,8 +313,16 @@ describe('telegramService connection state', () => {
 
     expect(page).toEqual({
       messages: [
-        { id: 20, date: new Date('2024-01-01T12:00:00.000Z') },
-        { id: 10, date: new Date('2023-01-01T00:00:00.000Z') },
+        {
+          id: 20,
+          date: new Date('2024-01-01T12:00:00.000Z'),
+          preview: { kind: 'text', text: 'mine' },
+        },
+        {
+          id: 10,
+          date: new Date('2023-01-01T00:00:00.000Z'),
+          preview: { kind: 'non_text' },
+        },
       ],
       total: 5,
       nextOffsetId: 10,
