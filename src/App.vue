@@ -97,8 +97,8 @@ useActiveUserSessionSync(showLoginModal)
     <!-- Header -->
     <header class="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
       <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-        <router-link to="/" class="flex items-center gap-2">
-          <span class="text-xl">📱</span>
+        <router-link to="/" class="flex items-center gap-2" aria-label="Telegram Toolset">
+          <img src="/favicon.png" alt="" class="w-8 h-8 object-contain" />
           <span class="font-semibold text-gray-900 dark:text-white hidden sm:inline">
             Telegram Toolset
           </span>

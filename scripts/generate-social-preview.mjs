@@ -27,12 +27,11 @@ const html = String.raw`<!doctype html>
       }
       main {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 340px;
+        grid-template-columns: minmax(0, 1fr) 390px;
         align-items: center;
         width: 1280px;
         height: 640px;
         padding: 68px 82px;
-        border-top: 12px solid #2563eb;
       }
       .eyebrow {
         margin: 0 0 22px;
@@ -56,39 +55,19 @@ const html = String.raw`<!doctype html>
       .points {
         display: flex;
         align-items: center;
-        gap: 0;
+        gap: 28px;
         color: #334155;
         font-size: 17px;
         font-weight: 700;
-      }
-      .points span + span::before {
-        content: "";
-        display: inline-block;
-        width: 1px;
-        height: 20px;
-        margin: 0 20px;
-        vertical-align: middle;
-        background: #cbd5e1;
       }
       .mark {
         display: grid;
         place-items: center;
         justify-self: end;
-        width: 292px;
-        height: 292px;
-        border: 1px solid #dbe3ee;
-        border-radius: 8px;
-        background: #fff;
+        width: 360px;
+        height: 360px;
       }
-      .mark img { width: 190px; height: 190px; }
-      .url {
-        position: absolute;
-        right: 82px;
-        bottom: 40px;
-        color: #64748b;
-        font-size: 16px;
-        font-weight: 700;
-      }
+      .mark img { width: 340px; height: 340px; object-fit: contain; }
     </style>
   </head>
   <body>
@@ -104,14 +83,13 @@ const html = String.raw`<!doctype html>
         </div>
       </section>
       <div class="mark"><img src="${logoDataUrl}" alt="" /></div>
-      <div class="url">telegram-toolset.rmbk.me</div>
     </main>
   </body>
 </html>`
 
 const browser = await chromium.launch({ headless: true })
 try {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 640 }, deviceScaleFactor: 1 })
+  const page = await browser.newPage({ viewport: { width: 1280, height: 640 }, deviceScaleFactor: 2 })
   await page.setContent(html, { waitUntil: 'load' })
   const image = await page.screenshot({ type: 'png' })
   await writeFile(outputPath, image)
