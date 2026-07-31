@@ -272,6 +272,127 @@ describe('telegramService connection state', () => {
     stateSpy.mockRestore()
   })
 
+  it('maps extended profile metadata without additional profile requests', async () => {
+    installActiveUserAccount()
+    const user = new Api.User({
+      id: BigInt(7) as unknown as Api.long,
+      self: true,
+      firstName: 'Alice',
+      lastName: 'Example',
+      username: 'alice',
+      langCode: 'en',
+      usernames: [
+        new Api.Username({ active: true, username: 'alice' }),
+        new Api.Username({ active: true, username: 'alice_work' }),
+        new Api.Username({ active: false, username: 'alice_old' }),
+      ],
+      photo: new Api.UserProfilePhoto({
+        hasVideo: true,
+        photoId: BigInt(10) as unknown as Api.long,
+        dcId: 4,
+      }),
+    })
+    const invoke = vi.fn().mockResolvedValue({
+      fullUser: {
+        about: 'Account bio',
+        commonChatsCount: 12,
+        birthday: new Api.Birthday({ day: 14, month: 2, year: 1990 }),
+      },
+      users: [user],
+    })
+    service.client = { connected: true, invoke }
+
+    const profile = await telegramService.getFullMe()
+
+    expect(profile).toMatchObject({
+      id: BigInt(7),
+      firstName: 'Alice',
+      lastName: 'Example',
+      username: 'alice',
+      bio: 'Account bio',
+      activeUsernames: ['alice_work'],
+      languageCode: 'en',
+      birthday: { day: 14, month: 2, year: 1990 },
+      commonChatsCount: 12,
+      hasProfilePhoto: true,
+      hasProfileVideo: true,
+      dcId: 4,
+    })
+    expect(invoke).toHaveBeenCalledTimes(1)
+    expect(invoke.mock.calls[0]?.[0]).toBeInstanceOf(Api.users.GetFullUser)
+  })
+
+  it('returns a privacy-minimized security and session summary', async () => {
+    installActiveUserAccount()
+    const invoke = vi.fn(async (request: unknown) => {
+      if (request instanceof Api.account.GetAuthorizations) {
+        return {
+          authorizationTtlDays: 180,
+          authorizations: [
+            {
+              current: true,
+              officialApp: false,
+              unconfirmed: false,
+              appName: 'Telegram Toolset',
+              appVersion: '1.0',
+              deviceModel: 'Chrome',
+              platform: 'macOS',
+              systemVersion: '15',
+              country: 'United Kingdom',
+              region: 'London',
+              dateCreated: 1_767_268_800,
+              dateActive: 1_767_355_200,
+              hash: BigInt(123),
+              ip: '203.0.113.10',
+            },
+            { current: false, unconfirmed: true },
+          ],
+        }
+      }
+      if (request instanceof Api.account.GetAccountTTL) {
+        return { days: 548 }
+      }
+      if (request instanceof Api.account.GetPassword) {
+        return {
+          hasPassword: true,
+          hasRecovery: true,
+          hint: 'private hint',
+          emailUnconfirmedPattern: 'a***@example.com',
+        }
+      }
+      throw new Error('Unexpected request')
+    })
+    service.client = { connected: true, invoke }
+
+    const security = await telegramService.getAccountSecurityInfo()
+
+    expect(security).toEqual({
+      twoStepVerificationEnabled: true,
+      recoveryEmailConfigured: true,
+      authorizedSessionsCount: 2,
+      otherSessionsCount: 1,
+      unconfirmedSessionsCount: 1,
+      authorizationTtlDays: 180,
+      accountTtlDays: 548,
+      currentSession: {
+        appName: 'Telegram Toolset',
+        appVersion: '1.0',
+        deviceModel: 'Chrome',
+        platform: 'macOS',
+        systemVersion: '15',
+        location: 'United Kingdom, London',
+        createdAt: new Date('2026-01-01T12:00:00.000Z'),
+        lastActiveAt: new Date('2026-01-02T12:00:00.000Z'),
+        officialApp: false,
+      },
+    })
+    expect(security?.currentSession).not.toHaveProperty('ip')
+    expect(security?.currentSession).not.toHaveProperty('hash')
+    expect(security).not.toHaveProperty('passwordHint')
+    expect(security).not.toHaveProperty('recoveryEmailPattern')
+    expect(invoke).toHaveBeenCalledTimes(3)
+  })
+
   it('searches only the active user messages with a resumable server-side cursor', async () => {
     installActiveUserAccount()
     const entity = { id: BigInt(99) }

@@ -5,6 +5,8 @@
  * This is simpler and doesn't require GramJS for basic bot operations.
  */
 
+import { withRetry } from './rate-limiter'
+
 const BOT_API_URL = 'https://api.telegram.org/bot'
 
 export interface BotApiUser {
@@ -14,9 +16,12 @@ export interface BotApiUser {
   last_name?: string
   username?: string
   language_code?: string
+  is_premium?: boolean
+  added_to_attachment_menu?: boolean
   can_join_groups?: boolean
   can_read_all_group_messages?: boolean
   supports_inline_queries?: boolean
+  can_connect_to_business?: boolean
   has_main_web_app?: boolean
 }
 
@@ -25,20 +30,41 @@ interface BotApiResponse<T> {
   result?: T
   description?: string
   error_code?: number
+  parameters?: {
+    retry_after?: number
+  }
+}
+
+type BotApiError = Error & {
+  status?: number
+  parameters?: BotApiResponse<unknown>['parameters']
+}
+
+function shouldRetryBotApiRequest(error: Error): boolean {
+  const status = (error as BotApiError).status
+  return status === undefined || status === 429 || status >= 500
 }
 
 /**
  * Validate a bot token and get bot information
  */
 export async function getBotInfo(token: string): Promise<BotApiUser> {
-  const response = await fetch(`${BOT_API_URL}${token}/getMe`)
-  const data: BotApiResponse<BotApiUser> = await response.json()
+  return withRetry(
+    async () => {
+      const response = await fetch(`${BOT_API_URL}${token}/getMe`)
+      const data: BotApiResponse<BotApiUser> = await response.json()
 
-  if (!data.ok || !data.result) {
-    throw new Error(data.description || 'Failed to validate bot token')
-  }
+      if (!response.ok || !data.ok || !data.result) {
+        const error = new Error(data.description || 'Failed to validate bot token') as BotApiError
+        error.status = data.error_code || response.status
+        error.parameters = data.parameters
+        throw error
+      }
 
-  return data.result
+      return data.result
+    },
+    { shouldRetry: shouldRetryBotApiRequest },
+  )
 }
 
 /**
