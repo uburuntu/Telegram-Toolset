@@ -36,7 +36,15 @@ test.describe('Production build smoke', () => {
     const socialPreview = await page.request.get('/social-preview.png')
     expect(socialPreview.ok()).toBe(true)
     expect(socialPreview.headers()['content-type']).toContain('image/png')
-    expect((await socialPreview.body()).byteLength).toBeGreaterThan(50_000)
+    expect((await socialPreview.body()).byteLength).toBeGreaterThan(10_000)
+
+    const socialPreviewDimensions = await page.evaluate(async () => {
+      const image = new Image()
+      image.src = '/social-preview.png'
+      await image.decode()
+      return { width: image.naturalWidth, height: image.naturalHeight }
+    })
+    expect(socialPreviewDimensions).toEqual({ width: 1280, height: 640 })
 
     // Opening a module pulls in the lazy auth flow in the production bundle.
     await page.getByText('Account Info').click()
