@@ -14,6 +14,8 @@ export interface RateLimitOptions {
   backoffBase?: number
   onRetry?: (attempt: number, waitMs: number, error: Error) => void
   onFloodWait?: (seconds: number) => void
+  /** Return false for permanent failures that should be surfaced without another attempt. */
+  shouldRetry?: (error: Error) => boolean
   signal?: AbortSignal
 }
 
@@ -102,6 +104,7 @@ export async function withRetry<T>(
     backoffBase = RETRY_BACKOFF_BASE,
     onRetry,
     onFloodWait,
+    shouldRetry,
     signal,
   } = options
 
@@ -118,6 +121,10 @@ export async function withRetry<T>(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
 
+      if (attempt >= maxRetries - 1 || shouldRetry?.(lastError) === false) {
+        break
+      }
+
       // Handle FloodWait specifically
       if (isFloodWaitError(error)) {
         const waitSeconds = error.seconds
@@ -125,17 +132,13 @@ export async function withRetry<T>(
 
         onFloodWait?.(waitSeconds)
 
-        if (attempt < maxRetries - 1) {
-          onRetry?.(attempt + 1, waitMs, lastError)
-          await sleep(waitMs, signal)
-        }
+        onRetry?.(attempt + 1, waitMs, lastError)
+        await sleep(waitMs, signal)
       } else {
         // For non-FloodWait errors, use exponential backoff
-        if (attempt < maxRetries - 1) {
-          const waitMs = backoffBase * 2 ** attempt
-          onRetry?.(attempt + 1, waitMs, lastError)
-          await sleep(waitMs, signal)
-        }
+        const waitMs = backoffBase * 2 ** attempt
+        onRetry?.(attempt + 1, waitMs, lastError)
+        await sleep(waitMs, signal)
       }
     }
   }

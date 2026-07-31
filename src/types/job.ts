@@ -14,6 +14,8 @@ export type JobKind =
   | 'resend'
   | 'scheduled-scan'
   | 'scheduled-delete'
+  | 'trace-scan'
+  | 'trace-delete'
   | 'chat-history'
   | 'archive'
 

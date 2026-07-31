@@ -1,7 +1,12 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createJobContext } from '@/services/jobs/job-context'
-import { cancelJob, isJobRunning, runJob } from '@/services/jobs/job-runner'
+import {
+  cancelJob,
+  cancelMutationJobsAndWait,
+  isJobRunning,
+  runJob,
+} from '@/services/jobs/job-runner'
 import { useJobsStore } from '@/stores/jobs'
 import type { TelegramPrincipal } from '@/types'
 
@@ -115,5 +120,41 @@ describe('job-runner', () => {
 
   it('cancelJob is a no-op for an unknown operation id', () => {
     expect(() => cancelJob('missing')).not.toThrow()
+  })
+
+  it('aborts mutation jobs and waits for their in-flight work to settle', async () => {
+    const { context, controller } = newJob()
+    let release!: () => void
+    let observedAbort = false
+    const work = runJob({
+      context,
+      controller,
+      kind: 'trace-delete',
+      title: 'Delete my messages',
+      execute: ({ signal }) =>
+        new Promise<string>((resolve) => {
+          release = () => resolve('settled')
+          signal.addEventListener('abort', () => {
+            observedAbort = true
+          })
+        }),
+    })
+
+    const cancellation = cancelMutationJobsAndWait()
+    let cancellationSettled = false
+    void cancellation.then(() => {
+      cancellationSettled = true
+    })
+    await Promise.resolve()
+
+    expect(observedAbort).toBe(true)
+    expect(cancellationSettled).toBe(false)
+
+    release()
+    await expect(work).resolves.toBe('settled')
+    await cancellation
+
+    expect(cancellationSettled).toBe(true)
+    expect(useJobsStore().getJob(context.operationId)?.status).toBe('cancelled')
   })
 })

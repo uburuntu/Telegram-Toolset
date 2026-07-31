@@ -289,6 +289,16 @@ describe('rate-limiter', () => {
       expect(operation).toHaveBeenCalledTimes(2)
     })
 
+    it('does not retry when the error classifier rejects a permanent failure', async () => {
+      const operation = vi.fn().mockRejectedValue(new Error('MESSAGE_DELETE_FORBIDDEN'))
+
+      await expect(
+        withRetry(operation, { maxRetries: 3, shouldRetry: () => false }),
+      ).rejects.toThrow('MESSAGE_DELETE_FORBIDDEN')
+
+      expect(operation).toHaveBeenCalledTimes(1)
+    })
+
     it('should call onRetry callback on each retry', async () => {
       vi.useRealTimers()
 
@@ -341,4 +351,3 @@ describe('rate-limiter', () => {
     })
   })
 })
-

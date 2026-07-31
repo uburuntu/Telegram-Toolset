@@ -165,6 +165,12 @@ function createLegacyServiceMock(
     forwardMessage: vi.fn().mockResolvedValue(undefined),
     getScheduledMessages: vi.fn().mockResolvedValue([scheduledMessage]),
     deleteScheduledMessages: vi.fn().mockResolvedValue(undefined),
+    searchOwnMessages: vi.fn().mockResolvedValue({
+      messages: [{ id: chatMessage.id, date: chatMessage.date }],
+      total: 1,
+    }),
+    deleteMessages: vi.fn().mockResolvedValue(undefined),
+    getExistingMessageIds: vi.fn().mockResolvedValue([chatMessage.id]),
     iterChatMessages: vi.fn(chatMessageStream()),
     getChatMessageCount: vi.fn().mockResolvedValue(128),
     getFullMe: vi.fn().mockResolvedValue(fullUserInfo),
@@ -192,6 +198,7 @@ describe('createTelegramGateway', () => {
     expect(Object.isFrozen(gateway.media)).toBe(true)
     expect(Object.isFrozen(gateway.send)).toBe(true)
     expect(Object.isFrozen(gateway.scheduled)).toBe(true)
+    expect(Object.isFrozen(gateway.trace)).toBe(true)
     expect(Object.isFrozen(gateway.account)).toBe(true)
     expect(Object.isFrozen(gateway.history)).toBe(true)
   })
@@ -356,6 +363,9 @@ describe('createTelegramGateway', () => {
     await gateway.send.forwardMessage(chatInfo.id, chatInfo.id, 7)
     const scheduledMessages = await gateway.scheduled.getScheduledMessages(chatInfo.id)
     await gateway.scheduled.deleteScheduledMessages(chatInfo.id, [scheduledMessage.id])
+    const ownMessages = await gateway.trace.searchOwnMessages(chatInfo.id, { offsetId: 100 })
+    await gateway.trace.deleteMessages(chatInfo.id, [chatMessage.id])
+    const existingIds = await gateway.trace.getExistingMessageIds(chatInfo.id, [chatMessage.id])
     const fullMe = await gateway.account.getFullMe()
     const stats = await gateway.account.getAccountStats()
     const profilePhoto = await gateway.account.downloadMyProfilePhoto()
@@ -370,6 +380,8 @@ describe('createTelegramGateway', () => {
     await gateway.history.getChatMessageCount(chatInfo.peerRef!)
 
     expect(scheduledMessages).toEqual([scheduledMessage])
+    expect(ownMessages.messages).toEqual([{ id: chatMessage.id, date: chatMessage.date }])
+    expect(existingIds).toEqual([chatMessage.id])
     expect(fullMe).toEqual(fullUserInfo)
     expect(stats).toEqual(accountStats)
     expect(profilePhoto).toBeInstanceOf(Blob)
@@ -384,6 +396,9 @@ describe('createTelegramGateway', () => {
     expect(service.forwardMessage).toHaveBeenCalledWith(chatInfo.id, chatInfo.id, 7)
     expect(service.getScheduledMessages).toHaveBeenCalledWith(chatInfo.id)
     expect(service.deleteScheduledMessages).toHaveBeenCalledWith(chatInfo.id, [scheduledMessage.id])
+    expect(service.searchOwnMessages).toHaveBeenCalledWith(chatInfo.id, { offsetId: 100 })
+    expect(service.deleteMessages).toHaveBeenCalledWith(chatInfo.id, [chatMessage.id])
+    expect(service.getExistingMessageIds).toHaveBeenCalledWith(chatInfo.id, [chatMessage.id])
     expect(service.getFullMe).toHaveBeenCalledTimes(1)
     expect(service.getAccountStats).toHaveBeenCalledTimes(1)
     expect(service.downloadMyProfilePhoto).toHaveBeenCalledTimes(1)

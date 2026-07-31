@@ -6,6 +6,8 @@ import type {
   ChatValidationResult,
   ConnectionState,
   DeletedMessage,
+  OwnMessageSearchOptions,
+  OwnMessageSearchPage,
   PeerRef,
   ScheduledMessage,
   UserInfo,
@@ -124,6 +126,15 @@ export interface TelegramScheduledGateway {
   deleteScheduledMessages(chatId: bigint, messageIds: number[]): Promise<void>
 }
 
+export interface TelegramTraceGateway {
+  searchOwnMessages(
+    chatId: TelegramPeerRef,
+    options?: OwnMessageSearchOptions,
+  ): Promise<OwnMessageSearchPage>
+  deleteMessages(chatId: TelegramPeerRef, messageIds: number[]): Promise<void>
+  getExistingMessageIds(chatId: TelegramPeerRef, messageIds: number[]): Promise<number[]>
+}
+
 export interface TelegramAccountGateway {
   getFullMe(): Promise<FullUserInfo | null>
   downloadMyProfilePhoto(): Promise<Blob | null>
@@ -144,6 +155,7 @@ export interface TelegramGateway {
   readonly media: TelegramMediaGateway
   readonly send: TelegramSendGateway
   readonly scheduled: TelegramScheduledGateway
+  readonly trace: TelegramTraceGateway
   readonly account: TelegramAccountGateway
   readonly history: TelegramHistoryGateway
 }

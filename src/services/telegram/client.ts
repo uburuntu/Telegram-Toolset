@@ -16,6 +16,8 @@ import type {
   ConnectionState,
   DeletedMessage,
   MediaType,
+  OwnMessageSearchOptions,
+  OwnMessageSearchPage,
   PeerRef,
   ScheduledMessage,
   UserInfo,
@@ -1692,6 +1694,83 @@ class TelegramService {
         id: messageIds,
       }),
     )
+  }
+
+  /**
+   * Fetch one resumable page containing only messages authored by the active user.
+   * Telegram performs the sender/date filtering server-side, so a trace scan does not download the
+   * rest of a busy chat's history.
+   */
+  async searchOwnMessages(
+    chatId: bigint | string,
+    options: OwnMessageSearchOptions = {},
+  ): Promise<OwnMessageSearchPage> {
+    const client = await this.getConnectedClient()
+    const entity = await client.getEntity(toPeerEntityArg(chatId))
+    const inputPeer = await client.getInputEntity(entity)
+    const self = await client.getInputEntity('me')
+    const limit = Math.min(100, Math.max(1, options.limit ?? MESSAGE_FETCH_BATCH_SIZE))
+
+    const result = await client.invoke(
+      new Api.messages.Search({
+        peer: inputPeer,
+        q: '',
+        fromId: self,
+        filter: new Api.InputMessagesFilterEmpty(),
+        minDate: options.minDate ? Math.floor(options.minDate.getTime() / 1000) : 0,
+        maxDate: options.maxDate ? Math.floor(options.maxDate.getTime() / 1000) : 0,
+        offsetId: options.offsetId ?? 0,
+        addOffset: 0,
+        limit,
+        maxId: 0,
+        minId: 0,
+        hash: BigInt(0) as unknown as Api.long,
+      }),
+    )
+
+    if (result instanceof Api.messages.MessagesNotModified) {
+      return { messages: [], total: result.count }
+    }
+
+    const rawMessages = result.messages
+    const messages = rawMessages
+      .filter((message): message is Api.Message => message instanceof Api.Message)
+      .map((message) => ({
+        id: message.id,
+        date: new Date(message.date * 1000),
+      }))
+      .filter((message) => {
+        if (options.minDate && message.date < options.minDate) return false
+        if (options.maxDate && message.date > options.maxDate) return false
+        return true
+      })
+
+    const lastMessage = rawMessages.at(-1)
+    const nextOffsetId =
+      rawMessages.length === limit && lastMessage && 'id' in lastMessage && lastMessage.id > 0
+        ? lastMessage.id
+        : undefined
+
+    return {
+      messages,
+      total: 'count' in result ? result.count : rawMessages.length,
+      nextOffsetId,
+    }
+  }
+
+  /** Revoke a bounded message batch for every participant. Deletion is idempotent by message ID. */
+  async deleteMessages(chatId: bigint | string, messageIds: number[]): Promise<void> {
+    if (messageIds.length === 0) return
+
+    const client = await this.getConnectedClient()
+    const entity = await client.getEntity(toPeerEntityArg(chatId))
+    await client.deleteMessages(entity, messageIds, { revoke: true })
+  }
+
+  /** Read back a deletion batch so an ambiguous transport failure can be reconciled. */
+  async getExistingMessageIds(chatId: bigint | string, messageIds: number[]): Promise<number[]> {
+    const messages = await this.getChatMessagesByIds(chatId, messageIds)
+    return [...messages.keys()]
   }
 
   // =============================================================================
