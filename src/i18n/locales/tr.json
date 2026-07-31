@@ -642,6 +642,8 @@
     "deleteAction": "{count} mesajı sil",
     "sessionNotReady": "Etkin Telegram oturumu hazır değil. Hesabı yeniden bağlayıp tekrar deneyin.",
     "jobDeleteTitle": "Mesajlarımı sil",
+    "jobDeleteTitleSingle": "Mesajlarımı sil · {chat}",
+    "jobDeleteTitleMultiple": "Mesajlarımı sil · {chat} + {count} sohbet daha",
     "deleting": "Mesajlar siliniyor",
     "cancelling": "İptalden önce mevcut istek tamamlanıyor",
     "preparingDeletion": "Silme hazırlanıyor...",

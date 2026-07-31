@@ -642,6 +642,8 @@
     "deleteAction": "Hapus {count} pesan",
     "sessionNotReady": "Sesi Telegram aktif belum siap. Hubungkan kembali akun lalu coba lagi.",
     "jobDeleteTitle": "Hapus pesan saya",
+    "jobDeleteTitleSingle": "Hapus pesan saya · {chat}",
+    "jobDeleteTitleMultiple": "Hapus pesan saya · {chat} + {count} lainnya",
     "deleting": "Menghapus pesan",
     "cancelling": "Menyelesaikan permintaan saat ini sebelum membatalkan",
     "preparingDeletion": "Menyiapkan penghapusan...",

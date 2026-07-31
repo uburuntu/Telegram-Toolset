@@ -648,6 +648,8 @@
     "deleteAction": "Удалить {count} сообщений",
     "sessionNotReady": "Активный сеанс Telegram не готов. Переподключите учетную запись и повторите попытку.",
     "jobDeleteTitle": "Удаление моих сообщений",
+    "jobDeleteTitleSingle": "Удаление моих сообщений · {chat}",
+    "jobDeleteTitleMultiple": "Удаление моих сообщений · {chat} + ещё {count}",
     "deleting": "Удаление сообщений",
     "cancelling": "Текущий запрос завершается перед отменой",
     "preparingDeletion": "Подготовка удаления...",

@@ -642,6 +642,8 @@
     "deleteAction": "Excluir {count} mensagens",
     "sessionNotReady": "A sessão ativa do Telegram não está pronta. Reconecte a conta e tente novamente.",
     "jobDeleteTitle": "Excluir minhas mensagens",
+    "jobDeleteTitleSingle": "Excluir minhas mensagens · {chat}",
+    "jobDeleteTitleMultiple": "Excluir minhas mensagens · {chat} + mais {count}",
     "deleting": "Excluindo mensagens",
     "cancelling": "Concluindo a solicitação atual antes de cancelar",
     "preparingDeletion": "Preparando exclusão...",

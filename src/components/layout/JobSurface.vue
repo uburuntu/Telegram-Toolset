@@ -63,8 +63,13 @@ const statusClass: Record<JobRecord['status'], string> = {
         >
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
-              <span class="text-sm text-gray-900 dark:text-white truncate">{{ job.title }}</span>
-              <span class="text-xs font-medium" :class="statusClass[job.status]">
+              <span
+                class="min-w-0 flex-1 truncate text-sm text-gray-900 dark:text-white"
+                :title="job.title"
+              >
+                {{ job.title }}
+              </span>
+              <span class="shrink-0 text-xs font-medium" :class="statusClass[job.status]">
                 {{ t(`jobs.status.${job.status}`) }}
               </span>
             </div>

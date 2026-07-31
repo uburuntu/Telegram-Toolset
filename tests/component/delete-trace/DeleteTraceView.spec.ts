@@ -217,7 +217,10 @@ describe('DeleteTraceView', () => {
     await flushPromises()
 
     expect(mocks.runJob).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'trace-delete', title: 'Delete my messages' }),
+      expect.objectContaining({
+        kind: 'trace-delete',
+        title: 'Delete my messages · Public Archive Chat',
+      }),
     )
     expect(mocks.delete).toHaveBeenCalledWith(
       scanResult.chats,
@@ -228,6 +231,55 @@ describe('DeleteTraceView', () => {
     expect(wrapper.text()).toContain('Confirmed 3 of 3 requested deletions.')
     expect(wrapper.text()).toContain('Public Archive Chat')
     expect(wrapper.text()).toContain('Deleted')
+  })
+
+  it('identifies a multi-chat deletion in the background job title', async () => {
+    const scanResult = {
+      chats: chats.map((chat, index) => ({
+        chat,
+        messageIds: [index + 1],
+        messages: [
+          {
+            id: index + 1,
+            date: new Date('2024-01-01T00:00:00.000Z'),
+            preview: { kind: 'text' as const, text: `Message ${index + 1}` },
+          },
+        ],
+      })),
+      totalMessages: 2,
+      failedChats: 0,
+    }
+    mocks.scan.mockResolvedValue(scanResult)
+    mocks.delete.mockResolvedValue({
+      outcomes: chats.map((chat) => ({
+        peerId: chat.id.toString(),
+        status: 'delivered' as const,
+        affected: 1,
+      })),
+      requestedMessages: 2,
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    for (const title of ['Public Archive Chat', 'Project Group']) {
+      const label = wrapper.findAll('label').find((candidate) => candidate.text().includes(title))
+      await label!.find('input[type="checkbox"]').setValue(true)
+    }
+    await buttonByText(wrapper, 'Next').trigger('click')
+    await buttonByText(wrapper, 'Scan my messages').trigger('click')
+    await flushPromises()
+
+    await wrapper.find('input[type="checkbox"]').setValue(true)
+    await buttonByText(wrapper, 'Delete 2 messages').trigger('click')
+    await flushPromises()
+
+    expect(mocks.runJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'trace-delete',
+        title: 'Delete my messages · Public Archive Chat + 1 more',
+      }),
+    )
   })
 
   it('rejects an inverted date range without issuing a Telegram scan', async () => {

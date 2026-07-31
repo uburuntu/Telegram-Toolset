@@ -78,4 +78,35 @@ describe('JobSurface', () => {
 
     expect(store.recentJobs).toHaveLength(0)
   })
+
+  it('keeps completed jobs distinguishable by target while preserving the status label', () => {
+    const store = useJobsStore()
+    store.register(
+      jobInput({
+        operationId: 'archive-chat',
+        kind: 'trace-delete',
+        title: 'Delete my messages · Public Archive Chat',
+      }),
+    )
+    store.settle('archive-chat', 'succeeded')
+    store.register(
+      jobInput({
+        operationId: 'project-chat',
+        kind: 'trace-delete',
+        title: 'Delete my messages · A very long project chat name that needs truncation',
+      }),
+    )
+    store.settle('project-chat', 'succeeded')
+
+    const wrapper = mountSurface()
+    const titles = wrapper.findAll('li span[title]')
+
+    expect(titles.map((title) => title.attributes('title'))).toEqual([
+      'Delete my messages · Public Archive Chat',
+      'Delete my messages · A very long project chat name that needs truncation',
+    ])
+    expect(titles.every((title) => title.classes().includes('min-w-0'))).toBe(true)
+    expect(wrapper.findAll('li').every((row) => row.text().includes('Completed'))).toBe(true)
+    expect(wrapper.findAll('li span.shrink-0')).toHaveLength(2)
+  })
 })

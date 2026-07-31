@@ -268,6 +268,18 @@ function isSameJobOwner(accountId: string, generation: number, accountEpoch: num
   )
 }
 
+function deletionJobTitle(scans: readonly TraceChatScan[]): string {
+  const firstChat = scans[0]?.chat.title
+  if (!firstChat) return t('deleteTrace.jobDeleteTitle')
+  if (scans.length === 1) {
+    return t('deleteTrace.jobDeleteTitleSingle', { chat: firstChat })
+  }
+  return t('deleteTrace.jobDeleteTitleMultiple', {
+    chat: firstChat,
+    count: scans.length - 1,
+  })
+}
+
 async function startDeletion(): Promise<void> {
   const scans: TraceChatScan[] = successfulScans.value
   const account = accountsStore.activeAccount
@@ -305,7 +317,7 @@ async function startDeletion(): Promise<void> {
       context,
       controller,
       kind: 'trace-delete',
-      title: t('deleteTrace.jobDeleteTitle'),
+      title: deletionJobTitle(scans),
       execute: ({ signal, onProgress }) =>
         deleteTraceService.delete(
           scans,

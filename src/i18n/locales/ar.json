@@ -642,6 +642,8 @@
     "deleteAction": "حذف {count} رسالة",
     "sessionNotReady": "جلسة Telegram النشطة غير جاهزة. أعد توصيل الحساب ثم حاول مرة أخرى.",
     "jobDeleteTitle": "حذف رسائلي",
+    "jobDeleteTitleSingle": "حذف رسائلي · {chat}",
+    "jobDeleteTitleMultiple": "حذف رسائلي · {chat} + {count} أخرى",
     "deleting": "جارٍ حذف الرسائل",
     "cancelling": "جارٍ إنهاء الطلب الحالي قبل الإلغاء",
     "preparingDeletion": "جارٍ إعداد الحذف...",
