@@ -122,7 +122,11 @@ function chunks<T>(items: readonly T[], size: number): T[][] {
 }
 
 export class DeleteTraceService {
-  constructor(private readonly gateway: TraceServiceGateway = telegramGateway) {}
+  private readonly gateway: TraceServiceGateway
+
+  constructor(gateway: TraceServiceGateway = telegramGateway) {
+    this.gateway = gateway
+  }
 
   async scan(
     chats: readonly ChatInfo[],
