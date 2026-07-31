@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useAccountProfilePhotos } from '@/composables'
 import { useAccountsStore, useUiStore } from '@/stores'
 import type { SavedAccount } from '@/types'
+import AccountAvatar from './AccountAvatar.vue'
 
 const { t } = useI18n()
 const accountsStore = useAccountsStore()
 const uiStore = useUiStore()
+const { loadAccountProfilePhoto, photoUrlFor, pruneAccountProfilePhotos } =
+  useAccountProfilePhotos()
 
 const isOpen = ref(false)
 
@@ -73,26 +77,66 @@ const displayName = computed(() => {
   return accountsStore.activeAccount.firstName || accountsStore.activeAccount.label
 })
 
-const displayIcon = computed(() => {
-  if (!accountsStore.activeAccount) {
-    return '👤'
-  }
-  return accountsStore.activeAccount.type === 'bot' ? '🤖' : '👤'
-})
-
 const activeAccountNeedsLogin = computed(
   () => accountsStore.activeAccount?.type === 'user' && accountsStore.activeAccountNeedsLogin,
+)
+
+const activeProfilePhotoUrl = computed(() => photoUrlFor(accountsStore.activeAccount?.id))
+
+watch(
+  () => [
+    accountsStore.activeAccount?.id ?? null,
+    accountsStore.activeAccount?.type ?? null,
+    accountsStore.activeAccountSessionState,
+    accountsStore.activeAccount
+      ? accountsStore.isAccountCorrupted(accountsStore.activeAccount.id)
+      : false,
+  ],
+  () => {
+    const activeAccount = accountsStore.activeAccount
+    if (
+      activeAccount?.type === 'user' &&
+      accountsStore.activeAccountSessionState === 'ready' &&
+      !accountsStore.isAccountCorrupted(activeAccount.id)
+    ) {
+      void loadAccountProfilePhoto(activeAccount.id)
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => accountsStore.accounts.map((account) => account.id),
+  (accountIds) => {
+    pruneAccountProfilePhotos(new Set(accountIds))
+  },
+  { immediate: true },
 )
 </script>
 
 <template>
   <div class="relative">
     <button
+      data-testid="account-menu-trigger"
       @click="toggleDropdown"
       :title="activeAccountNeedsLogin ? t('accounts.needsLogin') : undefined"
+      :aria-label="displayName"
+      :aria-expanded="isOpen"
+      aria-haspopup="true"
       class="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-100"
     >
-      <span>{{ displayIcon }}</span>
+      <AccountAvatar
+        v-if="accountsStore.activeAccount"
+        :account="accountsStore.activeAccount"
+        :photo-url="activeProfilePhotoUrl"
+      />
+      <span
+        v-else
+        class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-200 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+        aria-hidden="true"
+      >
+        ?
+      </span>
       <span
         class="text-sm font-medium text-gray-700 dark:text-gray-300 max-w-[120px] truncate hidden sm:inline"
       >
@@ -149,9 +193,11 @@ const activeAccountNeedsLogin = computed(
               @click="selectAccount(account.id)"
               class="flex min-w-0 flex-1 items-center gap-2.5 text-left"
             >
-              <span class="text-base flex-shrink-0">
-                {{ account.type === 'bot' ? '🤖' : '👤' }}
-              </span>
+              <AccountAvatar
+                :account="account"
+                :photo-url="photoUrlFor(account.id)"
+                size="md"
+              />
               <div class="min-w-0 flex-1">
                 <div class="font-medium text-gray-900 dark:text-white text-sm truncate">
                   {{ account.firstName || account.label }}
