@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  contributeCard,
   getModule,
   getModuleRoutes,
   getModulesForAccountType,
@@ -50,6 +53,13 @@ describe('module registry helpers', () => {
     const forUser = getModulesForAccountType('user')
     expect(forUser.some((m) => m.id === 'resend')).toBe(true)
     expect(forUser.some((m) => m.id === 'account-info')).toBe(true)
+  })
+
+  it('links the contribution card to the public README tool guide', () => {
+    const readme = readFileSync(resolve(process.cwd(), 'README.md'), 'utf8')
+
+    expect(new URL(contributeCard.url).hash).toBe('#adding-a-new-tool')
+    expect(readme).toMatch(/^## Adding a New Tool$/m)
   })
 })
 

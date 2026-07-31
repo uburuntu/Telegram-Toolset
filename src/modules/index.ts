@@ -100,7 +100,7 @@ export const contributeCard = {
   name: 'Add Your Tool',
   description: 'Have an idea? Contribute a new module to this project',
   icon: 'plus',
-  url: 'https://github.com/uburuntu/Telegram-Toolset#adding-a-new-module',
+  url: 'https://github.com/uburuntu/Telegram-Toolset#adding-a-new-tool',
 }
 
 /**

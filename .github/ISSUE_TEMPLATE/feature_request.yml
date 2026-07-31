@@ -1,0 +1,49 @@
+name: Feature request
+description: Propose a focused Telegram workflow or platform improvement
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What Telegram workflow is difficult or unavailable today?
+    validations:
+      required: true
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Proposed workflow
+      description: Describe the user's steps and the result, not only a screen or API method.
+    validations:
+      required: true
+  - type: dropdown
+    id: account_type
+    attributes:
+      label: Required account type
+      options:
+        - User account
+        - Bot token
+        - Either
+        - No account
+        - Unsure
+    validations:
+      required: true
+  - type: textarea
+    id: telegram_scope
+    attributes:
+      label: Telegram and data scope
+      description: Which chats, messages, permissions, media, or local records would the tool read or change?
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy and failure behavior
+      description: Note destructive actions, review requirements, retry safety, or sensitive data involved.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
