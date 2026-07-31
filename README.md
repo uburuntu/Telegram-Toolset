@@ -55,6 +55,10 @@ Bot tools require a token from [@BotFather](https://t.me/BotFather).
 > Telegram sessions and bot tokens stay in this browser. Sensitive account data is encrypted in
 > IndexedDB with WebCrypto. The app has no backend, analytics service, or tracking pixel.
 
+> [!NOTE]
+> User accounts saved before the mtcute migration may need one fresh sign-in. Existing local
+> backups and exports are not affected.
+
 <a id="adding-a-new-module"></a>
 
 ## Adding a New Tool
@@ -64,7 +68,7 @@ local storage, translations, and browser testing. A new tool can focus on the Te
 
 1. Add the tool and its route to [`src/modules/index.ts`](./src/modules/index.ts).
 2. Build its screen under `src/modules/<tool>/` using shared workspace components.
-3. Add any Telegram operations to the typed gateway instead of calling GramJS directly.
+3. Add any Telegram operations to the typed gateway instead of calling mtcute directly.
 4. Use the shared job runtime for long-running or destructive work.
 5. Add all user-facing text to the 10 locale files.
 6. Cover the service logic, screen behavior, and main browser workflow.
@@ -99,7 +103,7 @@ npm run test:e2e:dist
 
 ```text
 Vue workspace
-  |-- typed Telegram gateway -- GramJS / MTProto for user accounts
+  |-- typed Telegram gateway -- mtcute / MTProto for user accounts
   |-- Bot API client ---------- getMe for bot accounts
   |-- account-affine jobs ----- cancellation, progress, and outcome fencing
   `-- encrypted local storage - sessions, exports, backups, and ownership metadata
@@ -110,6 +114,7 @@ Vue workspace
 | [`src/modules/`](./src/modules) | Lazy tool workflows and route-owned UI |
 | [`src/components/`](./src/components) | Shared account, chat, storage, and shell components |
 | [`src/services/telegram/gateway/`](./src/services/telegram/gateway) | Typed Telegram boundary used by tools |
+| [`src/services/telegram/mtcute-runtime.ts`](./src/services/telegram/mtcute-runtime.ts) | Browser transport, storage, concurrency, and retry policy |
 | [`src/services/jobs/`](./src/services/jobs) | Long-running, account-aware job ownership |
 | [`src/services/storage/`](./src/services/storage) | IndexedDB, encrypted secrets, ownership, and recovery |
 | [`src/i18n/locales/`](./src/i18n/locales) | Complete message catalogs for 10 locales |
