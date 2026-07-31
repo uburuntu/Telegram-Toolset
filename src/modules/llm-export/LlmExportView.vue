@@ -3,6 +3,8 @@ import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FloodWaitIndicator from '@/components/common/FloodWaitIndicator.vue'
 import PersistenceNotice from '@/components/storage/PersistenceNotice.vue'
+import ChatSelector from '@/components/telegram/ChatSelector.vue'
+import type { ChatSelectorConfig } from '@/components/telegram/chat-selector'
 import { useFloodWait } from '@/composables'
 import { chatArchiveService } from '@/services/llm-export/archive-service'
 import { chatHistoryService } from '@/services/llm-export/chat-history-service'
@@ -28,10 +30,19 @@ import type {
 import { DEFAULT_FORMAT_CONFIG } from '@/types'
 import { parseDateInputBoundary } from '@/utils/date-input'
 import { toUserFriendlyError } from '@/utils/error-messages'
-import ChatSelector from './components/ChatSelector.vue'
 import DownloadOptionsCard from './components/DownloadOptionsCard.vue'
 import ExportsList from './components/ExportsList.vue'
 import ExportWorkspace from './components/ExportWorkspace.vue'
+
+const LLM_EXPORT_CHAT_SELECTOR_CONFIG: ChatSelectorConfig = {
+  filters: { selectedOnly: false },
+  display: {
+    selectedCount: false,
+    selectVisible: false,
+    maxHeight: 'md',
+  },
+  sortOptions: ['recent', 'name', 'type', 'members'],
+}
 
 const { t } = useI18n()
 const accountsStore = useAccountsStore()
@@ -615,7 +626,21 @@ function cancelArchiveDownload() {
       </div>
 
       <template v-else>
-        <ChatSelector :chats="chats" :is-loading="isLoadingChats" :selected-chat="selectedChat" @select="handleChatSelect" />
+        <ChatSelector
+          input-id="llm-export-chat-search"
+          :chats="chats"
+          :is-loading="isLoadingChats"
+          :selected-ids="selectedChat ? [selectedChat.id.toString()] : []"
+          :config="LLM_EXPORT_CHAT_SELECTOR_CONFIG"
+          :labels="{
+            title: t('llmExport.selectChat'),
+            searchPlaceholder: t('llmExport.searchChats'),
+            loading: t('llmExport.loadingChats'),
+            emptyTitle: t('llmExport.noChats'),
+            noResults: t('llmExport.noChatsFound'),
+          }"
+          @select="handleChatSelect"
+        />
 
         <DownloadOptionsCard
           v-if="selectedChat"
