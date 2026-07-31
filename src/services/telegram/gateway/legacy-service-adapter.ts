@@ -5,6 +5,8 @@ import type {
   ChatValidationResult,
   ConnectionState,
   DeletedMessage,
+  OwnMessageSearchOptions,
+  OwnMessageSearchPage,
   PeerRef,
   ScheduledMessage,
   UserInfo,
@@ -29,6 +31,7 @@ import type {
   TelegramSendFileOptions,
   TelegramSendGateway,
   TelegramSessionSnapshot,
+  TelegramTraceGateway,
   TelegramUserAccountSessionInput,
   TelegramUserAuthOptions,
 } from './contracts'
@@ -75,6 +78,12 @@ export interface LegacyTelegramServiceAdapterTarget {
   forwardMessage(fromChatId: bigint, toChatId: bigint, messageId: number): Promise<void>
   getScheduledMessages(chatId: bigint): Promise<ScheduledMessage[]>
   deleteScheduledMessages(chatId: bigint, messageIds: number[]): Promise<void>
+  searchOwnMessages(
+    chatId: TelegramPeerRef,
+    options?: OwnMessageSearchOptions,
+  ): Promise<OwnMessageSearchPage>
+  deleteMessages(chatId: TelegramPeerRef, messageIds: number[]): Promise<void>
+  getExistingMessageIds(chatId: TelegramPeerRef, messageIds: number[]): Promise<number[]>
   iterChatMessages(chatId: TelegramPeerRef, options?: ChatHistoryOptions): TelegramChatMessageStream
   getChatMessageCount(chatId: TelegramPeerRef | PeerRef): Promise<number>
   getFullMe(): Promise<FullUserInfo | null>
@@ -160,6 +169,13 @@ export function createTelegramGateway(
       service.deleteScheduledMessages(chatId, messageIds),
   }
 
+  const trace: TelegramTraceGateway = {
+    searchOwnMessages: (chatId, options) => service.searchOwnMessages(chatId, options),
+    deleteMessages: (chatId, messageIds) => service.deleteMessages(chatId, messageIds),
+    getExistingMessageIds: (chatId, messageIds) =>
+      service.getExistingMessageIds(chatId, messageIds),
+  }
+
   const account: TelegramAccountGateway = {
     getFullMe: () => service.getFullMe(),
     downloadMyProfilePhoto: () => service.downloadMyProfilePhoto(),
@@ -179,6 +195,7 @@ export function createTelegramGateway(
     media: Object.freeze(media),
     send: Object.freeze(send),
     scheduled: Object.freeze(scheduled),
+    trace: Object.freeze(trace),
     account: Object.freeze(account),
     history: Object.freeze(history),
   })

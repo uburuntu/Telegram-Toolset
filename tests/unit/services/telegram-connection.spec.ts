@@ -1,4 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
+import { Api } from 'telegram'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { telegramService } from '@/services/telegram/client'
 import { useAccountsStore } from '@/stores'
@@ -16,6 +17,22 @@ describe('telegramService connection state', () => {
   const originalAccountTransitionGeneration = service._accountTransitionGeneration
   const originalAccountTransitionPromise = service._accountTransitionPromise
   const originalCompleteAccountTransition = service._completeAccountTransition
+
+  function installActiveUserAccount(): void {
+    const accountsStore = useAccountsStore()
+    accountsStore.accounts = [
+      {
+        id: 'account-a',
+        type: 'user',
+        label: 'Account A',
+        sessionString: 'session-a',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastUsedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ]
+    accountsStore.activeAccountId = 'account-a'
+    service._activeSessionAccountId = 'account-a'
+  }
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -253,5 +270,88 @@ describe('telegramService connection state', () => {
     initSpy.mockRestore()
     connectSpy.mockRestore()
     stateSpy.mockRestore()
+  })
+
+  it('searches only the active user messages with a resumable server-side cursor', async () => {
+    installActiveUserAccount()
+    const entity = { id: BigInt(99) }
+    const inputPeer = new Api.InputPeerChat({ chatId: BigInt(99) as unknown as Api.long })
+    const self = new Api.InputPeerSelf()
+    const first = new Api.Message({
+      id: 20,
+      peerId: new Api.PeerChat({ chatId: BigInt(99) as unknown as Api.long }),
+      date: 1_704_110_400,
+      message: 'mine',
+    })
+    const second = new Api.Message({
+      id: 10,
+      peerId: new Api.PeerChat({ chatId: BigInt(99) as unknown as Api.long }),
+      date: 1_672_531_200,
+      message: 'older',
+    })
+    const invoke = vi.fn().mockResolvedValue(
+      new Api.messages.MessagesSlice({
+        count: 5,
+        messages: [first, second],
+        chats: [],
+        users: [],
+      }),
+    )
+    service.client = {
+      connected: true,
+      getEntity: vi.fn().mockResolvedValue(entity),
+      getInputEntity: vi.fn(async (value: unknown) => (value === 'me' ? self : inputPeer)),
+      invoke,
+    }
+
+    const page = await telegramService.searchOwnMessages(BigInt(99), {
+      offsetId: 30,
+      minDate: new Date('2023-01-01T00:00:00.000Z'),
+      maxDate: new Date('2024-12-31T23:59:59.999Z'),
+      limit: 2,
+    })
+
+    expect(page).toEqual({
+      messages: [
+        { id: 20, date: new Date('2024-01-01T12:00:00.000Z') },
+        { id: 10, date: new Date('2023-01-01T00:00:00.000Z') },
+      ],
+      total: 5,
+      nextOffsetId: 10,
+    })
+    const request = invoke.mock.calls[0]?.[0]
+    expect(request).toBeInstanceOf(Api.messages.Search)
+    expect(request).toMatchObject({
+      peer: inputPeer,
+      fromId: self,
+      offsetId: 30,
+      limit: 2,
+    })
+  })
+
+  it('revokes bounded message batches and can reconcile the remaining IDs', async () => {
+    installActiveUserAccount()
+    const entity = { id: BigInt(99) }
+    const rawMessage = new Api.Message({
+      id: 2,
+      peerId: new Api.PeerChat({ chatId: BigInt(99) as unknown as Api.long }),
+      date: 1_704_110_400,
+      message: 'still here',
+    })
+    const deleteMessages = vi.fn().mockResolvedValue([])
+    const getMessages = vi.fn().mockResolvedValue([undefined, rawMessage])
+    service.client = {
+      connected: true,
+      getEntity: vi.fn().mockResolvedValue(entity),
+      deleteMessages,
+      getMessages,
+    }
+
+    await telegramService.deleteMessages(BigInt(99), [1, 2])
+    const existing = await telegramService.getExistingMessageIds(BigInt(99), [1, 2])
+
+    expect(deleteMessages).toHaveBeenCalledWith(entity, [1, 2], { revoke: true })
+    expect(getMessages).toHaveBeenCalledWith(entity, { ids: [1, 2] })
+    expect(existing).toEqual([2])
   })
 })

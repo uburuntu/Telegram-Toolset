@@ -4,6 +4,8 @@
  * Kept separate from the coordinator class so the class stays pure and unit-testable without pulling
  * in the Telegram singleton or the resend service.
  */
+
+import { cancelMutationJobsAndWait } from '@/services/jobs/job-runner'
 import { resendService } from '@/services/resend/resend-service'
 import { telegramService } from '@/services/telegram/client'
 import type { SessionBackend } from './session-coordinator'
@@ -13,7 +15,7 @@ const defaultBackend: SessionBackend = {
   beginTransition: () => telegramService.beginActiveAccountTransition(),
   completeTransition: (token) => telegramService.completeActiveAccountTransition(token),
   cancelPendingMutations: async () => {
-    await resendService.cancelAndWait()
+    await Promise.all([resendService.cancelAndWait(), cancelMutationJobsAndWait()])
   },
   activateUserSession: (request) =>
     telegramService.useUserAccountSession({

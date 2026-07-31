@@ -47,6 +47,27 @@ export interface UserInfo {
   phone?: string
 }
 
+/** Minimal message metadata returned while locating the active user's own chat history. */
+export interface OwnMessageRef {
+  id: number
+  date: Date
+}
+
+/** Cursor and server-side filters for one page of the active user's messages in a chat. */
+export interface OwnMessageSearchOptions {
+  offsetId?: number
+  minDate?: Date
+  maxDate?: Date
+  limit?: number
+}
+
+/** One resumable page from messages.search with from_id set to the active user. */
+export interface OwnMessageSearchPage {
+  messages: OwnMessageRef[]
+  total: number
+  nextOffsetId?: number
+}
+
 export type MediaType =
   | 'photo'
   | 'video'

@@ -10,7 +10,19 @@
 import { useJobsStore } from '@/stores/jobs'
 import type { JobContext, JobKind, JobProgress } from '@/types'
 
-const controllers = new Map<string, AbortController>()
+interface RunningJob {
+  controller: AbortController
+  kind: JobKind
+  settled: Promise<void>
+  resolveSettled: () => void
+}
+
+const runningJobs = new Map<string, RunningJob>()
+const MUTATION_JOB_KINDS: ReadonlySet<JobKind> = new Set([
+  'resend',
+  'scheduled-delete',
+  'trace-delete',
+])
 
 export interface RunJobParams<T> {
   context: JobContext
@@ -35,8 +47,12 @@ function isAbort(signal: AbortSignal, error: unknown): boolean {
 export async function runJob<T>(params: RunJobParams<T>): Promise<T> {
   const { context, controller, kind, title, execute } = params
   const store = useJobsStore()
+  let resolveSettled!: () => void
+  const settled = new Promise<void>((resolve) => {
+    resolveSettled = resolve
+  })
 
-  controllers.set(context.operationId, controller)
+  runningJobs.set(context.operationId, { controller, kind, settled, resolveSettled })
   store.registerFromContext(context, { kind, title })
 
   try {
@@ -59,16 +75,27 @@ export async function runJob<T>(params: RunJobParams<T>): Promise<T> {
     }
     throw error
   } finally {
-    controllers.delete(context.operationId)
+    const running = runningJobs.get(context.operationId)
+    runningJobs.delete(context.operationId)
+    running?.resolveSettled()
   }
 }
 
 /** Abort a running job by operation id. No-op if the job already settled or is unknown. */
 export function cancelJob(operationId: string): void {
-  controllers.get(operationId)?.abort()
+  runningJobs.get(operationId)?.controller.abort()
+}
+
+/** Abort account-affine Telegram mutations and resolve once their current work has settled. */
+export async function cancelMutationJobsAndWait(): Promise<void> {
+  const mutations = [...runningJobs.values()].filter((job) => MUTATION_JOB_KINDS.has(job.kind))
+  for (const job of mutations) {
+    job.controller.abort()
+  }
+  await Promise.allSettled(mutations.map((job) => job.settled))
 }
 
 /** True while the runner still owns a live controller for this job. */
 export function isJobRunning(operationId: string): boolean {
-  return controllers.has(operationId)
+  return runningJobs.has(operationId)
 }
