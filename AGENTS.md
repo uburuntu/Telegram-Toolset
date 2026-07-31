@@ -286,6 +286,15 @@ Centralized rate limiting and retry logic:
 - **FloodWait handling**: Parses `FloodWaitError` from various formats, waits accordingly
 - **Progress utilities**: `formatDuration()`, `calculateETA()` for UI feedback
 
+### Delete Trace Service (`services/delete-trace/delete-trace-service.ts`)
+
+Finds and removes messages attributed to the active user in explicitly selected chats.
+- **Server-side filtering**: Uses paginated `messages.search` requests with `from_id` set to the active user, so unrelated chat history is never downloaded. Pages and deletion batches are capped at 100 message IDs.
+- **Review before mutation**: Scanning is a separate, cancellable read phase. Partial chat scans are discarded and cannot feed deletion.
+- **Retry semantics**: Reads retry transient failures. Message deletion is idempotent by ID, so transient failures and explicit flood waits may retry; permanent 4xx RPC failures stop immediately, and a GramJS-internal exhausted retry loop is not multiplied externally.
+- **Ambiguous outcomes**: After an exhausted transport/server failure, the service reads the batch back once to confirm which IDs still exist. Unreconciled requests are reported as `delivery_uncertain`, never as success.
+- **Identity limit**: Telegram only returns messages attributed to the user principal. Anonymous admin posts and posts sent as a channel are intentionally reported as outside the scan.
+
 ### Export Service (`services/export/export-service.ts`)
 
 Two-phase export: metadata first, then media:
@@ -329,6 +338,7 @@ Lazy-loaded route components in `modules/`:
 - **ExportView**: Chat selection → export config → progress with cancel/ETA
 - **ResendView**: Backup/chat selection → full resend config → progress
 - **ScheduledView**: Scheduled message discovery, filtering, and deletion workflows
+- **DeleteTraceView**: Multi-chat, optional-date-range scan and reviewed deletion of the active user's messages
 - **LlmExportView**: Chat-history export and archive formatting for external assistants/tools
 - **AccountInfoView**: Displays current account details (user or bot)
 
