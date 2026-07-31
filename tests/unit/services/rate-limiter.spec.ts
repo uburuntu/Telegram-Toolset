@@ -128,6 +128,25 @@ describe('rate-limiter', () => {
       expect(isFloodWaitError(error)).toBe(true)
     })
 
+    it('detects HTTP 429 retry-after response shapes', () => {
+      const error = Object.assign(new Error('Too Many Requests'), {
+        status: 429,
+        parameters: { retry_after: 17 },
+      }) as FloodWaitError
+
+      expect(isFloodWaitError(error)).toBe(true)
+      expect(error.seconds).toBe(17)
+    })
+
+    it('detects premium flood waits from GramJS', () => {
+      const error = Object.assign(new Error('Premium flood wait'), {
+        errorMessage: 'FLOOD_PREMIUM_WAIT_90',
+      }) as FloodWaitError
+
+      expect(isFloodWaitError(error)).toBe(true)
+      expect(error.seconds).toBe(90)
+    })
+
     it('should detect flood in message content', () => {
       const error = new Error('Please wait 30 seconds before retrying (flood)') as FloodWaitError
 
