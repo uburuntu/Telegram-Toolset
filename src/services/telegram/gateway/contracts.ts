@@ -12,7 +12,7 @@ import type {
   ScheduledMessage,
   UserInfo,
 } from '@/types'
-import type { AccountStats, FullUserInfo } from '../client'
+import type { AccountSecurityInfo, AccountStats, FullUserInfo } from '../client'
 
 export type TelegramPeerRef = bigint | string
 
@@ -139,6 +139,7 @@ export interface TelegramAccountGateway {
   getFullMe(): Promise<FullUserInfo | null>
   downloadMyProfilePhoto(): Promise<Blob | null>
   getAccountStats(): Promise<AccountStats>
+  getAccountSecurityInfo(): Promise<AccountSecurityInfo | null>
 }
 
 export interface TelegramHistoryGateway {

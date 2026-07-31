@@ -8,7 +8,11 @@ import type {
   ScheduledMessage,
   UserInfo,
 } from '@/types'
-import type { AccountStats, FullUserInfo } from '@/services/telegram/client'
+import type {
+  AccountSecurityInfo,
+  AccountStats,
+  FullUserInfo,
+} from '@/services/telegram/client'
 import type { TelegramMessageHandle } from '@/services/telegram/gateway/contracts'
 import {
   createTelegramGateway,
@@ -84,13 +88,36 @@ const fullUserInfo: FullUserInfo = {
   isVerified: true,
   isRestricted: false,
   commonChatsCount: 7,
+  activeUsernames: ['alice_public'],
   hasProfilePhoto: true,
+  hasProfileVideo: false,
 }
 
 const accountStats: AccountStats = {
   dialogsCount: 12,
   contactsCount: 34,
   blockedCount: 2,
+}
+
+const accountSecurityInfo: AccountSecurityInfo = {
+  twoStepVerificationEnabled: true,
+  recoveryEmailConfigured: true,
+  authorizedSessionsCount: 3,
+  otherSessionsCount: 2,
+  unconfirmedSessionsCount: 0,
+  authorizationTtlDays: 180,
+  accountTtlDays: 548,
+  currentSession: {
+    appName: 'Telegram Toolset',
+    appVersion: '1.0',
+    deviceModel: 'Chrome',
+    platform: 'macOS',
+    systemVersion: '15',
+    location: 'United Kingdom, London',
+    createdAt: new Date('2026-01-01T12:00:00Z'),
+    lastActiveAt: new Date('2026-01-02T12:00:00Z'),
+    officialApp: false,
+  },
 }
 
 function deletedMessageStream(messages: DeletedMessage[] = [deletedMessage]) {
@@ -182,6 +209,7 @@ function createLegacyServiceMock(
     getFullMe: vi.fn().mockResolvedValue(fullUserInfo),
     downloadMyProfilePhoto: vi.fn().mockResolvedValue(new Blob(['photo'], { type: 'image/jpeg' })),
     getAccountStats: vi.fn().mockResolvedValue(accountStats),
+    getAccountSecurityInfo: vi.fn().mockResolvedValue(accountSecurityInfo),
     ...overrides,
   }
 }
@@ -374,6 +402,7 @@ describe('createTelegramGateway', () => {
     const existingIds = await gateway.trace.getExistingMessageIds(chatInfo.id, [chatMessage.id])
     const fullMe = await gateway.account.getFullMe()
     const stats = await gateway.account.getAccountStats()
+    const securityInfo = await gateway.account.getAccountSecurityInfo()
     const profilePhoto = await gateway.account.downloadMyProfilePhoto()
     const historyMessages: ChatMessage[] = []
 
@@ -396,6 +425,7 @@ describe('createTelegramGateway', () => {
     expect(existingIds).toEqual([chatMessage.id])
     expect(fullMe).toEqual(fullUserInfo)
     expect(stats).toEqual(accountStats)
+    expect(securityInfo).toEqual(accountSecurityInfo)
     expect(profilePhoto).toBeInstanceOf(Blob)
     expect(historyMessages).toEqual([chatMessage])
     expect(historyCount).toBe(128)
@@ -413,6 +443,7 @@ describe('createTelegramGateway', () => {
     expect(service.getExistingMessageIds).toHaveBeenCalledWith(chatInfo.id, [chatMessage.id])
     expect(service.getFullMe).toHaveBeenCalledTimes(1)
     expect(service.getAccountStats).toHaveBeenCalledTimes(1)
+    expect(service.getAccountSecurityInfo).toHaveBeenCalledTimes(1)
     expect(service.downloadMyProfilePhoto).toHaveBeenCalledTimes(1)
     expect(service.iterChatMessages).toHaveBeenCalledWith(chatInfo.peerId, { limit: 1 })
     expect(service.getChatMessageCount).toHaveBeenCalledWith(chatInfo.peerId)
@@ -436,8 +467,10 @@ describe('telegram gateway facade exports', () => {
 
     await gatewayModule.telegramDialogsGateway.getDialogs(10)
     await gatewayModule.telegramAccountGateway.getAccountStats()
+    await gatewayModule.telegramAccountGateway.getAccountSecurityInfo()
 
     expect(service.getDialogs).toHaveBeenCalledWith(10)
     expect(service.getAccountStats).toHaveBeenCalledTimes(1)
+    expect(service.getAccountSecurityInfo).toHaveBeenCalledTimes(1)
   })
 })

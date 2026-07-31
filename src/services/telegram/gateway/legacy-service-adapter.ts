@@ -11,7 +11,7 @@ import type {
   ScheduledMessage,
   UserInfo,
 } from '@/types'
-import type { AccountStats, FullUserInfo } from '../client'
+import type { AccountSecurityInfo, AccountStats, FullUserInfo } from '../client'
 import type {
   TelegramAccountGateway,
   TelegramAdminLogGateway,
@@ -89,6 +89,7 @@ export interface LegacyTelegramServiceAdapterTarget {
   getFullMe(): Promise<FullUserInfo | null>
   downloadMyProfilePhoto(): Promise<Blob | null>
   getAccountStats(): Promise<AccountStats>
+  getAccountSecurityInfo(): Promise<AccountSecurityInfo | null>
 }
 
 export function createTelegramGateway(
@@ -180,6 +181,7 @@ export function createTelegramGateway(
     getFullMe: () => service.getFullMe(),
     downloadMyProfilePhoto: () => service.downloadMyProfilePhoto(),
     getAccountStats: () => service.getAccountStats(),
+    getAccountSecurityInfo: () => service.getAccountSecurityInfo(),
   }
 
   const history: TelegramHistoryGateway = {

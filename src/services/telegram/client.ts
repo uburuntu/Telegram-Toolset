@@ -25,6 +25,7 @@ import type {
 import { FloodWaitLogger } from './flood-wait-logger'
 import { entityToPeerRef } from './peer-adapter'
 import { resolveInputPeer } from './peer-input-resolver'
+import { withRetry } from './rate-limiter'
 
 // Reconnection settings
 const RECONNECT_DELAY_MS = 2000
@@ -2023,8 +2024,22 @@ class TelegramService {
         isRestricted: !!user.restricted,
         restrictionReason: user.restrictionReason?.map((r) => r.reason).join(', ') || undefined,
         commonChatsCount: fullUser.commonChatsCount || 0,
+        activeUsernames:
+          user.usernames
+            ?.filter((item) => item.active)
+            .map((item) => item.username)
+            .filter((username) => username !== user.username) ?? [],
+        languageCode: user.langCode || undefined,
+        birthday: fullUser.birthday
+          ? {
+              day: fullUser.birthday.day,
+              month: fullUser.birthday.month,
+              year: fullUser.birthday.year,
+            }
+          : undefined,
         // Profile photo metadata
         hasProfilePhoto: !!user.photo && user.photo.className !== 'UserProfilePhotoEmpty',
+        hasProfileVideo: !!(user.photo && 'hasVideo' in user.photo && user.photo.hasVideo),
         dcId: user.photo && 'dcId' in user.photo ? user.photo.dcId : undefined,
       }
     } catch (error) {
@@ -2096,6 +2111,54 @@ class TelegramService {
       }
     }
   }
+
+  /**
+   * Return a privacy-minimized security summary for the active user account.
+   * Authorization hashes, IP addresses, password hints, and recovery-email patterns never leave
+   * this boundary.
+   */
+  async getAccountSecurityInfo(): Promise<AccountSecurityInfo | null> {
+    const client = await this.getConnectedClient()
+
+    try {
+      const [authorizations, accountTtl, password] = await Promise.all([
+        withRetry(() => client.invoke(new Api.account.GetAuthorizations())),
+        withRetry(() => client.invoke(new Api.account.GetAccountTTL())),
+        withRetry(() => client.invoke(new Api.account.GetPassword())),
+      ])
+      const current = authorizations.authorizations.find((authorization) => authorization.current)
+
+      return {
+        twoStepVerificationEnabled: !!password.hasPassword,
+        recoveryEmailConfigured: !!password.hasRecovery,
+        authorizedSessionsCount: authorizations.authorizations.length,
+        otherSessionsCount: authorizations.authorizations.filter(
+          (authorization) => !authorization.current,
+        ).length,
+        unconfirmedSessionsCount: authorizations.authorizations.filter(
+          (authorization) => authorization.unconfirmed,
+        ).length,
+        authorizationTtlDays: authorizations.authorizationTtlDays,
+        accountTtlDays: accountTtl.days,
+        currentSession: current
+          ? {
+              appName: current.appName,
+              appVersion: current.appVersion,
+              deviceModel: current.deviceModel,
+              platform: current.platform,
+              systemVersion: current.systemVersion,
+              location: [current.country, current.region].filter(Boolean).join(', '),
+              createdAt: new Date(current.dateCreated * 1000),
+              lastActiveAt: new Date(current.dateActive * 1000),
+              officialApp: !!current.officialApp,
+            }
+          : undefined,
+      }
+    } catch (error) {
+      console.error('Failed to get account security info:', error)
+      return null
+    }
+  }
 }
 
 /**
@@ -2113,7 +2176,15 @@ export interface FullUserInfo {
   isRestricted: boolean
   restrictionReason?: string
   commonChatsCount: number
+  activeUsernames: string[]
+  languageCode?: string
+  birthday?: {
+    day: number
+    month: number
+    year?: number
+  }
   hasProfilePhoto: boolean
+  hasProfileVideo: boolean
   dcId?: number
 }
 
@@ -2124,6 +2195,29 @@ export interface AccountStats {
   dialogsCount: number
   contactsCount: number
   blockedCount: number
+}
+
+export interface AccountSessionInfo {
+  appName: string
+  appVersion: string
+  deviceModel: string
+  platform: string
+  systemVersion: string
+  location: string
+  createdAt: Date
+  lastActiveAt: Date
+  officialApp: boolean
+}
+
+export interface AccountSecurityInfo {
+  twoStepVerificationEnabled: boolean
+  recoveryEmailConfigured: boolean
+  authorizedSessionsCount: number
+  otherSessionsCount: number
+  unconfirmedSessionsCount: number
+  authorizationTtlDays: number
+  accountTtlDays: number
+  currentSession?: AccountSessionInfo
 }
 
 // Singleton instance (with Playwright E2E hook)
