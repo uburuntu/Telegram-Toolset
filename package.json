@@ -52,7 +52,7 @@
     "autoprefixer": "10.4.23",
     "fake-indexeddb": "6.2.5",
     "jsdom": "27.3.0",
-    "postcss": "8.5.19",
+    "postcss": "8.5.26",
     "surge": "0.31.1",
     "tailwindcss": "4.1.18",
     "typescript": "5.9.3",
