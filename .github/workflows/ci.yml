@@ -372,4 +372,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         if: steps.freshness.outputs.is_latest == 'true'
-        uses: actions/deploy-pages@v5.0.0
+        uses: actions/deploy-pages@v5.0.1
